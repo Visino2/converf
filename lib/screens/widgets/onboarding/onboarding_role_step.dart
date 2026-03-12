@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class OnboardingRoleStep extends StatefulWidget {
   final Function(String) onRoleSelected;
@@ -59,6 +60,22 @@ class _OnboardingRoleStepState extends State<OnboardingRoleStep>
                 scale: scale,
                 child: Image.asset(imageAsset, fit: BoxFit.cover),
               ),
+              // Dark gradient overlay for better readability
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.8),
+                        Colors.black.withOpacity(0.4),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
               child!,
             ],
           ),
@@ -70,7 +87,22 @@ class _OnboardingRoleStepState extends State<OnboardingRoleStep>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Image.asset(iconAsset, width: 28, height: 28),
+            iconAsset.endsWith('.svg')
+                ? SvgPicture.asset(
+                    iconAsset,
+                    width: 28,
+                    height: 28,
+                    colorFilter: const ColorFilter.mode(
+                      Color(0xFFF25C19),
+                      BlendMode.srcIn,
+                    ),
+                  )
+                : Image.asset(
+                    iconAsset,
+                    width: 28,
+                    height: 28,
+                    color: const Color(0xFFF25C19),
+                  ),
             const SizedBox(height: 12),
             Text(
               title,
@@ -158,7 +190,7 @@ class _OnboardingRoleStepState extends State<OnboardingRoleStep>
                       child: _buildRoleCard(
                         title:
                             "I'm a project owner,\nlooking to manage\nconstruction",
-                        iconAsset: 'assets/images/tractor.png',
+                        iconAsset: 'assets/images/tractor.svg',
                         imageAsset: 'assets/images/frame-1.png',
                         onTap: () => widget.onRoleSelected('project_owner'),
                       ),
@@ -171,7 +203,7 @@ class _OnboardingRoleStepState extends State<OnboardingRoleStep>
                       child: _buildRoleCard(
                         title:
                             "I'm a contractor,\nlooking to execute\nprojects",
-                        iconAsset: 'assets/images/vector.png',
+                        iconAsset: 'assets/images/vector.svg',
                         imageAsset: 'assets/images/frame-2.png',
                         onTap: () => widget.onRoleSelected('contractor'),
                       ),

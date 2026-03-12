@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -30,8 +31,7 @@ class _SplashScreenState extends State<SplashScreen> {
       body: Center(
         child: Hero(
           tag: 'logo',
-          child: Image.asset(
-            'assets/images/logo.png',
+          child: SvgPicture.asset('assets/images/logo.svg',
             width: 100,
             errorBuilder: (context, error, stackTrace) => const Icon(
               Icons.square_rounded,

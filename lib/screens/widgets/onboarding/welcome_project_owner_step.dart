@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:math' as math;
+import 'package:flutter_svg/flutter_svg.dart';
 
 class OnboardingWelcomeProjectOwnerStep extends StatefulWidget {
   const OnboardingWelcomeProjectOwnerStep({super.key});
@@ -17,7 +18,7 @@ class _OnboardingWelcomeProjectOwnerStepState
     super.initState();
     Future.delayed(const Duration(milliseconds: 1000), () {
       if (mounted) {
-        context.go('/dashboard');
+        context.go('/owner-dashboard');
       }
     });
   }
@@ -30,11 +31,13 @@ class _OnboardingWelcomeProjectOwnerStepState
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
-            'assets/images/frame.png',
-            fit: BoxFit.cover,
-            color: Colors.black.withOpacity(0.4),
-            colorBlendMode: BlendMode.darken,
+          Positioned.fill(
+            child: Image.asset('assets/images/frame-1.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              color: Colors.black.withOpacity(0.4),
+              colorBlendMode: BlendMode.darken,
+            ),
           ),
           // Top orange gradient overlay for Project Owner
           Positioned(
@@ -84,16 +87,30 @@ class _OnboardingWelcomeProjectOwnerStepState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Transform.rotate(
-                    angle: -math.pi / 2,
-                    child: const CircularProgressIndicator(
-                      value: 1.0,
-                      strokeWidth: 4.0,
-                      color: Color(0xFFF25C19),
-                      backgroundColor: Colors.transparent,
-                    ),
+                  width: 48,
+                  height: 48,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Transform.rotate(
+                        angle: -math.pi / 2,
+                        child: const CircularProgressIndicator(
+                          value: 0.25,
+                          strokeWidth: 4.0,
+                          color: Color(0xFFF25C19),
+                          backgroundColor: Colors.white24,
+                        ),
+                      ),
+                      SvgPicture.asset(
+                        'assets/images/check.svg',
+                        width: 18,
+                        height: 18,
+                        colorFilter: const ColorFilter.mode(
+                          Color(0xFFF25C19),
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 16),

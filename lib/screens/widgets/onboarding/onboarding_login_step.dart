@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+
 class OnboardingLoginStep extends StatefulWidget {
   final VoidCallback onSignup;
 
@@ -236,8 +237,7 @@ class _OnboardingLoginStepState extends State<OnboardingLoginStep> {
                         const SizedBox(height: 24),
                         _buildSocialButton(
                           title: 'Continue with Google',
-                          iconWidget: Image.asset(
-                            'assets/images/Google Icon.png',
+                          iconWidget: Image.asset('assets/images/Google Icon.png',
                             width: 24,
                             height: 24,
                           ),

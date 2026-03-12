@@ -22,7 +22,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   OnboardingStep _step = OnboardingStep.splash;
   String? _selectedRole;
   String?
-  _selectedCountry; // Handled internally now by signup, but leaving in state case needed
+  _selectedCountry; 
 
   @override
   void initState() {

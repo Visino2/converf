@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class OnboardingSplashStep extends StatelessWidget {
   const OnboardingSplashStep({super.key});
@@ -14,7 +15,7 @@ class OnboardingSplashStep extends StatelessWidget {
           children: [
             Hero(
               tag: 'logo',
-              child: Image.asset('assets/images/logo.png', height: 48),
+              child: SvgPicture.asset('assets/images/logo.svg', height: 48),
             ),
             const SizedBox(width: 16),
             const Text(

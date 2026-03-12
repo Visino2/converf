@@ -3,7 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../screens/splash_screen.dart';
 import '../screens/onboarding_screen.dart';
-import '../screens/dashboard_main_screen.dart';
+import '../screens/product_owner/product_owner_dashboard_screen.dart';
+import '../screens/contractor/contractor_dashboard_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -15,9 +16,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(
-        path: '/dashboard',
-        name: 'dashboard',
-        builder: (context, state) => const DashboardMainScreen(),
+        path: '/owner-dashboard',
+        name: 'owner-dashboard',
+        builder: (context, state) => const ProductOwnerDashboardScreen(),
+      ),
+      GoRoute(
+        path: '/contractor-dashboard',
+        name: 'contractor-dashboard',
+        builder: (context, state) => const ContractorDashboardScreen(),
       ),
       GoRoute(
         path: '/onboarding',
