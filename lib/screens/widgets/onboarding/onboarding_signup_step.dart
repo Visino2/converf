@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../features/auth/providers/auth_provider.dart';
+import '../../../features/auth/models/product_owner_register_request.dart';
 
-class OnboardingSignupStep extends StatefulWidget {
+class OnboardingSignupStep extends ConsumerStatefulWidget {
   final VoidCallback onSignupSubmit;
   final VoidCallback onBack;
   final VoidCallback onLogin;
@@ -14,12 +17,92 @@ class OnboardingSignupStep extends StatefulWidget {
   });
 
   @override
-  State<OnboardingSignupStep> createState() => _OnboardingSignupStepState();
+  ConsumerState<OnboardingSignupStep> createState() => _OnboardingSignupStepState();
 }
 
-class _OnboardingSignupStepState extends State<OnboardingSignupStep> {
+class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  bool _isEmailValid = false;
+  bool _isPasswordValid = false;
+
   String? _selectedCountry;
   bool _agreedToTerms = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  String? _emailBackendError;
+
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+  Future<void> _handleSignup() async {
+    setState(() => _emailBackendError = null);
+    
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (!_agreedToTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please agree to the Terms of Service')),
+      );
+      return;
+    }
+
+    final request = ProductOwnerRegisterRequest(
+      firstName: _firstNameController.text.trim(),
+      lastName: _lastNameController.text.trim(),
+      email: _emailController.text.trim(),
+      country: _selectedCountry ?? '',
+      password: _passwordController.text,
+      passwordConfirmation: _confirmPasswordController.text,
+    );
+
+    await ref.read(authProvider.notifier).registerOwner(request);
+
+    if (mounted) {
+      final authState = ref.read(authProvider);
+      if (authState.hasError) {
+        String error = authState.error.toString();
+        if (error.contains('Exception:')) {
+          error = error.replaceAll('Exception: ', '');
+        }
+        
+        // Specifically check for "already registered" or "email taken"
+        if (error.toLowerCase().contains('email') && (error.toLowerCase().contains('taken') || error.toLowerCase().contains('registered') || error.toLowerCase().contains('exists'))) {
+           setState(() => _emailBackendError = 'This email is already registered');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(error),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else if (authState.value?.status == false) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authState.value?.message ?? 'Registration failed'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      // Success is handled by AppRouter redirection
+    }
+  }
 
   void _showTermsModal() {
     showModalBottomSheet(
@@ -50,10 +133,14 @@ class _OnboardingSignupStepState extends State<OnboardingSignupStep> {
   Widget _buildTextField(
     String label,
     String hint, {
+    required TextEditingController controller,
     bool isPassword = false,
-    Widget? trailing,
+    bool obscureText = false,
+    VoidCallback? onToggleVisibility,
     bool readOnly = false,
     VoidCallback? onTap,
+    String? Function(String?)? validator,
+    bool isValid = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,29 +155,67 @@ class _OnboardingSignupStepState extends State<OnboardingSignupStep> {
         ),
         const SizedBox(height: 8),
         TextFormField(
-          obscureText: isPassword,
+          controller: controller,
+          obscureText: obscureText,
           readOnly: readOnly,
           onTap: onTap,
+          validator: validator,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          onChanged: (value) {
+            if (label.contains('Email') && _emailBackendError != null) {
+              setState(() => _emailBackendError = null);
+            }
+          },
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-            suffixIcon: trailing,
+            errorText: label.contains('Email') ? _emailBackendError : null,
+            suffixIcon: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (isValid && (label.contains('Email') ? _emailBackendError == null : true))
+                  const Padding(
+                    padding: EdgeInsets.only(right: 8.0),
+                    child: Icon(Icons.check_circle, color: Colors.green, size: 20),
+                  ),
+                if (isPassword)
+                  IconButton(
+                    icon: Icon(
+                      obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      color: Colors.grey,
+                      size: 20,
+                    ),
+                    onPressed: onToggleVisibility,
+                  ),
+              ],
+            ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 12,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: BorderSide(color: Colors.grey.shade200),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: BorderSide(color: Colors.grey.shade200),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF276572)),
+              borderSide: const BorderSide(color: Color(0xFF276572), width: 1.5),
             ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red, width: 1),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red, width: 1.5),
+            ),
+            fillColor: Colors.grey.shade50,
+            filled: true,
           ),
         ),
       ],
@@ -148,7 +273,7 @@ class _OnboardingSignupStepState extends State<OnboardingSignupStep> {
               Expanded(
                 child: ListView.separated(
                   itemCount: countries.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (_, index) =>
                       const Divider(height: 1, indent: 24, endIndent: 24),
                   itemBuilder: (context, index) {
                     final country = countries[index];
@@ -164,7 +289,9 @@ class _OnboardingSignupStepState extends State<OnboardingSignupStep> {
                         ),
                       ),
                       onTap: () {
-                        setState(() => _selectedCountry = country);
+                        setState(() {
+                          _selectedCountry = country;
+                        });
                         Navigator.pop(context);
                       },
                     );
@@ -180,6 +307,8 @@ class _OnboardingSignupStepState extends State<OnboardingSignupStep> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+
     return Container(
       key: const ValueKey('signup'),
       decoration: const BoxDecoration(
@@ -193,22 +322,26 @@ class _OnboardingSignupStepState extends State<OnboardingSignupStep> {
       child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Form(
+          key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Align(
-                alignment: Alignment.topRight,
-                child: TextButton(
-                  onPressed: widget.onLogin,
-                  child: const Text(
-                    'Login',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: widget.onLogin,
+                    child: const Text(
+                      'Login',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
               SizedBox(height: MediaQuery.of(context).size.height * 0.12),
               const Text(
@@ -230,48 +363,88 @@ class _OnboardingSignupStepState extends State<OnboardingSignupStep> {
               Row(
                 children: [
                   Expanded(
-                    child: _buildTextField('First Name', 'you@example.com'),
+                    child: _buildTextField(
+                      'First Name',
+                      'David',
+                      controller: _firstNameController,
+                      validator: (v) {
+                        if (v == null || v.length < 2) return 'Enter first name';
+                        return null;
+                      },
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: _buildTextField('Last Name', 'you@example.com'),
+                    child: _buildTextField(
+                      'Last Name',
+                      'Fayemi',
+                      controller: _lastNameController,
+                      validator: (v) {
+                        if (v == null || v.length < 2) return 'Enter last name';
+                        return null;
+                      },
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              _buildTextField('Email Address', 'you@example.com'),
+              _buildTextField(
+                'Email Address',
+                'you@example.com',
+                controller: _emailController,
+                isValid: _isEmailValid,
+                validator: (v) {
+                  if (v == null || !v.contains('@') || !v.contains('.')) return 'Enter valid email';
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!_isEmailValid) setState(() => _isEmailValid = true);
+                  });
+                  return null;
+                },
+              ),
               const SizedBox(height: 12),
               _buildTextField(
                 'Country',
                 _selectedCountry ?? 'Select Country',
+                controller: TextEditingController(text: _selectedCountry ?? ''),
                 readOnly: true,
                 onTap: _showCountryPicker,
-                trailing: const Icon(
-                  Icons.keyboard_arrow_down,
-                  color: Colors.grey,
-                ),
+                validator: (v) {
+                  if (_selectedCountry == null) return 'Select country';
+                  return null;
+                },
+                onToggleVisibility: null,
+                isPassword: false,
               ),
               const SizedBox(height: 12),
               _buildTextField(
                 'Password',
                 'Password',
+                controller: _passwordController,
                 isPassword: true,
-                trailing: const Icon(
-                  Icons.visibility_off_outlined,
-                  color: Colors.grey,
-                  size: 20,
-                ),
+                obscureText: _obscurePassword,
+                onToggleVisibility: () => setState(() => _obscurePassword = !_obscurePassword),
+                isValid: _isPasswordValid,
+                validator: (v) {
+                  if (v == null || v.length < 8) return 'Min 8 characters';
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!_isPasswordValid) setState(() => _isPasswordValid = true);
+                  });
+                  return null;
+                },
               ),
               const SizedBox(height: 12),
               _buildTextField(
                 'Confirm Password',
                 'Password',
+                controller: _confirmPasswordController,
                 isPassword: true,
-                trailing: const Icon(
-                  Icons.visibility_off_outlined,
-                  color: Colors.grey,
-                  size: 20,
-                ),
+                obscureText: _obscureConfirmPassword,
+                onToggleVisibility: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                validator: (v) {
+                  if (v != _passwordController.text) return 'Passwords do not match';
+                  if (v == null || v.isEmpty) return 'Confirm password';
+                  return null;
+                },
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -286,11 +459,20 @@ class _OnboardingSignupStepState extends State<OnboardingSignupStep> {
                     ),
                     elevation: 0,
                   ),
-                  onPressed: widget.onSignupSubmit,
-                  child: const Text(
-                    'Signup',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
+                  onPressed: authState.isLoading ? null : _handleSignup,
+                  child: authState.isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Signup',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -324,7 +506,7 @@ class _OnboardingSignupStepState extends State<OnboardingSignupStep> {
                         children: [
                           const TextSpan(
                             text:
-                                'Yes, I understand and agree to the Converf\\n',
+                                'Yes, I understand and agree to the Converf\n',
                           ),
                           TextSpan(
                             text: 'Terms of Service',
@@ -355,6 +537,7 @@ class _OnboardingSignupStepState extends State<OnboardingSignupStep> {
               const SizedBox(height: 32),
             ],
           ),
+        ),
         ),
       ),
     );

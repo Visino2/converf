@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:converf/features/projects/providers/project_providers.dart';
+import 'package:converf/core/utils/project_utils.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'submit_proposal/submit_proposal_modal.dart';
 
-class MarketplaceProjectDetailsScreen extends StatelessWidget {
-  const MarketplaceProjectDetailsScreen({super.key});
+class MarketplaceProjectDetailsScreen extends ConsumerWidget {
+  final String projectId;
+  
+  const MarketplaceProjectDetailsScreen({super.key, required this.projectId});
 
 
   void _showOverview(BuildContext context) {
@@ -55,7 +62,7 @@ class MarketplaceProjectDetailsScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -66,7 +73,7 @@ class MarketplaceProjectDetailsScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
-          'Lekki Residential Complex',
+          'Project Details',
           style: TextStyle(
             color: Color(0xFF111827),
             fontSize: 16,
@@ -81,13 +88,33 @@ class MarketplaceProjectDetailsScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-             
-              Padding(
+      body: ref.watch(projectDetailsProvider(projectId)).when(
+        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+        error: (error, _) => Center(child: Text('Error: $error', style: const TextStyle(color: Colors.red))),
+        data: (projectData) {
+          final project = projectData.data;
+
+          if (project == null) {
+            return const Scaffold(
+              body: Center(child: Text('Project not found')),
+            );
+          }
+
+          return SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Text(
+                      project.title,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+                    ),
+                  ),
+
+                  Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
@@ -100,18 +127,21 @@ class MarketplaceProjectDetailsScreen extends StatelessWidget {
                           Color(0xFF6B7280), BlendMode.srcIn),
                     ),
                     const SizedBox(width: 4),
-                    const Text(
-                      'Lekki Phase 1, Lagos',
-                      style:
-                          TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                    Expanded(
+                      child: Text(
+                        project.formattedLocation,
+                        style:
+                            const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                      ),
                     ),
                     const Spacer(),
-                    _badge('Urgent', const Color(0xFFFEF3C7),
-                        const Color(0xFFB45309)),
+                    _badge(project.status.label, const Color(0xFFFEF3C7),
+                        project.status.color),
                     const SizedBox(width: 8),
-                    _badge('RESIDENTIAL', const Color(0xFFF0F2F5),
-                        const Color(0xFF374151),
-                        letterSpacing: 0.5),
+                    if (project.constructionType.isNotEmpty)
+                      _badge(project.constructionType.toUpperCase(), const Color(0xFFF0F2F5),
+                          const Color(0xFF374151),
+                          letterSpacing: 0.5),
                   ],
                 ),
               ),
@@ -171,13 +201,13 @@ class MarketplaceProjectDetailsScreen extends StatelessWidget {
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text('Bid Deadline',
+                      children: [
+                        const Text('Bid Deadline',
                             style: TextStyle(
                                 fontSize: 12, color: Color(0xFF6B7280))),
-                        SizedBox(height: 4),
-                        Text('12d : 04h : 22m',
-                            style: TextStyle(
+                        const SizedBox(height: 4),
+                        Text(project.formattedBiddingDeadline ?? 'No deadline',
+                            style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF111827))),
@@ -190,7 +220,7 @@ class MarketplaceProjectDetailsScreen extends StatelessWidget {
                           context: context,
                           isScrollControlled: true,
                           backgroundColor: Colors.transparent,
-                          builder: (context) => const SubmitProposalModal(),
+                          builder: (context) => SubmitProposalModal(projectId: projectId),
                         );
                       },
                       style: ElevatedButton.styleFrom(
@@ -238,11 +268,11 @@ class MarketplaceProjectDetailsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
-                  'Complete renovation of 40-room luxury hotel including structural reinforcement and interior remodeling.',
-                  style: TextStyle(
+                  project.description.isNotEmpty ? project.description : 'No description provided.',
+                  style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFF4B5563),
                       height: 1.6),
@@ -258,7 +288,7 @@ class MarketplaceProjectDetailsScreen extends StatelessWidget {
                     _detailRow(
                       icon: 'assets/images/check-circle.svg',
                       label: 'PROJECT TYPE',
-                      value: 'Commercial',
+                      value: project.constructionType.toUpperCase(),
                       color: const Color(0xFF059669),
                     ),
                     const SizedBox(height: 16),
@@ -269,15 +299,15 @@ class MarketplaceProjectDetailsScreen extends StatelessWidget {
                           child: _detailItem(
                             'assets/images/bill-list.svg',
                             'ESTIMATED BUDGET',
-                            '₦45,000,000',
+                            project.formattedBudget,
                             const Color(0xFF276572),
                           ),
                         ),
                         Expanded(
                           child: _detailItem(
                             'assets/images/Calendar.svg',
-                            'EXPECTED START',
-                            'March 2026',
+                            'TIMELINE',
+                            project.formattedDates,
                             const Color(0xFFD97706),
                           ),
                         ),
@@ -290,8 +320,8 @@ class MarketplaceProjectDetailsScreen extends StatelessWidget {
                         Expanded(
                           child: _detailItem(
                             'assets/images/clock-circle.svg',
-                            'DURATION',
-                            '6 Months',
+                            'STATUS',
+                            project.status.label,
                             const Color(0xFF6B7280),
                           ),
                         ),
@@ -299,7 +329,7 @@ class MarketplaceProjectDetailsScreen extends StatelessWidget {
                           child: _detailItem(
                             'assets/images/map-1.svg',
                             'EXACT LOCATION',
-                            'Lekki, Lagos',
+                            project.formattedLocation,
                             const Color(0xFFF5B546),
                           ),
                         ),
@@ -366,7 +396,8 @@ class MarketplaceProjectDetailsScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
+      );
+      }),
     );
   }
 

@@ -3,51 +3,43 @@ import 'package:flutter/material.dart';
 import 'project_card.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class ProjectsScreen extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../../features/projects/providers/project_providers.dart';
+import '../../../../../features/projects/models/project.dart';
+
+class ProjectsScreen extends ConsumerStatefulWidget {
   const ProjectsScreen({super.key});
 
   @override
-  State<ProjectsScreen> createState() => _ProjectsScreenState();
+  ConsumerState<ProjectsScreen> createState() => _ProjectsScreenState();
 }
 
-class _ProjectsScreenState extends State<ProjectsScreen> {
+class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
   bool _showDropdownFilters = true;
   String _selectedStatus = 'All';
 
-  final List<Map<String, dynamic>> _allProjects = [
-    {
-      'title': 'Lekki Residential Complex',
-      'location': 'Lekki Phase 1, Lagos',
-      'status': 'AT RISK',
-      'statusColor': const Color(0xFFDC6803),
-      'budget': '₦45,000,000',
-      'days': '78',
-      'teamSize': '12',
-      'progress': 0.65,
-      'hasAlert': false,
-    },
-    {
-      'title': 'Lekki Residential Complex',
-      'location': 'Lekki Phase 1, Lagos',
-      'status': 'DELAYED',
-      'statusColor': const Color(0xFFD92D20),
-      'budget': '₦45,000,000',
-      'days': '78',
-      'teamSize': '12',
-      'progress': 0.65,
-      'hasAlert': true,
-    },
-  ];
-
-  List<Map<String, dynamic>> get _filteredProjects {
-    if (_selectedStatus == 'All') {
-      return _allProjects;
+  List<Project> _filterProjects(List<Project> projects) {
+    if (_selectedStatus == 'All' || _selectedStatus == 'All Status') {
+      return projects;
     }
-    return _allProjects.where((p) => p['status'] == _selectedStatus).toList();
+    
+    // Convert dropdown selection to enum for filtering
+    ProjectStatus? filterStatus;
+    switch (_selectedStatus) {
+      case 'AT RISK': filterStatus = ProjectStatus.atRisk; break;
+      case 'DELAYED': filterStatus = ProjectStatus.delayed; break;
+      case 'ON TRACK': filterStatus = ProjectStatus.onTrack; break;
+      case 'COMPLETED': filterStatus = ProjectStatus.completed; break;
+    }
+    
+    if (filterStatus == null) return projects;
+    return projects.where((p) => p.status == filterStatus).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final projectsAsync = ref.watch(projectsListProvider(1));
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -82,22 +74,34 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             _showDropdownFilters ? _buildDropdownFilters() : _buildChipFilters(),
             const SizedBox(height: 24),
             Expanded(
-              child: ListView.separated(
-                padding: EdgeInsets.zero,
-                itemCount: _filteredProjects.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final project = _filteredProjects[index];
-                  return ProjectCard(
-                    title: project['title'],
-                    location: project['location'],
-                    status: project['status'],
-                    statusColor: project['statusColor'],
-                    budget: project['budget'],
-                    days: project['days'],
-                    teamSize: project['teamSize'],
-                    progress: project['progress'],
-                    hasAlert: project['hasAlert'],
+              child: projectsAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+                error: (error, _) => Center(
+                  child: Text('Error loading projects: $error', style: const TextStyle(color: Colors.red)),
+                ),
+                data: (response) {
+                  final projects = _filterProjects(response.data);
+                  
+                  if (projects.isEmpty) {
+                    return const Center(
+                      child: Text('No projects found.', style: TextStyle(color: Color(0xFF667085))),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: EdgeInsets.zero,
+                    itemCount: projects.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final project = projects[index];
+                      // Just hardcode alert true for specific statuses to match mockup behavior for now
+                      final hasAlert = project.status == ProjectStatus.delayed || project.status == ProjectStatus.atRisk;
+                      
+                      return ProjectCard(
+                        project: project,
+                        hasAlert: hasAlert,
+                      );
+                    },
                   );
                 },
               ),

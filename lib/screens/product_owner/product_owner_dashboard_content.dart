@@ -4,15 +4,20 @@ import 'widgets/dashboard/home/search_results_state.dart';
 import 'widgets/dashboard/new_project_modal.dart';
 import 'widgets/dashboard/messages/project_inbox_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:converf/features/projects/providers/project_providers.dart';
+import 'package:converf/features/projects/models/project.dart';
+import 'package:converf/features/dashboard/providers/dashboard_providers.dart';
+import 'package:converf/core/utils/project_utils.dart';
 
-class ProductOwnerDashboardContent extends StatefulWidget {
+class ProductOwnerDashboardContent extends ConsumerStatefulWidget {
   const ProductOwnerDashboardContent({super.key});
 
   @override
-  State<ProductOwnerDashboardContent> createState() => _ProductOwnerDashboardContentState();
+  ConsumerState<ProductOwnerDashboardContent> createState() => _ProductOwnerDashboardContentState();
 }
 
-class _ProductOwnerDashboardContentState extends State<ProductOwnerDashboardContent> {
+class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashboardContent> {
   bool _isSearching = false;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
@@ -250,255 +255,314 @@ class _ProductOwnerDashboardContentState extends State<ProductOwnerDashboardCont
   }
 
   Widget _buildDashboardBody() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+    final projectsAsync = ref.watch(projectsListProvider(1));
+    final statsAsync = ref.watch(dashboardStatsProvider);
+
+    // Handle projects loading/error first as it's the primary data
+    return projectsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF2A8090))),
+      error: (error, _) => Center(child: Text('Error: $error', style: const TextStyle(color: Colors.red))),
+      data: (projectsResponse) {
+        final highlightedProject = projectsResponse.data.isNotEmpty ? projectsResponse.data.first : null;
+
+        // Then handle stats
+        return statsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF2A8090))),
+          error: (error, _) => Center(child: Text('Error loading stats: $error', style: const TextStyle(color: Colors.red))),
+          data: (statsResponse) {
+            final stats = statsResponse.data;
+            final totalProjects = stats?.activeProjects ?? projectsResponse.meta?.total ?? projectsResponse.data.length;
+            
+            String portfolioString = '₦0';
+            if (stats != null) {
+              final pv = stats.portfolioValue;
+              if (pv >= 1000000000) {
+                portfolioString = '₦${(pv / 1000000000).toStringAsFixed(1)}B';
+              } else if (pv >= 1000000) {
+                portfolioString = '₦${(pv / 1000000).toStringAsFixed(1)}M';
+              } else if (pv > 0) {
+                portfolioString = '₦${pv.toStringAsFixed(0)}';
+              }
+            }
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // AI Analysis Card
+                  _buildAiAnalysisCard(),
+                  const SizedBox(height: 24),
+
+                  // Grid Stats
+                  _buildStatsGrid(totalProjects, stats, portfolioString),
+                  const SizedBox(height: 32),
+                  
+                  const Text(
+                    'Project Highlights',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  if (highlightedProject != null)
+                    _buildHighlightedProjectCard(highlightedProject)
+                  else
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text('No active projects to highlight.', style: TextStyle(color: Colors.black54)),
+                      ),
+                    ),
+                  const SizedBox(height: 100), 
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildAiAnalysisCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFE0D3), Color(0xFFFF9A6C)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // AI Analysis Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFE0D3), Color(0xFFFF9A6C)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFED0AA),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: SvgPicture.asset('assets/images/metallic-paint.svg',
-                        width: 20,
-                        height: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'AI Analysis Complete',
-                      style: TextStyle(
-                        color: Colors.black54,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      width: 70,
-                      height: 24,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 2,
-                      ),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F973D),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        '2h ago',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFED0AA),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  "I've analyzed all your projects: 1 critical area needs attention, 2 optimization opportunities found. VI Towers trending toward major delays without intervention.",
+                child: SvgPicture.asset('assets/images/metallic-paint.svg',
+                  width: 20,
+                  height: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'AI Analysis Complete',
+                style: TextStyle(
+                  color: Colors.black54,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                width: 70,
+                height: 24,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 2,
+                ),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F973D),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  '2h ago',
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    height: 1.5,
-                    color: Colors.black87,
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Grid Stats
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 1.4,
-            children: [
-              _buildStatCard(
-                'Active Projects',
-                '4',
-                'assets/images/projects.svg',
-                const Color(
-                  0xFFE4F8F9,
-                ), 
-                const Color(0xFFB7E7EA),
-              ),
-              _buildStatCard(
-                'Avg Quality Score',
-                '88.3%',
-                'assets/images/filecheck.svg',
-                const Color(0xFFE8F5E9), 
-                const Color(0xFF0F973D),
-              ),
-              _buildStatCard(
-                'Ball-in-courts',
-                '2',
-                'assets/images/shield-warning.svg',
-                const Color(0xFFFBEAE9), 
-                const Color(0xFFEB9B98), 
-              ),
-              _buildStatCard(
-                'Portfolio Value',
-                '₦1.3B',
-                'assets/images/Case.svg',
-                const Color(0xFFE4F8F9),
-                const Color(0xFFB7E7EA),
               ),
             ],
           ),
-
-          const SizedBox(height: 32),
+          const SizedBox(height: 16),
           const Text(
-            'Project Highlights',
+            "I've analyzed all your projects: 1 critical area needs attention, 2 optimization opportunities found. VI Towers trending toward major delays without intervention.",
             style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              height: 1.5,
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
 
-          // Highlights Card
-          Container(
-            height: 200,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              image: const DecorationImage(
-                image: AssetImage('assets/images/bg-1.png'),
-                fit: BoxFit.cover,
+  Widget _buildStatsGrid(int totalProjects, dynamic stats, String portfolioString) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      childAspectRatio: 1.4,
+      children: [
+        _buildStatCard(
+          'Active Projects',
+          totalProjects.toString(),
+          'assets/images/projects.svg',
+          const Color(0xFFE4F8F9), 
+          const Color(0xFFB7E7EA),
+        ),
+        _buildStatCard(
+          'Avg Quality Score',
+          stats != null ? '${stats.avgQualityScore.toStringAsFixed(1)}%' : '88.3%',
+          'assets/images/filecheck.svg',
+          const Color(0xFFE8F5E9), 
+          const Color(0xFF0F973D),
+        ),
+        _buildStatCard(
+          'Ball-in-courts',
+          stats?.ballInCourts.toString() ?? '2',
+          'assets/images/shield-warning.svg',
+          const Color(0xFFFBEAE9), 
+          const Color(0xFFEB9B98), 
+        ),
+        _buildStatCard(
+          'Portfolio Value',
+          portfolioString,
+          'assets/images/Case.svg',
+          const Color(0xFFE4F8F9),
+          const Color(0xFFB7E7EA),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHighlightedProjectCard(Project highlightedProject) {
+    return GestureDetector(
+      onTap: () {
+        if (highlightedProject.status == ProjectStatus.draft || highlightedProject.currentStep < 5) {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => NewProjectModal(initialProject: highlightedProject),
+          );
+        } else {
+          // Normal navigation to project details
+          // Navigator.push(context, MaterialPageRoute(builder: (context) => ProjectDetailsScreen(projectId: highlightedProject.id)));
+        }
+      },
+      child: Container(
+        height: 200,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          image: const DecorationImage(
+            image: AssetImage('assets/images/bg-1.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFF8DC0DC).withOpacity(0.9),
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.6),
+                  ],
+                ),
               ),
             ),
-            child: Stack(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        const Color(0xFF8DC0DC).withOpacity(0.9),
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.6),
-                      ],
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Lekki Residential Complex',
+                      Expanded(
+                        child: Text(
+                          highlightedProject.title,
+                          style: const TextStyle(
+                            color: Color(0xFF111827),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: highlightedProject.status.color.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              highlightedProject.status.label.toUpperCase(),
                               style: TextStyle(
-                                color: Color(0xFF111827),
-                                fontSize: 18,
+                                color: highlightedProject.status.color,
+                                fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFFFEF6E7,
-                                  ), // Updated per spec
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Text(
-                                      'AT RISK',
-                                      style: TextStyle(
-                                        color: Color(0xFFC26E2B),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: const BoxDecoration(
-                                        color: Colors
-                                            .red, 
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            const SizedBox(width: 6),
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: highlightedProject.status.color,
+                                shape: BoxShape.circle,
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on,
-                            color: Colors.black54,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Lekki Phase 1, Lagos',
-                            style: TextStyle(
-                              color: Colors.black87.withOpacity(0.7),
-                              fontSize: 13,
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      const Spacer(),
-                      const SizedBox(height: 20),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        color: Colors.black54,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        highlightedProject.formattedLocation,
+                        style: TextStyle(
+                          color: Colors.black87.withOpacity(0.7),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 100), 
-        ],
+          ],
+        ),
       ),
     );
   }

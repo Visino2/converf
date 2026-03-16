@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_profile_screen.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/marketplace_screen.dart';
@@ -11,7 +10,11 @@ import 'package:converf/screens/contractor/projects/widgets/tools/contractor_not
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_project_settings_screen.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_help_support_screen.dart';
 
-class ToolsScreen extends StatelessWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:converf/features/auth/providers/auth_provider.dart';
+import 'package:converf/screens/widgets/logout_confirmation_modal.dart';
+
+class ToolsScreen extends ConsumerWidget {
   const ToolsScreen({super.key});
 
   void _navigate(BuildContext context, String title) {
@@ -46,7 +49,7 @@ class ToolsScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final List<Map<String, String>> menuItems = [
       {'title': 'Account Setting', 'icon': 'assets/images/more.svg'},
       {'title': 'Invoice', 'icon': 'assets/images/Invoice.svg'},
@@ -316,7 +319,15 @@ class ToolsScreen extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () => context.go('/onboarding'),
+                        onPressed: () {
+                          showLogoutConfirmation(
+                            context,
+                            onConfirm: () {
+                              ref.read(authProvider.notifier).logout();
+                              // Redirection is handled by AppRouter
+                            },
+                          );
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFD32F2F),
                           padding: const EdgeInsets.symmetric(vertical: 18),

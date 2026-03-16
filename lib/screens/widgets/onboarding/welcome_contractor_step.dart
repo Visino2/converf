@@ -39,7 +39,7 @@ class _OnboardingWelcomeContractorStepState
               colorBlendMode: BlendMode.darken,
             ),
           ),
-          // Top teal gradient overlay for Contractor
+       
           Positioned(
             top: 0,
             left: 0,

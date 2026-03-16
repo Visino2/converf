@@ -3,27 +3,24 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../product_owner/widgets/dashboard/overview_modal.dart';
 
-class ContractorProjectDetailsScreen extends StatefulWidget {
-  final String title;
-  final String location;
-  final String status;
-  final Color statusColor;
-  final String heroImagePath;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../features/projects/providers/project_providers.dart';
+import '../../../../core/utils/project_utils.dart';
+import '../../../../features/projects/models/project.dart';
+
+class ContractorProjectDetailsScreen extends ConsumerStatefulWidget {
+  final String projectId;
 
   const ContractorProjectDetailsScreen({
     super.key,
-    required this.title,
-    required this.location,
-    required this.status,
-    required this.statusColor,
-    required this.heroImagePath,
+    required this.projectId,
   });
 
   @override
-  State<ContractorProjectDetailsScreen> createState() => _ContractorProjectDetailsScreenState();
+  ConsumerState<ContractorProjectDetailsScreen> createState() => _ContractorProjectDetailsScreenState();
 }
 
-class _ContractorProjectDetailsScreenState extends State<ContractorProjectDetailsScreen> {
+class _ContractorProjectDetailsScreenState extends ConsumerState<ContractorProjectDetailsScreen> {
   int _selectedTabIndex = 0;
 
   @override
@@ -37,86 +34,107 @@ class _ContractorProjectDetailsScreenState extends State<ContractorProjectDetail
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          widget.title,
-          style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+        title: const Text(
+          'Project Details',
+          style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         actions: [
           IconButton(icon: const Icon(Icons.menu, color: Colors.black), onPressed: () {}),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              // Location & Status badges
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      SvgPicture.asset('assets/images/map.svg', width: 16, height: 16, colorFilter: const ColorFilter.mode(Color(0xFF12B76A), BlendMode.srcIn)),
-                      const SizedBox(width: 4),
-                      Text(widget.location, style: const TextStyle(fontSize: 14, color: Color(0xFF475467))),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: const Color(0xFFFEF0C7), borderRadius: BorderRadius.circular(12)),
-                        child: Text(widget.status, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: widget.statusColor)),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: const Color(0xFFF2F4F7), borderRadius: BorderRadius.circular(12)),
-                        child: const Text('RESIDENTIAL', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF344054))),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
+      body: ref.watch(projectDetailsProvider(widget.projectId)).when(
+        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+        error: (error, _) => Center(child: Text('Error: $error', style: const TextStyle(color: Colors.red))),
+        data: (projectData) {
+          final project = projectData.data;
 
-              // Hero image with Update Thumbnail button
-              Stack(
+          if (project == null) {
+            return const Scaffold(
+              body: Center(child: Text('Project not found')),
+            );
+          }
+
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.asset(
-                      widget.heroImagePath,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+                  const SizedBox(height: 16),
+                  
+                  // Title
+                  Text(
+                    project.title,
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
                   ),
-                  Positioned(
-                    bottom: 16,
-                    right: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFEAECF0)),
-                      ),
-                      child: Row(
+                  const SizedBox(height: 12),
+
+                  // Location & Status badges
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
                         children: [
-                          SvgPicture.asset('assets/images/camera.svg', width: 16, height: 16, colorFilter: const ColorFilter.mode(Color(0xFF344054), BlendMode.srcIn)),
-                          const SizedBox(width: 8),
-                          const Text('Update Thumbnail', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          SvgPicture.asset('assets/images/map.svg', width: 16, height: 16, colorFilter: const ColorFilter.mode(Color(0xFF12B76A), BlendMode.srcIn)),
+                          const SizedBox(width: 4),
+                          Text(project.formattedLocation, style: const TextStyle(fontSize: 14, color: Color(0xFF475467))),
                         ],
                       ),
-                    ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(color: const Color(0xFFFEF0C7), borderRadius: BorderRadius.circular(12)),
+                            child: Text(project.status.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: project.status.color)),
+                          ),
+                          const SizedBox(width: 8),
+                          if (project.constructionType.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(color: const Color(0xFFF2F4F7), borderRadius: BorderRadius.circular(12)),
+                              child: Text(project.constructionType.toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF344054))),
+                            ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                  const SizedBox(height: 20),
+
+                  // Hero image with Update Thumbnail button
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.asset(
+                          'assets/images/lekki-complex.png', // Temporary placeholder
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 16,
+                        right: 16,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFEAECF0)),
+                          ),
+                          child: Row(
+                            children: [
+                              SvgPicture.asset('assets/images/camera.svg', width: 16, height: 16, colorFilter: const ColorFilter.mode(Color(0xFF344054), BlendMode.srcIn)),
+                              const SizedBox(width: 8),
+                              const Text('Update Thumbnail', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
               // Action buttons: Update Progress & Submit Milestone
               Row(
@@ -254,9 +272,9 @@ class _ContractorProjectDetailsScreenState extends State<ContractorProjectDetail
                       ],
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'Luxury residential units featuring 48 apartments across 4 blocks.',
-                      style: TextStyle(fontSize: 14, color: Color(0xFF475467), height: 1.5),
+                    Text(
+                      project.description.isNotEmpty ? project.description : 'No description provided.',
+                      style: const TextStyle(fontSize: 14, color: Color(0xFF475467), height: 1.5),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -373,7 +391,8 @@ class _ContractorProjectDetailsScreenState extends State<ContractorProjectDetail
             ],
           ),
         ),
-      ),
+      );
+    }),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [BoxShadow(color: Colors.black.withAlpha(12), blurRadius: 10, offset: const Offset(0, -5))],

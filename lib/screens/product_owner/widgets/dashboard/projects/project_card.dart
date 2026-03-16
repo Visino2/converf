@@ -1,29 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../features/projects/models/project.dart';
+import '../../../../../core/utils/project_utils.dart';
 import 'project_details_screen.dart';
+import '../new_project_modal.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class ProjectCard extends StatelessWidget {
-  final String title;
-  final String location;
-  final String status;
-  final Color statusColor;
-  final String budget;
-  final String days;
-  final String teamSize;
-  final double progress;
+  final Project project;
   final bool hasAlert;
 
   const ProjectCard({
     super.key,
-    required this.title,
-    required this.location,
-    required this.status,
-    required this.statusColor,
-    required this.budget,
-    required this.days,
-    required this.teamSize,
-    required this.progress,
+    required this.project,
     this.hasAlert = false,
   });
 
@@ -31,18 +20,21 @@ class ProjectCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProjectDetailsScreen(
-              title: title,
-              location: location,
-              status: status,
-              statusColor: statusColor,
-              heroImagePath: 'assets/images/lekki-complex.png',
+        if (project.status == ProjectStatus.draft || project.currentStep < 5) {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => NewProjectModal(initialProject: project),
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProjectDetailsScreen(projectId: project.id),
             ),
-          ),
-        );
+          );
+        }
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
@@ -78,7 +70,7 @@ class ProjectCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                title,
+                                project.title,
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -96,7 +88,7 @@ class ProjectCard extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    location,
+                                    project.formattedLocation,
                                     style: const TextStyle(fontSize: 14, color: Color(0xFF475467)),
                                   ),
                                 ],
@@ -113,8 +105,8 @@ class ProjectCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                status,
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: statusColor),
+                                project.status.label,
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: project.status.color),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -191,7 +183,7 @@ class ProjectCard extends StatelessWidget {
                                     ),
                                   ),
                                   FractionallySizedBox(
-                                    widthFactor: progress,
+                                    widthFactor: 0.15, // Hardcoded phases percentage since wait for phase feature
                                     child: Container(
                                       height: 8,
                                       decoration: BoxDecoration(
@@ -209,11 +201,11 @@ class ProjectCard extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildBottomChip('assets/images/bill-list.svg', budget, flex: 2),
+                            _buildBottomChip('assets/images/bill-list.svg', project.formattedBudget, flex: 2),
                             const SizedBox(width: 8),
-                            _buildBottomChip('assets/images/Calendar.svg', days, flex: 1),
+                            _buildBottomChip('assets/images/Calendar.svg', project.daysRemaining, flex: 1),
                             const SizedBox(width: 8),
-                            _buildBottomChip('assets/images/team.svg', teamSize, flex: 1),
+                            _buildBottomChip('assets/images/team.svg', '--', flex: 1),
                           ],
                         ),
                       ],

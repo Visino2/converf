@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../../../features/team/providers/team_providers.dart';
+import '../../../../../../features/team/models/invite_member_payload.dart';
+import '../../../../../../features/projects/providers/project_providers.dart';
 
-class AddTeamModal extends StatefulWidget {
+class AddTeamModal extends ConsumerStatefulWidget {
   final VoidCallback onNavigateToProjects;
 
   const AddTeamModal({
@@ -10,10 +14,10 @@ class AddTeamModal extends StatefulWidget {
   });
 
   @override
-  State<AddTeamModal> createState() => _AddTeamModalState();
+  ConsumerState<AddTeamModal> createState() => _AddTeamModalState();
 }
 
-class _AddTeamModalState extends State<AddTeamModal> {
+class _AddTeamModalState extends ConsumerState<AddTeamModal> {
   int _currentStep = 1;
 
   // Step 1 State
@@ -24,24 +28,15 @@ class _AddTeamModalState extends State<AddTeamModal> {
   // Step 2 State
   String? _selectedRole;
   String? _assignedProject;
-  final List<String> _roles = [
-    'Project Manager',
-    'Site Engineer',
-    'Structural Engineer',
-    'Architect',
-    'QA/QC Inspector',
-    'Contractor',
-  ];
-
-  final List<Map<String, String>> _projects = [
-    {
-      'title': 'Lekki Residential Complex',
-      'location': 'Lekki Phase 1, Lagos',
-    },
-    {
-      'title': 'Lekki Residential Complex',
-      'location': 'Lekki Phase 1, Lagos',
-    },
+  String? _assignedProjectTitle;
+  String? _selectedCountry;
+  final List<Map<String, String>> _roles = [
+    {'label': 'Project Manager', 'value': 'project_manager'},
+    {'label': 'Site Engineer', 'value': 'site_engineer'},
+    {'label': 'Structural Engineer', 'value': 'structural_engineer'},
+    {'label': 'Architect', 'value': 'architect'},
+    {'label': 'QA/QC Inspector', 'value': 'qa_inspector'},
+    {'label': 'Contractor', 'value': 'contractor'},
   ];
 
   @override
@@ -54,9 +49,11 @@ class _AddTeamModalState extends State<AddTeamModal> {
 
   bool _isStepValid() {
     if (_currentStep == 1) {
-      return _emailController.text.isNotEmpty &&
+      final emailExp = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+      return emailExp.hasMatch(_emailController.text.trim()) &&
           _firstNameController.text.isNotEmpty &&
-          _lastNameController.text.isNotEmpty;
+          _lastNameController.text.isNotEmpty &&
+          _selectedCountry != null;
     }
     if (_currentStep == 2) {
       return _selectedRole != null && _assignedProject != null;
@@ -64,9 +61,39 @@ class _AddTeamModalState extends State<AddTeamModal> {
     return true;
   }
 
-  void _nextStep() {
-    if (_isStepValid() && _currentStep < 3) {
+  bool _isLoading = false;
+
+  void _nextStep() async {
+    if (!_isStepValid()) return;
+    
+    if (_currentStep == 1) {
       setState(() => _currentStep++);
+    } else if (_currentStep == 2) {
+      setState(() => _isLoading = true);
+      try {
+        final payload = InviteMemberPayload(
+          email: _emailController.text.trim(),
+          firstName: _firstNameController.text.trim(),
+          lastName: _lastNameController.text.trim(),
+          role: _selectedRole!,
+          country: _selectedCountry,
+          projectId: _assignedProject,
+        );
+        await ref.read(teamActionProvider.notifier).inviteMember(payload);
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _currentStep++;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to invite member: $e')),
+          );
+        }
+      }
     }
   }
 
@@ -228,9 +255,9 @@ class _AddTeamModalState extends State<AddTeamModal> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: _isStepValid() ? _nextStep : null,
+                          onPressed: (_isStepValid() && !_isLoading) ? _nextStep : null,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _isStepValid()
+                            backgroundColor: (_isStepValid() && !_isLoading)
                                 ? const Color(0xFF2A8090)
                                 : const Color(0xFFD0D5DD),
                             disabledBackgroundColor: const Color(0xFFD0D5DD),
@@ -240,27 +267,36 @@ class _AddTeamModalState extends State<AddTeamModal> {
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                'Next',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Text(
+                                      'Next',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      size: 14,
+                                      color: Colors.white.withOpacity(
+                                        _isStepValid() ? 1.0 : 0.8,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                Icons.arrow_forward_ios,
-                                size: 14,
-                                color: Colors.white.withOpacity(
-                                  _isStepValid() ? 1.0 : 0.8,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                     ],
@@ -303,11 +339,57 @@ class _AddTeamModalState extends State<AddTeamModal> {
             ),
           ],
         ),
+        const SizedBox(height: 24),
+        const Text(
+          'Country',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: Color(0xFF111827),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedCountry,
+              isExpanded: true,
+              hint: Text(
+                'Select Country',
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+              ),
+              icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+              items: ['Nigeria', 'Kenya', 'Ghana', 'South Africa'].map((String country) {
+                return DropdownMenuItem<String>(
+                  value: country,
+                  child: Text(
+                    country,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                );
+              }).toList(),
+              onChanged: (String? newValue) {
+                setState(() {
+                  _selectedCountry = newValue;
+                });
+              },
+            ),
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildStep2() {
+    final projectsAsync = ref.watch(projectsListProvider(1));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -335,11 +417,11 @@ class _AddTeamModalState extends State<AddTeamModal> {
                 style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
               ),
               icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-              items: _roles.map((String role) {
+              items: _roles.map((roleMap) {
                 return DropdownMenuItem<String>(
-                  value: role,
+                  value: roleMap['value'],
                   child: Text(
-                    role,
+                    roleMap['label']!,
                     style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFF111827),
@@ -365,58 +447,78 @@ class _AddTeamModalState extends State<AddTeamModal> {
           ),
         ),
         const SizedBox(height: 12),
-        ..._projects.map((project) {
-          bool isSelected = _assignedProject == project['title'];
-          return GestureDetector(
-            onTap: () => setState(() => _assignedProject = project['title']),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFFF0FBFB) : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFF309DAA)
-                      : Colors.grey.shade300,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    project['title']!,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected
-                          ? const Color(0xFF309DAA)
-                          : const Color(0xFF111827),
+        projectsAsync.when(
+          data: (projectsData) {
+            final projectList = projectsData.data;
+            if (projectList.isEmpty) {
+              return Text(
+                'No projects found. Please create a project first.',
+                style: TextStyle(color: Colors.grey.shade500),
+              );
+            }
+            return Column(
+              children: projectList.map((project) {
+                bool isSelected = _assignedProject == project.id;
+                return GestureDetector(
+                  onTap: () => setState(() {
+                    _assignedProject = project.id;
+                    _assignedProjectTitle = project.title;
+                  }),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFFF0FBFB) : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? const Color(0xFF309DAA) : Colors.grey.shade200,
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          project.title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected
+                                ? const Color(0xFF309DAA)
+                                : const Color(0xFF111827),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              size: 16,
+                              color: Colors.grey.shade500,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${project.city ?? ""}, ${project.state ?? ""}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: Colors.grey.shade500,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        project['location']!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
+                );
+              }).toList(),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, _) => Text(
+            'Failed to load projects: $err',
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
       ],
     );
   }
@@ -508,7 +610,7 @@ class _AddTeamModalState extends State<AddTeamModal> {
                 ),
                 const TextSpan(text: '" Your project\n"'),
                 TextSpan(
-                  text: _assignedProject ?? 'Lekki Residential Complex',
+                  text: _assignedProjectTitle ?? 'Selected Project',
                   style: const TextStyle(
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.w600,

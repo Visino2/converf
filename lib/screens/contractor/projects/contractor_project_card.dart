@@ -1,27 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../../../../features/projects/models/project.dart';
+import '../../../../core/utils/project_utils.dart';
 import 'contractor_project_details_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class ContractorProjectCard extends StatelessWidget {
-  final String title;
-  final String location;
-  final String status;
-  final Color statusColor;
-  final String budget;
-  final String phase;
-  final double progress;
+  final Project project;
   final bool hasAlert;
 
   const ContractorProjectCard({
     super.key,
-    required this.title,
-    required this.location,
-    required this.status,
-    required this.statusColor,
-    required this.budget,
-    required this.phase,
-    required this.progress,
+    required this.project,
     this.hasAlert = false,
   });
 
@@ -32,13 +22,7 @@ class ContractorProjectCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ContractorProjectDetailsScreen(
-              title: title,
-              location: location,
-              status: status,
-              statusColor: statusColor,
-              heroImagePath: 'assets/images/lekki-complex.png',
-            ),
+            builder: (context) => ContractorProjectDetailsScreen(projectId: project.id),
           ),
         );
       },
@@ -76,7 +60,7 @@ class ContractorProjectCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                title,
+                                project.title,
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -94,7 +78,7 @@ class ContractorProjectCard extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    location,
+                                    project.formattedLocation,
                                     style: const TextStyle(fontSize: 14, color: Color(0xFF475467)),
                                   ),
                                 ],
@@ -111,8 +95,8 @@ class ContractorProjectCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                status,
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: statusColor),
+                                project.status.label,
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: project.status.color),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -152,7 +136,7 @@ class ContractorProjectCard extends StatelessWidget {
                                     ),
                                   ),
                                   FractionallySizedBox(
-                                    widthFactor: progress,
+                                    widthFactor: 0.15, 
                                     child: Container(
                                       height: 8,
                                       decoration: BoxDecoration(
@@ -170,9 +154,10 @@ class ContractorProjectCard extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildBottomChip('assets/images/bill-list.svg', budget, flex: 2),
+                            _buildBottomChip('assets/images/bill-list.svg', project.formattedBudget, flex: 2),
                             const SizedBox(width: 8),
-                            _buildBottomChip('assets/images/routing.svg', phase, flex: 2),
+                            _buildBottomChip('assets/images/routing.svg', 'Phase 1', flex: 2), // Hardcoded phase name until endpoint
+
                           ],
                         ),
                       ],

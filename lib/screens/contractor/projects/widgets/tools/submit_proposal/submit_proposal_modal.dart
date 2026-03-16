@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:converf/features/marketplace/models/marketplace_responses.dart';
+import 'package:converf/features/marketplace/providers/marketplace_providers.dart';
 import '../marketplace_screen.dart';
 
-class SubmitProposalModal extends StatefulWidget {
-  const SubmitProposalModal({super.key});
+class SubmitProposalModal extends ConsumerStatefulWidget {
+  final String projectId;
+  
+  const SubmitProposalModal({super.key, required this.projectId});
 
   @override
-  State<SubmitProposalModal> createState() => _SubmitProposalModalState();
+  ConsumerState<SubmitProposalModal> createState() => _SubmitProposalModalState();
 }
 
-class _SubmitProposalModalState extends State<SubmitProposalModal> {
+class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
   int _currentStep = 1;
   bool _isSuccess = false;
 
@@ -76,11 +81,31 @@ class _SubmitProposalModalState extends State<SubmitProposalModal> {
     return true;
   }
 
-  void _nextStep() {
+  Future<void> _nextStep() async {
     if (_isStepValid() && _currentStep < 6) {
       setState(() => _currentStep++);
     } else if (_isStepValid() && _currentStep == 6) {
-      setState(() => _isSuccess = true);
+      // Submit bid
+      final amountStr = _bidAmountController.text.replaceAll(',', '');
+      final amount = num.tryParse(amountStr) ?? 0;
+      
+      final payload = SubmitBidPayload(
+        amount: amount,
+        proposal: _proposalController.text,
+      );
+
+      try {
+        await ref.read(marketplaceActionProvider.notifier).submitBid(widget.projectId, payload);
+        if (mounted) {
+            setState(() => _isSuccess = true);
+        }
+      } catch (e) {
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text('Failed to submit bid: $e')),
+           );
+        }
+      }
     }
   }
 
@@ -256,13 +281,15 @@ class _SubmitProposalModalState extends State<SubmitProposalModal> {
   }
 
   Widget _buildFooter() {
+    final isSubmitting = ref.watch(marketplaceActionProvider).isLoading;
+    
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: Row(
         children: [
           Expanded(
             child: OutlinedButton(
-              onPressed: _prevStep,
+              onPressed: isSubmitting ? null : _prevStep,
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 side: const BorderSide(color: Color(0xFF276572)),
@@ -283,7 +310,7 @@ class _SubmitProposalModalState extends State<SubmitProposalModal> {
           const SizedBox(width: 16),
           Expanded(
             child: ElevatedButton(
-              onPressed: _isStepValid() ? _nextStep : null,
+              onPressed: (_isStepValid() && !isSubmitting) ? _nextStep : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: _isStepValid()
                     ? const Color(0xFF276572)
@@ -294,24 +321,29 @@ class _SubmitProposalModalState extends State<SubmitProposalModal> {
                 ),
                 elevation: 0,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _currentStep == 6 ? 'Submit' : 'Next',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _currentStep == 6 ? 'Submit' : 'Next',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          _currentStep == 6 ? Icons.chevron_right : Icons.chevron_right,
+                          color: Colors.white,
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    _currentStep == 6 ? Icons.chevron_right : Icons.chevron_right,
-                    color: Colors.white,
-                  ),
-                ],
-              ),
             ),
           ),
         ],

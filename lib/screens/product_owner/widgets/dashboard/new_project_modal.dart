@@ -1,27 +1,35 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../features/projects/providers/project_providers.dart';
+import '../../../../features/projects/models/project_payloads.dart';
+import '../../../../features/projects/models/project.dart';
 
-class NewProjectModal extends StatefulWidget {
-  const NewProjectModal({super.key});
+class NewProjectModal extends ConsumerStatefulWidget {
+  final Project? initialProject;
+  const NewProjectModal({super.key, this.initialProject});
 
   @override
-  State<NewProjectModal> createState() => _NewProjectModalState();
+  ConsumerState<NewProjectModal> createState() => _NewProjectModalState();
 }
 
-class _NewProjectModalState extends State<NewProjectModal> {
-  int _currentStep = 1;
+class _NewProjectModalState extends ConsumerState<NewProjectModal> {
+  int _currentStep = 0;
+  String? _projectId;
 
   // Step 1 State
   int? _selectedIndex;
   final List<Map<String, String>> _projectTypes = [
-    {'title': 'Residential\nConstruction', 'icon': 'assets/images/home-1.svg'},
+    {'title': 'Residential\nConstruction', 'icon': 'assets/images/home-1.svg', 'value': 'residential'},
     {
       'title': 'Commercial\nConstruction',
       'icon': 'assets/images/Buildings.svg',
+      'value': 'commercial',
     },
-    {'title': 'Roadway\nConstruction', 'icon': 'assets/images/truck.svg'},
-    {'title': 'Infrastructure\nProjects', 'icon': 'assets/images/crane.svg'},
+    {'title': 'Roadway\nConstruction', 'icon': 'assets/images/truck.svg', 'value': 'roadway'},
+    {'title': 'Infrastructure\nProjects', 'icon': 'assets/images/crane.svg', 'value': 'infrastructure'},
   ];
 
   // Step 2 State
@@ -29,12 +37,12 @@ class _NewProjectModalState extends State<NewProjectModal> {
   final _projectDescController = TextEditingController();
   String? _selectedSubType;
   final _referenceIdController = TextEditingController();
-  final List<String> _subTypes = [
-    'Office',
-    'Retail',
-    'Hospitality',
-    'Industrial',
-  ];
+  final Map<String, List<String>> _subTypeOptions = {
+    'residential': ['Villa', 'Apartment', 'Duplex', 'Terrace', 'Bungalow'],
+    'commercial': ['Office', 'Retail', 'Hospitality', 'Industrial', 'Medical'],
+    'roadway': ['Highway', 'Urban Road', 'Bridge', 'Interchange'],
+    'infrastructure': ['Water Supply', 'Power Plant', 'Telecommunications', 'Dam'],
+  };
 
   // Step 3 State
   String? _selectedCountry;
@@ -43,7 +51,7 @@ class _NewProjectModalState extends State<NewProjectModal> {
   final _addressController = TextEditingController();
   DateTime? _startDate;
   DateTime? _endDate;
-  String _selectedPriority = 'standard';
+  String _selectedPriority = 'normal';
 
   // Location Data Map
   final Map<String, Map<String, List<String>>> _locationData = {
@@ -78,42 +86,194 @@ class _NewProjectModalState extends State<NewProjectModal> {
   bool _agreeTerms = false;
   bool _isSuccess = false;
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialProject != null) {
+      final p = widget.initialProject!;
+      _projectId = p.id;
+      _currentStep = (p.currentStep - 1).clamp(0, 4);
+      
+      // Step 1
+      _selectedIndex = _projectTypes.indexWhere((t) => t['value'] == p.constructionType);
+      if (_selectedIndex == -1) _selectedIndex = null;
+
+      // Step 2
+      _projectNameController.text = p.title;
+      _projectDescController.text = p.description;
+      _selectedSubType = p.constructionSubType;
+
+      // Step 3
+      _selectedCountry = p.country.isNotEmpty ? p.country : null;
+      _selectedState = p.state.isNotEmpty ? p.state : null;
+      _selectedCity = p.city.isNotEmpty ? p.city : null;
+      _addressController.text = p.location;
+      
+      try {
+        if (p.startDate.isNotEmpty) _startDate = DateTime.parse(p.startDate);
+        if (p.endDate.isNotEmpty) _endDate = DateTime.parse(p.endDate);
+      } catch (_) {}
+      
+      _selectedPriority = p.urgencyLevel.toLowerCase();
+
+      // Step 4
+      _selectedCurrency = p.currency == 'NGN' ? '₦' : (p.currency == 'USD' ? '\$' : '₦');
+      _budgetController.text = p.budget;
+      _assignmentType = p.assignmentMethod.isNotEmpty ? p.assignmentMethod : null;
+      
+      try {
+        if (p.biddingDeadline != null) _biddingDeadline = DateTime.parse(p.biddingDeadline!);
+      } catch (_) {}
+    }
+  }
+
   bool _isStepValid() {
-    if (_currentStep == 1) return _selectedIndex != null;
-    if (_currentStep == 2) {
+    if (_currentStep == 0) return _selectedIndex != null;
+    if (_currentStep == 1) {
       return _projectNameController.text.isNotEmpty &&
           _projectDescController.text.isNotEmpty &&
           _selectedSubType != null;
     }
-    if (_currentStep == 3) {
+    if (_currentStep == 2) {
       return _selectedCountry != null &&
           _selectedState != null &&
           _selectedCity != null &&
+          _addressController.text.isNotEmpty &&
           _startDate != null &&
-          _endDate != null;
+          _endDate != null &&
+          _endDate!.isAfter(_startDate!);
     }
-    if (_currentStep == 4) {
+    if (_currentStep == 3) {
       if (_budgetController.text.isEmpty) return false;
       if (_assignmentType == null) return false;
-      if (_assignmentType == 'tender' && _biddingDeadline == null) return false;
+      if (_assignmentType == 'tender') {
+        if (_biddingDeadline == null) return false;
+        if (_startDate != null && !_biddingDeadline!.isBefore(_startDate!)) return false;
+      }
       return true;
     }
-    if (_currentStep == 5) {
+    if (_currentStep == 4) {
       return _confirmInfo && _agreeTerms;
     }
     return false;
   }
 
-  void _nextStep() {
-    if (_isStepValid() && _currentStep < 5) {
-      setState(() => _currentStep++);
-    } else if (_isStepValid() && _currentStep == 5) {
-      setState(() => _isSuccess = true);
+  Future<void> _nextStep() async {
+    if (!_isStepValid()) return;
+
+    try {
+      if (_currentStep == 0) {
+        // Selection step - just move forward locally
+        setState(() => _currentStep++);
+      } else if (_currentStep == 1) {
+        if (_projectId == null) {
+          // First time persistence (POST)
+          final payload = StartWizardPayload(
+            constructionType: _projectTypes[_selectedIndex!]['value']!,
+            title: _projectNameController.text,
+            description: _projectDescController.text,
+            constructionSubType: _selectedSubType,
+          );
+          final response = await ref.read(projectWizardProvider.notifier).startWizard(payload);
+          if (response.project != null) {
+            _projectId = response.project!.id;
+          } else {
+            throw Exception('Failed to initialize project on server. Please try again.');
+          }
+        } else {
+          // Update existing session (PATCH)
+          final payload = UpdateBasicInfoPayload(
+            wizardStep: 2, // Map to backend Step 2
+            title: _projectNameController.text,
+            description: _projectDescController.text,
+            constructionSubType: _selectedSubType,
+          );
+          await ref.read(projectWizardProvider.notifier).updateBasicInfo(_projectId!, payload);
+        }
+        setState(() => _currentStep++);
+      } else if (_currentStep == 2) {
+        if (_projectId == null) {
+          throw Exception('Project session lost. Please restart.');
+        }
+        // Update Location API
+        final payload = UpdateLocationPayload(
+          wizardStep: 3, // Map to backend Step 3
+          location: _addressController.text,
+          city: _selectedCity!,
+          state: _selectedState!,
+          country: _selectedCountry!,
+        );
+        await ref.read(projectWizardProvider.notifier).updateLocation(_projectId!, payload);
+        setState(() => _currentStep++);
+      } else if (_currentStep == 3) {
+        if (_projectId == null) {
+          throw Exception('Project session lost. Please restart.');
+        }
+        // Update Timeline & Budget API
+        final amountStr = _budgetController.text.trim().replaceAll(',', '').replaceAll('₦', '').replaceAll('\$', '');
+        final budget = num.tryParse(amountStr) ?? 0;
+        
+        final payload = UpdateTimelineBudgetPayload(
+          wizardStep: 4, // Map to backend Step 4
+          startDate: _startDate!.toIso8601String(),
+          endDate: _endDate!.toIso8601String(),
+          budget: budget,
+          currency: _selectedCurrency == '₦' ? 'NGN' : 'USD',
+          urgencyLevel: _selectedPriority,
+          assignmentMethod: _assignmentType!,
+          biddingDeadline: _biddingDeadline?.toIso8601String(),
+        );
+        await ref.read(projectWizardProvider.notifier).updateTimelineBudget(_projectId!, payload);
+        setState(() => _currentStep++);
+      } else if (_currentStep == 4) {
+        if (_projectId == null) {
+          throw Exception('Project session lost. Please restart.');
+        }
+        // Confirm Project API
+        try {
+          final payload = ConfirmProjectPayload(
+            wizardStep: 5, // Map to backend Step 5
+            confirm: _confirmInfo && _agreeTerms,
+          );
+          await ref.read(projectWizardProvider.notifier).confirmProject(_projectId!, payload);
+        } catch (confirmError) {
+          debugPrint('Confirm step warning: $confirmError');
+        }
+        setState(() => _isSuccess = true);
+      }
+    } catch (e) {
+      String errorMessage = e.toString();
+      if (errorMessage.contains('Exception:')) {
+        errorMessage = errorMessage.replaceAll('Exception: ', '');
+      }
+      if (errorMessage.contains('Failed host lookup')) {
+        errorMessage = 'Network Error: Unable to reach the server. Please check your internet connection.';
+      } else if (errorMessage.contains('timeout')) {
+        errorMessage = 'Connection Timeout: The server is taking too long to respond. Please try again.';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                Expanded(child: Text(errorMessage)),
+              ],
+            ),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 6),
+          ),
+        );
+      }
     }
   }
 
   void _prevStep() {
-    if (_currentStep > 1) {
+    if (_currentStep > 0) {
       setState(() => _currentStep--);
     } else {
       Navigator.of(context).pop();
@@ -122,11 +282,17 @@ class _NewProjectModalState extends State<NewProjectModal> {
 
   @override
   Widget build(BuildContext context) {
+    final wizardState = ref.watch(projectWizardProvider);
+    final isLoading = wizardState.isLoading;
+
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.only(
@@ -135,211 +301,239 @@ class _NewProjectModalState extends State<NewProjectModal> {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Stack(
             children: [
-              if (_isSuccess)
-                _buildSuccessScreen()
-              else ...[
-                // Fixed Header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              Column(
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  if (_isSuccess)
+                    Expanded(child: SingleChildScrollView(child: _buildSuccessScreen()))
+                  else ...[
+                    // Fixed Header
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Column(
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Create New Project',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF111827),
-                                ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Create New Project',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF111827),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'This will auto save',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'This will auto save',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade600,
+                              GestureDetector(
+                                onTap: () => Navigator.of(context).pop(),
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFF3F4F6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 20,
+                                    color: Color(0xFF4B5563),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          GestureDetector(
-                            onTap: () => Navigator.of(context).pop(),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFF3F4F6),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.close,
-                                size: 20,
-                                color: Color(0xFF4B5563),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      // Progress Bar
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Step $_currentStep of 5',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF0F973D),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: _currentStep,
-                            child: Container(
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF2A8090),
-                                borderRadius: BorderRadius.only(
-                                  topLeft: const Radius.circular(4),
-                                  bottomLeft: const Radius.circular(4),
-                                  topRight: _currentStep == 5
-                                      ? const Radius.circular(4)
-                                      : Radius.zero,
-                                  bottomRight: _currentStep == 5
-                                      ? const Radius.circular(4)
-                                      : Radius.zero,
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (_currentStep < 5)
-                            Expanded(
-                              flex: 5 - _currentStep,
-                              child: Container(
-                                height: 6,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFE5E7EB),
-                                  borderRadius: BorderRadius.only(
-                                    topRight: Radius.circular(4),
-                                    bottomRight: Radius.circular(4),
+                          const SizedBox(height: 24),
+                          // Progress Bar
+                          if (_currentStep > 0) ...[
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Step $_currentStep of 4',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF0F973D),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: _currentStep,
+                                  child: Container(
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2A8090),
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: const Radius.circular(4),
+                                        bottomLeft: const Radius.circular(4),
+                                        topRight: _currentStep == 4
+                                            ? const Radius.circular(4)
+                                            : Radius.zero,
+                                        bottomRight: _currentStep == 4
+                                            ? const Radius.circular(4)
+                                            : Radius.zero,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                if (_currentStep < 4)
+                                  Expanded(
+                                    flex: 4 - _currentStep,
+                                    child: Container(
+                                      height: 6,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFF2F4F7),
+                                        borderRadius: BorderRadius.only(
+                                          topRight: Radius.circular(4),
+                                          bottomRight: Radius.circular(4),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
-                    ],
-                  ),
-                ),
-
-                // Scrollable Body
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_currentStep == 1)
-                          _buildStep1()
-                        else if (_currentStep == 2)
-                          _buildStep2()
-                        else if (_currentStep == 3)
-                          _buildStep3()
-                        else if (_currentStep == 4)
-                          _buildStep4()
-                        else if (_currentStep == 5)
-                          _buildStep5(),
-                      ],
                     ),
-                  ),
-                ),
 
-                // Fixed Bottom Buttons
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                  child: Column(
-                    children: [
-                      const Divider(color: Color(0xFFE5E7EB), height: 1),
-                      const SizedBox(height: 24),
-                      Row(
+                    // Scrollable Body - Flexible ensures it takes remaining space properly
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (_currentStep == 0)
+                              _buildStep1()
+                            else if (_currentStep == 1)
+                              _buildStep2()
+                            else if (_currentStep == 2)
+                              _buildStep3()
+                            else if (_currentStep == 3)
+                              _buildStep4()
+                            else if (_currentStep == 4)
+                              _buildStep5(),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Fixed Bottom Buttons
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _prevStep,
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                side: const BorderSide(color: Color(0xFF276572)),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                              ),
-                              child: Text(
-                                _currentStep == 1 || _currentStep == 5 ? 'Cancel' : 'Back',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF276572),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: _isStepValid() ? _nextStep : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _isStepValid()
-                                    ? const Color(0xFF2A8090)
-                                    : const Color(0xFFD0D5DD),
-                                disabledBackgroundColor: const Color(0xFFD0D5DD),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    _currentStep == 5 ? 'Create Project' : 'Next',
+                          const Divider(color: Color(0xFFE5E7EB), height: 1),
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: isLoading ? null : _prevStep,
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    side: const BorderSide(color: Color(0xFF276572)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    _currentStep == 0 || _currentStep == 4 ? 'Cancel' : 'Back',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.white,
+                                      color: Color(0xFF276572),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                    Icon(
-                                      _currentStep == 5
-                                          ? Icons.check_circle
-                                          : Icons.arrow_forward_ios,
-                                      size: _currentStep == 5 ? 20 : 14,
-                                      color: Colors.white,
-                                    ),
-                                ],
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: (_isStepValid() && !isLoading) ? _nextStep : null,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: _isStepValid()
+                                        ? const Color(0xFF2A8090)
+                                        : const Color(0xFFD0D5DD),
+                                    disabledBackgroundColor: const Color(0xFFD0D5DD),
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        _currentStep == 4 ? 'Create Project' : 'Next',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      if (isLoading)
+                                        const SizedBox(
+                                          height: 16,
+                                          width: 16,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      else
+                                        Icon(
+                                          _currentStep == 4
+                                              ? Icons.check_circle
+                                              : Icons.arrow_forward_ios,
+                                          size: _currentStep == 4 ? 20 : 14,
+                                          color: Colors.white,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
+                    ),
+                  ],
+                ],
+              ),
+              if (isLoading)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.white.withAlpha(128),
+                    child: const Center(
+                      child: CircularProgressIndicator(color: Color(0xFF2A8090)),
+                    ),
                   ),
                 ),
-              ],
             ],
           ),
         ),
@@ -448,6 +642,9 @@ class _NewProjectModalState extends State<NewProjectModal> {
   }
 
   Widget _buildStep2() {
+    String? selectedTypeValue = _selectedIndex != null ? _projectTypes[_selectedIndex!]['value'] : null;
+    List<String> subTypes = selectedTypeValue != null ? _subTypeOptions[selectedTypeValue] ?? [] : [];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -474,9 +671,9 @@ class _NewProjectModalState extends State<NewProjectModal> {
           children: [
             Expanded(
               child: _buildDropdown(
-                'Construction Sub-type',
+                'Construction Sub-type*',
                 _selectedSubType,
-                _subTypes,
+                subTypes,
                 (val) => setState(() => _selectedSubType = val),
               ),
             ),
@@ -630,7 +827,7 @@ class _NewProjectModalState extends State<NewProjectModal> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildPriorityButton(
-                'standard',
+                'normal',
                 'Standard',
                 SvgPicture.asset('assets/images/logo.svg', width: 16, height: 16),
               ),
@@ -901,8 +1098,6 @@ class _NewProjectModalState extends State<NewProjectModal> {
     );
   }
 
-
-
   Widget _buildStep5() {
     String projectTitle = _projectTypes[_selectedIndex!]['title']!.replaceAll(
       '\n',
@@ -1012,9 +1207,9 @@ class _NewProjectModalState extends State<NewProjectModal> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: const Text(
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
                   'Assignment Details',
                   style: TextStyle(
                     fontSize: 16,
@@ -1098,7 +1293,7 @@ class _NewProjectModalState extends State<NewProjectModal> {
                     const SizedBox(height: 8),
                     Text(
                       _projectDescController.text,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
                         color: Color(0xFF4B5563),
                         height: 1.5,
@@ -1222,7 +1417,7 @@ class _NewProjectModalState extends State<NewProjectModal> {
           const Spacer(),
           Text(
             title,
-            style: TextStyle(fontSize: 12, ),
+            style: const TextStyle(fontSize: 12, ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -1387,9 +1582,9 @@ class _NewProjectModalState extends State<NewProjectModal> {
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
               ),
               const SizedBox(height: 16),
-              Row(
+              const Row(
                 children: [
-                  const Text(
+                  Text(
                     'Invite Team',
                     style: TextStyle(
                       fontSize: 14,
@@ -1397,8 +1592,8 @@ class _NewProjectModalState extends State<NewProjectModal> {
                       color: Color(0xFF2A8090),
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  const Icon(
+                  SizedBox(width: 4),
+                  Icon(
                     Icons.arrow_forward,
                     color: Color(0xFF2A8090),
                     size: 16,
@@ -1612,8 +1807,6 @@ class _NewProjectModalState extends State<NewProjectModal> {
       ),
     );
   }
-
-  // --- Helpers ---
 
   Widget _buildTextField(
     String label,

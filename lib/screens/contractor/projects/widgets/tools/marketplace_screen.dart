@@ -1,61 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:converf/features/projects/models/project.dart';
+import 'package:converf/features/marketplace/providers/marketplace_providers.dart';
+import 'package:converf/core/utils/project_utils.dart';
 import 'marketplace_project_details_screen.dart';
 
-// ── Sample data ──────────────────────────────────────────────────────────────
-class _Project {
-  final String title;
-  final String location;
-  final String budget;
-  final String startDate;
-  final String duration;
-  final bool urgent;
-  final String imagePath;
-
-  const _Project({
-    required this.title,
-    required this.location,
-    required this.budget,
-    required this.startDate,
-    required this.duration,
-    required this.urgent,
-    required this.imagePath,
-  });
-}
-
-final List<_Project> _allProjects = [
-  const _Project(
-    title: 'Lekki Residential Complex',
-    location: 'Lekki Phase 1, Lagos',
-    budget: '₦45,000,000',
-    startDate: 'Mar 2026',
-    duration: '6 months',
-    urgent: true,
-    imagePath: 'assets/images/bg-1.png',
-  ),
-  const _Project(
-    title: 'Lekki Residential Complex',
-    location: 'Lekki Phase 1, Lagos',
-    budget: '₦45,000,000',
-    startDate: 'Mar 2026',
-    duration: '6 months',
-    urgent: true,
-    imagePath: 'assets/images/bg-1.png',
-  ),
-];
-
-
-class MarketplaceScreen extends StatefulWidget {
+class MarketplaceScreen extends ConsumerStatefulWidget {
   const MarketplaceScreen({super.key});
 
   @override
-  State<MarketplaceScreen> createState() => _MarketplaceScreenState();
+  ConsumerState<MarketplaceScreen> createState() => _MarketplaceScreenState();
 }
 
-class _MarketplaceScreenState extends State<MarketplaceScreen> {
+class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   bool _browseSelected = true;
   final _searchController = TextEditingController();
-  List<_Project> _filtered = List.from(_allProjects);
   final List<String> _activeFilters = ['Lagos, Ng', 'Abuja, NG', '+2'];
 
   @override
@@ -71,14 +31,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   void _onSearch() {
-    final q = _searchController.text.toLowerCase();
-    setState(() {
-      _filtered = _allProjects
-          .where((p) =>
-              p.title.toLowerCase().contains(q) ||
-              p.location.toLowerCase().contains(q))
-          .toList();
-    });
+    // Basic search setup complete. Handled below in provider logic.
+    setState(() {});
   }
 
   @override
@@ -232,20 +186,48 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
             
             Expanded(
-              child: _filtered.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No projects found',
-                        style: TextStyle(
-                            fontSize: 14, color: Color(0xFF9CA3AF)),
-                      ),
+              child: _browseSelected
+                  ? ref.watch(marketplaceProjectsProvider(1)).when(
+                      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+                      error: (err, _) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
+                      data: (response) {
+                        final q = _searchController.text.toLowerCase();
+                        final projects = response.data.where((p) =>
+                            p.title.toLowerCase().contains(q) ||
+                            p.location.toLowerCase().contains(q)).toList();
+
+                        if (projects.isEmpty) {
+                          return const Center(child: Text('No marketplace projects found', style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF))));
+                        }
+
+                        return ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: projects.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 16),
+                          itemBuilder: (context, i) => _buildProjectCard(context, projects[i]),
+                        );
+                      },
                     )
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 16),
-                      itemBuilder: (context, i) =>
-                          _buildProjectCard(context, _filtered[i]),
+                  : ref.watch(myBidsProvider(1)).when(
+                      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+                      error: (err, _) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
+                      data: (response) {
+                        final bids = response.data;
+                        if (bids.isEmpty) {
+                          return const Center(child: Text('You have not placed any bids yet', style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF))));
+                        }
+
+                        return ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: bids.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 16),
+                          itemBuilder: (context, i) {
+                            final project = bids[i].project;
+                            if (project == null) return const SizedBox.shrink();
+                            return _buildProjectCard(context, project);
+                          },
+                        );
+                      },
                     ),
             ),
             const SizedBox(height: 16),
@@ -326,13 +308,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
-  Widget _buildProjectCard(BuildContext context, _Project p) {
+  Widget _buildProjectCard(BuildContext context, Project p) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (_) => const MarketplaceProjectDetailsScreen()),
+            builder: (_) => MarketplaceProjectDetailsScreen(projectId: p.id),
+          ),
         );
       },
       child: Column(
@@ -341,35 +324,20 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           
           Row(
             children: [
-              Text(
-                p.title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF111827),
+              Expanded(
+                child: Text(
+                  p.title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF111827),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 6),
               const Icon(Icons.verified,
                   color: Color(0xFF4ADE80), size: 18),
-              const Spacer(),
-              if (p.urgent)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'Urgent',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFB45309),
-                    ),
-                  ),
-                ),
             ],
           ),
           const SizedBox(height: 4),
@@ -384,10 +352,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     Color(0xFF6B7280), BlendMode.srcIn),
               ),
               const SizedBox(width: 4),
-              Text(
-                p.location,
-                style: const TextStyle(
-                    fontSize: 12, color: Color(0xFF6B7280)),
+              Expanded(
+                child: Text(
+                  p.formattedLocation,
+                  style: const TextStyle(
+                      fontSize: 12, color: Color(0xFF6B7280)),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -398,7 +369,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               height: 200,
               width: double.infinity,
               child: Image.asset(
-                p.imagePath,
+                'assets/images/lekki-complex.png', // Temporary placeholder
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) =>
                     Container(color: const Color(0xFF309DAA)),
@@ -426,11 +397,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _buildStatChip(
-                    'assets/images/bill-list.svg', p.budget),
+                    'assets/images/bill-list.svg', p.formattedBudget),
                 _buildStatChip(
-                    'assets/images/Calendar.svg', p.startDate),
+                    'assets/images/Calendar.svg', p.formattedDates.split(' - ').first),
                 _buildStatChip(
-                    'assets/images/clock-circle.svg', p.duration),
+                    'assets/images/clock-circle.svg', p.status.label),
               ],
             ),
           ),

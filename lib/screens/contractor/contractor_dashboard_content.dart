@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
-import '../product_owner/widgets/dashboard/home/search_empty_state.dart';
-import '../product_owner/widgets/dashboard/home/search_results_state.dart';
-
 import '../product_owner/widgets/dashboard/messages/project_inbox_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:converf/features/marketplace/providers/marketplace_providers.dart';
+import 'package:converf/features/dashboard/providers/dashboard_providers.dart';
+import 'package:converf/core/utils/project_utils.dart';
+import '../product_owner/widgets/dashboard/home/search_results_state.dart';
+import '../product_owner/widgets/dashboard/home/search_empty_state.dart';
 
-class ContractorDashboardContent extends StatefulWidget {
+class ContractorDashboardContent extends ConsumerStatefulWidget {
   const ContractorDashboardContent({super.key});
 
   @override
-  State<ContractorDashboardContent> createState() => _ContractorDashboardContentState();
+  ConsumerState<ContractorDashboardContent> createState() => _ContractorDashboardContentState();
 }
 
-class _ContractorDashboardContentState extends State<ContractorDashboardContent> {
+class _ContractorDashboardContentState extends ConsumerState<ContractorDashboardContent> {
   bool _isSearching = false;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  String _selectedFilter = 'All';
   final FocusNode _searchFocus = FocusNode();
 
   void _toggleSearch() {
@@ -203,196 +207,290 @@ class _ContractorDashboardContentState extends State<ContractorDashboardContent>
   }
 
   Widget _buildDashboardBody() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+    final marketplaceAsync = ref.watch(marketplaceProjectsProvider(1));
+    final statsAsync = ref.watch(dashboardStatsProvider);
+
+    return marketplaceAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF2A8090))),
+      error: (error, _) => Center(child: Text('Error: $error', style: const TextStyle(color: Colors.red))),
+      data: (marketplaceResponse) {
+        final highlightedProject = marketplaceResponse.data.isNotEmpty ? marketplaceResponse.data.first : null;
+
+        return statsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF2A8090))),
+          error: (error, _) => Center(child: Text('Error loading stats: $error', style: const TextStyle(color: Colors.red))),
+          data: (statsResponse) {
+            final stats = statsResponse.data;
+            
+            String marketValueString = '₦0';
+            if (stats != null) {
+              final mv = stats.portfolioValue; // Using portfolioValue as marketValue
+              if (mv >= 1000000000) {
+                marketValueString = '₦${(mv / 1000000000).toStringAsFixed(1)}B';
+              } else if (mv >= 1000000) {
+                marketValueString = '₦${(mv / 1000000).toStringAsFixed(1)}M';
+              } else if (mv > 0) {
+                marketValueString = '₦${mv.toStringAsFixed(0)}';
+              }
+            }
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Update Progress Cards
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildUpdateProgressCard(
+                          'Update Project\nProgress',
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildUpdateProgressCard(
+                          'Update Project\nFinancials',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Market Statistics Card
+                  _buildMarketStatsCard(marketValueString),
+                  const SizedBox(height: 32),
+
+                  const Text(
+                    'Project Highlights',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  if (highlightedProject != null)
+                    _buildHighlightedProjectCard(highlightedProject)
+                  else
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text('No active projects to highlight.', style: TextStyle(color: Colors.black54)),
+                      ),
+                    ),
+                  const SizedBox(height: 100), 
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildMarketStatsCard(String value) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(24),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Update Progress Cards
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: _buildUpdateProgressCard(
-                  'Update Project\nProgress',
+              const Text(
+                'Market Statistics',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildUpdateProgressCard(
-                  'Update Milestone\nProgress',
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  children: [
+                    Text(
+                      'This Month',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-
-          // Grid Stats
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 1.4,
-            children: [
-              _buildStatCard(
-                'Active Projects',
-                '4',
-                'assets/images/projects.svg',
-                const Color(
-                  0xFFE4F8F9,
-                ), 
-                const Color(0xFFB7E7EA),
-              ),
-              _buildStatCard(
-                'Avg Quality Score',
-                '88.3%',
-                'assets/images/filecheck.svg',
-                const Color(0xFFE8F5E9), 
-                const Color(0xFF0F973D),
-              ),
-              _buildStatCard(
-                'Ball-in-courts',
-                '2',
-                'assets/images/shield-warning.svg',
-                const Color(0xFFFBEAE9), 
-                const Color(0xFFEB9B98), 
-              ),
-              _buildStatCard(
-                'Portfolio Value',
-                '₦1.3B',
-                'assets/images/Case.svg',
-                const Color(0xFFE4F8F9),
-                const Color(0xFFB7E7EA),
-              ),
-            ],
-          ),
-
           const SizedBox(height: 32),
           const Text(
-            'Project Highlights',
+            'Total Marketplace Value',
             style: TextStyle(
-              fontSize: 20,
+              color: Colors.white60,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 32,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
             ),
           ),
           const SizedBox(height: 16),
+          Row(
+            children: [
+              const Icon(
+                Icons.trending_up,
+                color: Color(0xFF10B981),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '+12.5% ',
+                style: const TextStyle(
+                  color: Color(0xFF10B981),
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'from last month',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-          // Highlights Card
+  Widget _buildHighlightedProjectCard(dynamic highlightedProject) {
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        image: const DecorationImage(
+          image: AssetImage('assets/images/bg-1.png'),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: Stack(
+        children: [
           Container(
-            height: 200,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              image: const DecorationImage(
-                image: AssetImage('assets/images/bg-1.png'),
-                fit: BoxFit.cover,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFF8DC0DC).withOpacity(0.9),
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.6),
+                ],
               ),
             ),
-            child: Stack(
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        const Color(0xFF8DC0DC).withOpacity(0.9),
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.6),
-                      ],
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        highlightedProject.title,
+                        style: const TextStyle(
+                          color: Color(0xFF111827),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Lekki Residential Complex',
-                              style: TextStyle(
-                                color: Color(0xFF111827),
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFFFEF6E7,
-                                  ), // Updated per spec
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Text(
-                                      'AT RISK',
-                                      style: TextStyle(
-                                        color: Color(0xFFC26E2B),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: const BoxDecoration(
-                                        color: Colors
-                                            .red, 
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
                       ),
-                      const SizedBox(height: 4),
-                      Row(
+                      decoration: BoxDecoration(
+                        color: highlightedProject.status.color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
                         children: [
-                          const Icon(
-                            Icons.location_on,
-                            color: Colors.black54,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
                           Text(
-                            'Lekki Phase 1, Lagos',
+                            highlightedProject.status.label.toUpperCase(),
                             style: TextStyle(
-                              color: Colors.black87.withOpacity(0.7),
-                              fontSize: 13,
+                              color: highlightedProject.status.color,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: highlightedProject.status.color,
+                              shape: BoxShape.circle,
                             ),
                           ),
                         ],
                       ),
-                      const Spacer(),
-                      const SizedBox(height: 20),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on,
+                      color: Colors.black54,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      highlightedProject.formattedLocation,
+                      style: TextStyle(
+                        color: Colors.black87.withOpacity(0.7),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                const SizedBox(height: 20),
               ],
             ),
           ),
-          const SizedBox(height: 100), 
         ],
       ),
     );
@@ -541,6 +639,38 @@ class _ContractorDashboardContentState extends State<ContractorDashboardContent>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    final filters = ['All', 'Overdue', 'This Week'];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: filters.map((filter) {
+          final isSelected = _selectedFilter == filter;
+          return Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedFilter = filter),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFF276572) : const Color(0xFFF2F4F7),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Text(
+                  filter,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFF667085),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }

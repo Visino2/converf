@@ -8,8 +8,11 @@ import 'widgets/onboarding/onboarding_login_step.dart';
 import 'widgets/onboarding/contractor_signup/contractor_signup_main.dart';
 import 'widgets/onboarding/welcome_project_owner_step.dart';
 import 'widgets/onboarding/welcome_contractor_step.dart';
+import 'widgets/onboarding/onboarding_forgot_password_step.dart';
+import 'widgets/onboarding/onboarding_reset_password_step.dart';
+import 'widgets/onboarding/onboarding_accept_invitation_step.dart';
 
-enum OnboardingStep { splash, role, auth, login, signup, welcome }
+enum OnboardingStep { splash, role, auth, login, signup, welcome, forgotPassword, resetPassword, acceptInvitation }
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -21,8 +24,6 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   OnboardingStep _step = OnboardingStep.splash;
   String? _selectedRole;
-  String?
-  _selectedCountry; 
 
   @override
   void initState() {
@@ -73,6 +74,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       case OnboardingStep.login:
         return OnboardingLoginStep(
           onSignup: () => setState(() => _step = OnboardingStep.auth),
+          onForgotPassword: () => setState(() => _step = OnboardingStep.forgotPassword),
+          onBack: () => setState(() => _step = OnboardingStep.auth),
         );
       case OnboardingStep.signup:
         if (_selectedRole == 'contractor') {
@@ -100,6 +103,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         } else {
           return const OnboardingWelcomeContractorStep();
         }
+      case OnboardingStep.forgotPassword:
+        return OnboardingForgotPasswordStep(
+          onBack: () => setState(() => _step = OnboardingStep.login),
+          onResetPassword: () => setState(() => _step = OnboardingStep.resetPassword),
+        );
+      case OnboardingStep.resetPassword:
+        return OnboardingResetPasswordStep(
+          onBackToLogin: () => setState(() => _step = OnboardingStep.login),
+        );
+      case OnboardingStep.acceptInvitation:
+        return OnboardingAcceptInvitationStep(
+          token: '', 
+          onAccepted: () => setState(() => _step = OnboardingStep.login),
+          onBackToLogin: () => setState(() => _step = OnboardingStep.login),
+        );
     }
   }
 }

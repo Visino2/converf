@@ -2,8 +2,25 @@ import 'package:flutter/material.dart';
 
 class ContractorPersonalInfoStep extends StatefulWidget {
   final VoidCallback onNext;
+  final TextEditingController firstNameController;
+  final TextEditingController lastNameController;
+  final TextEditingController emailController;
+  final String? selectedCountry;
+  final Function(String) onCountrySelected;
+  final String? emailBackendError;
+  final VoidCallback onEmailChanged;
 
-  const ContractorPersonalInfoStep({super.key, required this.onNext});
+  const ContractorPersonalInfoStep({
+    super.key,
+    required this.onNext,
+    required this.firstNameController,
+    required this.lastNameController,
+    required this.emailController,
+    required this.selectedCountry,
+    required this.onCountrySelected,
+    required this.emailBackendError,
+    required this.onEmailChanged,
+  });
 
   @override
   State<ContractorPersonalInfoStep> createState() =>
@@ -12,8 +29,9 @@ class ContractorPersonalInfoStep extends StatefulWidget {
 
 class _ContractorPersonalInfoStepState
     extends State<ContractorPersonalInfoStep> {
-  String? _selectedCountry;
+  final _formKey = GlobalKey<FormState>();
 
+  bool _isEmailValid = false;
   final List<String> _countries = [
     'Nigeria',
     'Ghana',
@@ -44,7 +62,6 @@ class _ContractorPersonalInfoStepState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              // Optional drag handle
               Center(
                 child: Container(
                   width: 40,
@@ -63,9 +80,7 @@ class _ContractorPersonalInfoStepState
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: Color(
-                      0xFF6B7280,
-                    ), // Gray color similar to the design
+                    color: Color(0xFF6B7280),
                   ),
                 ),
               ),
@@ -81,13 +96,11 @@ class _ContractorPersonalInfoStepState
                   ),
                   itemBuilder: (context, index) {
                     final country = _countries[index];
-                    final isSelected = _selectedCountry == country;
+                    final isSelected = widget.selectedCountry == country;
 
                     return InkWell(
                       onTap: () {
-                        setState(() {
-                          _selectedCountry = country;
-                        });
+                        widget.onCountrySelected(country);
                         Navigator.pop(context);
                       },
                       child: Padding(
@@ -105,7 +118,6 @@ class _ContractorPersonalInfoStepState
                               ),
                               const SizedBox(width: 12),
                             ] else ...[
-                              // Maintain spacing when not selected to keep text aligned
                               const SizedBox(width: 32),
                             ],
                             Text(
@@ -147,16 +159,15 @@ class _ContractorPersonalInfoStepState
   Widget _buildTextField(
     String label,
     String hint, {
+    required TextEditingController controller,
     Widget? trailing,
     bool readOnly = false,
     VoidCallback? onTap,
-    String? value,
+    String? Function(String?)? validator,
+    bool isValid = false,
+    String? errorText,
+    VoidCallback? onChanged,
   }) {
-    // If a value is provided, we create a controller to show it
-    final controller = value != null
-        ? TextEditingController(text: value)
-        : null;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -165,10 +176,16 @@ class _ContractorPersonalInfoStepState
           controller: controller,
           readOnly: readOnly,
           onTap: onTap,
+          validator: validator,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          onChanged: (v) => onChanged?.call(),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-            suffixIcon: trailing,
+            errorText: errorText,
+            suffixIcon: (isValid && errorText == null)
+                ? const Icon(Icons.check_circle, color: Colors.green, size: 20)
+                : trailing,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 12,
@@ -185,6 +202,14 @@ class _ContractorPersonalInfoStepState
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFF276572)),
             ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red, width: 2),
+            ),
           ),
         ),
       ],
@@ -193,65 +218,146 @@ class _ContractorPersonalInfoStepState
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey('personal_info'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Get started with Converf',
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.w800,
-            height: 1.1,
-            letterSpacing: -0.5,
-            color: Colors.black87,
+    return Form(
+      key: _formKey,
+      child: Column(
+        key: const ValueKey('personal_info'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Get started with Converf',
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              height: 1.1,
+              letterSpacing: -0.5,
+              color: Colors.black87,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Build world-class infrastructure across Africa',
-          style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
-        ),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            Expanded(child: _buildTextField('First Name', 'you@example.com')),
-            const SizedBox(width: 16),
-            Expanded(child: _buildTextField('Last Name', 'you@example.com')),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _buildTextField('Email Address', 'you@example.com'),
-        const SizedBox(height: 16),
-        _buildTextField(
-          'Country',
-          'Select Country',
-          value: _selectedCountry,
-          readOnly: true,
-          trailing: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-          onTap: _showCountryPicker,
-        ),
-        const SizedBox(height: 32),
-        SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF276572),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
+          const SizedBox(height: 8),
+          Text(
+            'Build world-class infrastructure across Africa',
+            style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  'First Name',
+                  'First Name',
+                  controller: widget.firstNameController,
+                  validator: (v) {
+                    if (v == null || v.length < 2) return 'Enter first name';
+                    return null;
+                  },
+                ),
               ),
-              elevation: 0,
-            ),
-            onPressed: widget.onNext,
-            child: const Text(
-              'Next',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildTextField(
+                  'Last Name',
+                  'Last Name',
+                  controller: widget.lastNameController,
+                  validator: (v) {
+                    if (v == null || v.length < 2) return 'Enter last name';
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            'Email Address',
+            'you@example.com',
+            controller: widget.emailController,
+            isValid: _isEmailValid,
+            errorText: widget.emailBackendError,
+            onChanged: widget.onEmailChanged,
+            validator: (v) {
+              if (v == null || !v.contains('@') || !v.contains('.')) return 'Enter valid email';
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!_isEmailValid) setState(() => _isEmailValid = true);
+              });
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildFieldLabel('Country'),
+          FormField<String>(
+            validator: (v) => widget.selectedCountry == null ? 'Select country' : null,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            builder: (state) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InkWell(
+                    onTap: _showCountryPicker,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: state.hasError ? Colors.red : Colors.grey.shade300,
+                          width: state.hasError ? 2 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            widget.selectedCountry ?? 'Select Country',
+                            style: TextStyle(
+                              color: widget.selectedCountry == null
+                                  ? Colors.grey.shade400
+                                  : Colors.black87,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const Spacer(),
+                          const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (state.hasError)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0, left: 12),
+                      child: Text(
+                        state.errorText!,
+                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF276572),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                elevation: 0,
+              ),
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  widget.onNext();
+                }
+              },
+              child: const Text(
+                'Next',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

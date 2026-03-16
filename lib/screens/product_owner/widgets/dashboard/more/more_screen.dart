@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
-import 'profile_information_screen.dart';
-import 'security_screen.dart';
-import '../notifications/notifications_screen.dart';
-import 'billing_screen.dart';
-import 'help_support_screen.dart';
+import 'package:converf/screens/product_owner/widgets/dashboard/more/profile_information_screen.dart';
+import 'package:converf/screens/product_owner/widgets/dashboard/more/security_screen.dart';
+import 'package:converf/screens/product_owner/widgets/dashboard/notifications/notifications_screen.dart';
+import 'package:converf/screens/product_owner/widgets/dashboard/more/billing_screen.dart';
+import 'package:converf/screens/product_owner/widgets/dashboard/more/help_support_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:converf/screens/widgets/logout_confirmation_modal.dart';
+import 'package:converf/features/auth/providers/auth_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class MoreScreen extends StatelessWidget {
+class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
 
   void _navigate(BuildContext context, String title) {
@@ -39,7 +41,7 @@ class MoreScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final List<Map<String, String>> menuItems = [
       {'title': 'Profile Information', 'icon': 'assets/images/more.svg'},
       {'title': 'Security', 'icon': 'assets/images/Shield.svg'},
@@ -75,7 +77,15 @@ class MoreScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => context.go('/onboarding'),
+                  onPressed: () {
+                    showLogoutConfirmation(
+                      context,
+                      onConfirm: () {
+                        ref.read(authProvider.notifier).logout();
+                        // Redirection is handled by AppRouter
+                      },
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD32F2F),
                     padding: const EdgeInsets.symmetric(vertical: 18),

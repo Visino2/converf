@@ -2,8 +2,21 @@ import 'package:flutter/material.dart';
 
 class ContractorCompanyInfoStep extends StatefulWidget {
   final VoidCallback onNext;
+  final TextEditingController companyNameController;
+  final TextEditingController registrationNumberController;
+  final TextEditingController licenseNumberController;
+  final String? yearsInBusiness;
+  final Function(String) onYearsSelected;
 
-  const ContractorCompanyInfoStep({super.key, required this.onNext});
+  const ContractorCompanyInfoStep({
+    super.key,
+    required this.onNext,
+    required this.companyNameController,
+    required this.registrationNumberController,
+    required this.licenseNumberController,
+    required this.yearsInBusiness,
+    required this.onYearsSelected,
+  });
 
   @override
   State<ContractorCompanyInfoStep> createState() =>
@@ -11,9 +24,11 @@ class ContractorCompanyInfoStep extends StatefulWidget {
 }
 
 class _ContractorCompanyInfoStepState extends State<ContractorCompanyInfoStep> {
-  String? _yearsInBusiness;
+  final _formKey = GlobalKey<FormState>();
 
-  void _showYearsPicker() {
+  bool _isYearsValid = false; // Note: although mentioned in plan, usually we avoid these for PO/Contractor consistent with what we did there.
+ // Actually removing them check by check.
+   void _showYearsPicker() {
     final yearsOptions = ['1-2 Years', '3-5 Years', '5-10 Years', '10+ Years'];
     showModalBottomSheet(
       context: context,
@@ -67,7 +82,7 @@ class _ContractorCompanyInfoStepState extends State<ContractorCompanyInfoStep> {
                       ),
                     ),
                     onTap: () {
-                      setState(() => _yearsInBusiness = option);
+                      widget.onYearsSelected(option);
                       Navigator.pop(context);
                     },
                   );
@@ -97,21 +112,29 @@ class _ContractorCompanyInfoStepState extends State<ContractorCompanyInfoStep> {
   Widget _buildTextField(
     String label,
     String hint, {
+    required TextEditingController controller,
     Widget? trailing,
     bool readOnly = false,
     VoidCallback? onTap,
+    String? Function(String?)? validator,
+    bool isValid = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildFieldLabel(label),
         TextFormField(
+          controller: controller,
           readOnly: readOnly,
           onTap: onTap,
+          validator: validator,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-            suffixIcon: trailing,
+            suffixIcon: isValid 
+                ? const Icon(Icons.check_circle, color: Colors.green, size: 20)
+                : trailing,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 12,
@@ -128,6 +151,14 @@ class _ContractorCompanyInfoStepState extends State<ContractorCompanyInfoStep> {
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFF276572)),
             ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red, width: 2),
+            ),
           ),
         ),
       ],
@@ -136,74 +167,156 @@ class _ContractorCompanyInfoStepState extends State<ContractorCompanyInfoStep> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey('company_info'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Company Information',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-            height: 1.1,
-            letterSpacing: -0.5,
-            color: Colors.black87,
+    return Form(
+      key: _formKey,
+      child: Column(
+        key: const ValueKey('company_info'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Company Information',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              height: 1.1,
+              letterSpacing: -0.5,
+              color: Colors.black87,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Help us verify your construction business',
-          style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
-        ),
-        const SizedBox(height: 24),
-        _buildTextField('Company Name *', 'e.g ABC Construction'),
-        const SizedBox(height: 16),
-        _buildTextField('Business Registration Number *', 'e.g RC 11118338'),
-        const SizedBox(height: 4),
-        Text(
-          'Your CAC registration number or equivalent',
-          style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildTextField(
-                'Years in Business *',
-                _yearsInBusiness ?? 'Select',
-                readOnly: true,
-                onTap: _showYearsPicker,
-                trailing: const Icon(
-                  Icons.keyboard_arrow_down,
-                  color: Colors.grey,
+          const SizedBox(height: 8),
+          Text(
+            'Help us verify your construction business',
+            style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 24),
+          _buildTextField(
+            'Company Name *',
+            'e.g ABC Construction',
+            controller: widget.companyNameController,
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Enter company name';
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            'Business Registration Number *',
+            'e.g RC 11118338',
+            controller: widget.registrationNumberController,
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Enter registration number';
+              return null;
+            },
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Your CAC registration number or equivalent',
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildFieldLabel('Years in Business *'),
+                    FormField<String>(
+                      validator: (v) =>
+                          widget.yearsInBusiness == null ? 'Required' : null,
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      builder: (state) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            InkWell(
+                              onTap: _showYearsPicker,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: state.hasError
+                                        ? Colors.red
+                                        : Colors.grey.shade300,
+                                    width: state.hasError ? 2 : 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      widget.yearsInBusiness ?? 'Select',
+                                      style: TextStyle(
+                                        color: widget.yearsInBusiness == null
+                                            ? Colors.grey.shade400
+                                            : Colors.black87,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    const Icon(Icons.keyboard_arrow_down,
+                                        color: Colors.grey),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (state.hasError)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(top: 8.0, left: 12),
+                                child: Text(
+                                  state.errorText!,
+                                  style: const TextStyle(
+                                      color: Colors.red, fontSize: 12),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(child: _buildTextField('License Number', 'Enter license')),
-          ],
-        ),
-        const SizedBox(height: 32),
-        SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF276572),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildTextField(
+                  'License Number',
+                  'Enter license',
+                  controller: widget.licenseNumberController,
+                  validator: (v) {
+                    return null;
+                  },
+                ),
               ),
-              elevation: 0,
-            ),
-            onPressed: widget.onNext,
-            child: const Text(
-              'Next',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ],
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF276572),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                elevation: 0,
+              ),
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  widget.onNext();
+                }
+              },
+              child: const Text(
+                'Next',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

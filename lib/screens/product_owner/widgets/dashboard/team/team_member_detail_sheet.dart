@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../../../features/team/providers/team_providers.dart';
+import '../../../../../../features/team/models/team_member.dart';
 
-class TeamMemberDetailSheet extends StatelessWidget {
-  final Map<String, String> member;
+class TeamMemberDetailSheet extends ConsumerWidget {
+  final TeamMember member;
+  final String? projectId;
 
-  const TeamMemberDetailSheet({super.key, required this.member});
+  const TeamMemberDetailSheet({super.key, required this.member, this.projectId});
 
-  void _showRemoveConfirmation(BuildContext context) {
+  void _showRemoveConfirmation(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.4),
@@ -58,10 +62,10 @@ class TeamMemberDetailSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Are you sure you want to remove from Project',
+              Text(
+                projectId != null ? 'Are you sure you want to remove from Project?' : 'Are you sure you want to remove from Team?',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
                   color: Color(0xFF6B7280),
                 ),
@@ -92,9 +96,23 @@ class TeamMemberDetailSheet extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     Navigator.of(dialogContext).pop();
-                    Navigator.of(context).pop();
+                    try {
+                      if (projectId != null) {
+                        await ref.read(teamActionProvider.notifier).removeProjectMember(projectId!, member);
+                      } else {
+                        await ref.read(teamActionProvider.notifier).removeMember(member.id);
+                      }
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Member removed successfully')));
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFE53935),
@@ -122,7 +140,7 @@ class TeamMemberDetailSheet extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -169,16 +187,19 @@ class TeamMemberDetailSheet extends StatelessWidget {
                         height: 88,
                         decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white24),
                         child: ClipOval(
-                          child: Image.asset(
-                            member['image']!,
-                            fit: BoxFit.cover,
-                          ),
+                          child: member.user?.avatar != null
+                              ? Image.network(
+                                  member.user!.avatar!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: Colors.white, size: 40),
+                                )
+                              : const Icon(Icons.person, color: Colors.white, size: 40),
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      member['fullName'] ?? member['name']!,
+                      member.displayName,
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -188,7 +209,7 @@ class TeamMemberDetailSheet extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      member['fullRole'] ?? member['role']!,
+                      member.role.isNotEmpty ? member.role : 'Member',
                       style: const TextStyle(
                         fontSize: 14,
                         color: Colors.white70,
@@ -218,13 +239,13 @@ class TeamMemberDetailSheet extends StatelessWidget {
                     Expanded(
                       child: _buildDetailColumn(
                         'Member Since',
-                        member['memberSince'] ?? 'Jan 2023',
+                        member.joinedAt ?? 'N/A',
                       ),
                     ),
                     Expanded(
                       child: _buildDetailColumn(
                         'Location',
-                        member['location'] ?? 'Lagos, Nigeria',
+                        'N/A', // Assuming location isn't in TeamMember API yet
                       ),
                     ),
                   ],
@@ -235,13 +256,13 @@ class TeamMemberDetailSheet extends StatelessWidget {
                     Expanded(
                       child: _buildDetailColumn(
                         'Email Address',
-                        member['email'] ?? 'adebayo@megastruct...',
+                        member.user?.email ?? 'N/A',
                       ),
                     ),
                     Expanded(
                       child: _buildDetailColumn(
                         'Direct Line',
-                        member['phone'] ?? '+234 801 234 5678',
+                        'N/A', // Phone number missing from API model
                       ),
                     ),
                   ],
@@ -295,7 +316,7 @@ class TeamMemberDetailSheet extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => _showRemoveConfirmation(context),
+                    onPressed: () => _showRemoveConfirmation(context, ref),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE53935),
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -304,8 +325,8 @@ class TeamMemberDetailSheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(30),
                       ),
                     ),
-                    child: const Text(
-                      'Remove From Project',
+                    child: Text(
+                      projectId != null ? 'Remove From Project' : 'Remove From Team',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
