@@ -4,12 +4,15 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/features/marketplace/providers/marketplace_providers.dart';
 import 'package:converf/features/dashboard/providers/dashboard_providers.dart';
-import 'package:converf/core/utils/project_utils.dart';
 import '../product_owner/widgets/dashboard/home/search_results_state.dart';
 import '../product_owner/widgets/dashboard/home/search_empty_state.dart';
+import 'contractor_dashboard_screen.dart';
+import 'projects/contractor_project_details_screen.dart';
 
 class ContractorDashboardContent extends ConsumerStatefulWidget {
-  const ContractorDashboardContent({super.key});
+  const ContractorDashboardContent({super.key, this.onNavigateToProjects});
+
+  final VoidCallback? onNavigateToProjects;
 
   @override
   ConsumerState<ContractorDashboardContent> createState() => _ContractorDashboardContentState();
@@ -19,7 +22,6 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
   bool _isSearching = false;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  String _selectedFilter = 'All';
   final FocusNode _searchFocus = FocusNode();
 
   void _toggleSearch() {
@@ -257,6 +259,54 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
                   ),
                   const SizedBox(height: 24),
 
+                  // Project Metrics Grid
+                  if (stats != null) ...[
+                    const Text(
+                      'Project Metrics',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
+                    ),
+                    const SizedBox(height: 16),
+                    GridView.count(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      childAspectRatio: 1.25,
+                      children: [
+                        _buildMetricCard(
+                          'Active Tasks',
+                          stats.activeTasks.toString(),
+                          'assets/images/Target.svg',
+                          const Color(0xFFF0F9FB),
+                          const Color(0xFF276572),
+                        ),
+                        _buildMetricCard(
+                          'Pending Invoices',
+                          stats.pendingInvoices.toString(),
+                          'assets/images/financial.svg',
+                          const Color(0xFFFEF6FB),
+                          const Color(0xFFD42620),
+                        ),
+                        _buildMetricCard(
+                          'Upcoming Milestones',
+                          stats.upcomingMilestones.toString(),
+                          'assets/images/calendar-3.svg',
+                          const Color(0xFFEFF8FF),
+                          const Color(0xFF175CD3),
+                        ),
+                        _buildMetricCard(
+                          'Total Earned',
+                          stats.totalEarned ?? '₦0',
+                          'assets/images/financial.svg',
+                          const Color(0xFFECFDF3),
+                          const Color(0xFF027A48),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+
                   // Market Statistics Card
                   _buildMarketStatsCard(marketValueString),
                   const SizedBox(height: 32),
@@ -317,7 +367,7 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Row(
@@ -377,7 +427,7 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
               Text(
                 'from last month',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.5),
                   fontSize: 14,
                 ),
               ),
@@ -389,8 +439,17 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
   }
 
   Widget _buildHighlightedProjectCard(dynamic highlightedProject) {
-    return Container(
-      height: 200,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ContractorProjectDetailsScreen(projectId: highlightedProject.id),
+          ),
+        );
+      },
+      child: Container(
+        height: 200,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         image: const DecorationImage(
@@ -407,9 +466,9 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  const Color(0xFF8DC0DC).withOpacity(0.9),
+                  const Color(0xFF8DC0DC).withValues(alpha: 0.9),
                   Colors.transparent,
-                  Colors.black.withOpacity(0.6),
+                  Colors.black.withValues(alpha: 0.6),
                 ],
               ),
             ),
@@ -441,7 +500,7 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: highlightedProject.status.color.withOpacity(0.15),
+                        color: highlightedProject.status.color.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
@@ -480,7 +539,7 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
                     Text(
                       highlightedProject.formattedLocation,
                       style: TextStyle(
-                        color: Colors.black87.withOpacity(0.7),
+                        color: Colors.black87.withValues(alpha: 0.7),
                         fontSize: 13,
                       ),
                     ),
@@ -493,8 +552,9 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildUpdateProgressCard(String title) {
     return Container(
@@ -542,7 +602,9 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              onPressed: () {},
+              onPressed: () {
+                widget.onNavigateToProjects?.call();
+              },
               child: const Text(
                 'Update Progress',
                 style: TextStyle(
@@ -557,142 +619,62 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
     );
   }
 
-  Widget _buildStatCard(
-    String title,
-    String value,
-    String imagePath,
-    Color innerColor,
-    Color borderColor,
-  ) {
+  Widget _buildMetricCard(String title, String value, String iconPath, Color bgColor, Color iconColor) {
     return Container(
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF0F2F5)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // Dotted Grid Background
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _DottedGridPainter(),
-            ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEAECF0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: innerColor,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: borderColor.withOpacity(0.5),
-                          width: 1,
-                        ),
-                      ),
-                      child: SvgPicture.asset(
-                        imagePath,
-                        fit: BoxFit.contain,
-                        colorFilter: ColorFilter.mode(
-                          borderColor.withOpacity(1.0).computeLuminance() > 0.5 
-                            ? borderColor.withOpacity(1.0).withRed(10).withGreen(120).withBlue(130) // Fallback for very light colors
-                            : borderColor, 
-                          BlendMode.srcIn,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          color: Color(0xFF94A3B8),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  shape: BoxShape.circle,
                 ),
-                const Spacer(),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF111827),
-                    letterSpacing: -1,
-                  ),
+                child: SvgPicture.asset(
+                  iconPath,
+                  width: 24,
+                  height: 24,
+                  colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
                 ),
-              ],
-            ),
+              ),
+              const Icon(Icons.arrow_forward_ios, size: 12, color: Color(0xFF98A2B3)),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF667085), fontWeight: FontWeight.w500),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
         ],
       ),
     );
   }
-
-  Widget _buildFilterChips() {
-    final filters = ['All', 'Overdue', 'This Week'];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: filters.map((filter) {
-          final isSelected = _selectedFilter == filter;
-          return Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedFilter = filter),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF276572) : const Color(0xFFF2F4F7),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Text(
-                  filter,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : const Color(0xFF667085),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-class _DottedGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFF1F5F9).withOpacity(0.5)
-      ..style = PaintingStyle.fill;
-
-    const spacing = 12.0;
-    const dotSize = 1.5;
-
-    for (double x = spacing; x < size.width; x += spacing) {
-      for (double y = spacing; y < size.height; y += spacing) {
-        canvas.drawCircle(Offset(x, y), dotSize / 2, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

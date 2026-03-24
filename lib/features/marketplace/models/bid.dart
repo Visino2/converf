@@ -11,6 +11,10 @@ class Bid {
   final String? updatedAt;
   final ProjectParty? contractor;
   final Project? project;
+  final String? duration;
+  final String? paymentPreference;
+  final List<dynamic>? milestones;
+  final List<String>? equipment;
 
   Bid({
     required this.id,
@@ -23,12 +27,16 @@ class Bid {
     this.updatedAt,
     this.contractor,
     this.project,
+    this.duration,
+    this.paymentPreference,
+    this.milestones,
+    this.equipment,
   });
 
   factory Bid.fromJson(Map<String, dynamic> json) {
     return Bid(
       id: json['id']?.toString() ?? '',
-      amount: json['amount'] as num? ?? 0,
+      amount: num.tryParse(json['amount']?.toString() ?? '0') ?? 0,
       proposal: json['proposal'] as String? ?? '',
       status: json['status'] as String? ?? 'pending',
       projectId: json['project_id']?.toString() ?? '',
@@ -41,6 +49,10 @@ class Bid {
       project: json['project'] != null
           ? Project.fromJson(json['project'] as Map<String, dynamic>)
           : null,
+      duration: json['duration'] as String?,
+      paymentPreference: json['payment_preference'] as String?,
+      milestones: json['milestones'] as List<dynamic>?,
+      equipment: (json['equipment'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
     );
   }
 }

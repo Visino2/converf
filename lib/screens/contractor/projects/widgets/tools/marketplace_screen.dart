@@ -2,25 +2,43 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/features/projects/models/project.dart';
+import 'package:converf/features/marketplace/models/bid.dart';
 import 'package:converf/features/marketplace/providers/marketplace_providers.dart';
-import 'package:converf/core/utils/project_utils.dart';
 import 'marketplace_project_details_screen.dart';
 
 class MarketplaceScreen extends ConsumerStatefulWidget {
-  const MarketplaceScreen({super.key});
+  final bool initialShowMyBids;
+  
+  const MarketplaceScreen({
+    super.key,
+    this.initialShowMyBids = false,
+  });
 
   @override
   ConsumerState<MarketplaceScreen> createState() => _MarketplaceScreenState();
 }
 
 class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
-  bool _browseSelected = true;
+  late bool _browseSelected;
   final _searchController = TextEditingController();
-  final List<String> _activeFilters = ['Lagos, Ng', 'Abuja, NG', '+2'];
+  
+  // Filter states
+  String _selectedType = 'All Types';
+  String _selectedCity = 'All Cities';
+  String _selectedBudget = 'Any Budget';
+
+  final List<String> _budgetRanges = [
+    'Any Budget',
+    'Under \$10k',
+    '\$10k - \$50k',
+    '\$50k - \$100k',
+    'Over \$100k'
+  ];
 
   @override
   void initState() {
     super.initState();
+    _browseSelected = !widget.initialShowMyBids;
     _searchController.addListener(_onSearch);
   }
 
@@ -31,12 +49,33 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   }
 
   void _onSearch() {
-    // Basic search setup complete. Handled below in provider logic.
     setState(() {});
+  }
+
+  bool _matchesFilter(Project p) {
+    if (_selectedType != 'All Types' && p.constructionType.toLowerCase() != _selectedType.toLowerCase()) {
+      return false;
+    }
+    if (_selectedCity != 'All Cities' && !p.formattedLocation.toLowerCase().contains(_selectedCity.toLowerCase())) {
+      return false;
+    }
+    if (_selectedBudget != 'Any Budget') {
+      final budget = num.tryParse(p.budget) ?? 0;
+      switch (_selectedBudget) {
+        case 'Under \$10k': if (budget >= 10000) return false; break;
+        case '\$10k - \$50k': if (budget < 10000 || budget > 50000) return false; break;
+        case '\$50k - \$100k': if (budget < 50000 || budget > 100000) return false; break;
+        case 'Over \$100k': if (budget < 100000) return false; break;
+      }
+    }
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
+    final projectsAsync = ref.watch(marketplaceProjectsProvider(1));
+    final projectsList = projectsAsync.value?.data ?? [];
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -111,11 +150,11 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                     // Filter dropdowns
                     Row(
                       children: [
-                        _buildDropdown('Project type'),
+                        _buildTypeDropdown(),
                         const SizedBox(width: 8),
-                        _buildDropdown('Location'),
+                        _buildCityDropdown(projectsList),
                         const SizedBox(width: 8),
-                        _buildDropdown('Budget'),
+                        _buildBudgetDropdown(),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -157,25 +196,32 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    // Active filter chips
+                    // Dynamic Active filter chips
                     Row(
                       children: [
-                        ..._activeFilters.map((f) => _buildFilterChip(f)),
+                        if (_selectedType != 'All Types') _buildFilterChip(_selectedType, () => setState(() => _selectedType = 'All Types')),
+                        if (_selectedCity != 'All Cities') _buildFilterChip(_selectedCity, () => setState(() => _selectedCity = 'All Cities')),
+                        if (_selectedBudget != 'Any Budget') _buildFilterChip(_selectedBudget, () => setState(() => _selectedBudget = 'Any Budget')),
                         const Spacer(),
-                        GestureDetector(
-                          onTap: () => setState(() => _activeFilters.clear()),
-                          child: Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              border:
-                                  Border.all(color: const Color(0xFFE5E7EB)),
-                              shape: BoxShape.circle,
+                        if (_selectedType != 'All Types' || _selectedCity != 'All Cities' || _selectedBudget != 'Any Budget')
+                          GestureDetector(
+                            onTap: () => setState(() {
+                              _selectedType = 'All Types';
+                              _selectedCity = 'All Cities';
+                              _selectedBudget = 'Any Budget';
+                            }),
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                border:
+                                    Border.all(color: const Color(0xFFE5E7EB)),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close,
+                                  size: 15, color: Color(0xFF6B7280)),
                             ),
-                            child: const Icon(Icons.close,
-                                size: 15, color: Color(0xFF6B7280)),
                           ),
-                        ),
                       ],
                     ),
                   ],
@@ -183,7 +229,6 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
             
             Expanded(
               child: _browseSelected
@@ -192,18 +237,20 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                       error: (err, _) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
                       data: (response) {
                         final q = _searchController.text.toLowerCase();
-                        final projects = response.data.where((p) =>
-                            p.title.toLowerCase().contains(q) ||
-                            p.location.toLowerCase().contains(q)).toList();
+                        final projects = response.data.where((p) {
+                          final matchesSearch = p.title.toLowerCase().contains(q) ||
+                              p.formattedLocation.toLowerCase().contains(q);
+                          return matchesSearch && _matchesFilter(p);
+                        }).toList();
 
                         if (projects.isEmpty) {
-                          return const Center(child: Text('No marketplace projects found', style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF))));
+                          return const Center(child: Text('No projects match your filters', style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF))));
                         }
 
                         return ListView.separated(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           itemCount: projects.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 16),
+                          separatorBuilder: (_, _) => const SizedBox(height: 16),
                           itemBuilder: (context, i) => _buildProjectCard(context, projects[i]),
                         );
                       },
@@ -220,11 +267,11 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                         return ListView.separated(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           itemCount: bids.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 16),
+                          separatorBuilder: (_, _) => const SizedBox(height: 16),
                           itemBuilder: (context, i) {
                             final project = bids[i].project;
                             if (project == null) return const SizedBox.shrink();
-                            return _buildProjectCard(context, project);
+                            return _buildProjectCard(context, project, bid: bids[i]);
                           },
                         );
                       },
@@ -237,7 +284,69 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
     );
   }
 
- 
+  Widget _buildTypeDropdown() {
+    final types = ['All Types', 'Residential', 'Commercial', 'Roadway', 'Infrastructure'];
+    return _filterDropdown(
+      value: _selectedType,
+      options: types,
+      onChanged: (val) => setState(() => _selectedType = val!),
+    );
+  }
+
+  Widget _buildCityDropdown(List<Project> projects) {
+    final cities = {'All Cities'};
+    for (var p in projects) {
+      if (p.location.contains(',')) {
+        cities.add(p.location.split(',').first.trim());
+      } else {
+        cities.add(p.location.trim());
+      }
+    }
+    return _filterDropdown(
+      value: _selectedCity,
+      options: cities.toList(),
+      onChanged: (val) => setState(() => _selectedCity = val!),
+    );
+  }
+
+  Widget _buildBudgetDropdown() {
+    return _filterDropdown(
+      value: _selectedBudget,
+      options: _budgetRanges,
+      onChanged: (val) => setState(() => _selectedBudget = val!),
+    );
+  }
+
+  Widget _filterDropdown({
+    required String value,
+    required List<String> options,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFFE4E7EC)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: options.contains(value) ? value : options.first,
+            isExpanded: true,
+            icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFF9CA3AF)),
+            style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+            onChanged: onChanged,
+            items: options.map((String opt) {
+              return DropdownMenuItem<String>(
+                value: opt,
+                child: Text(opt, overflow: TextOverflow.ellipsis),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildToggleBtn(
       String label, bool selected, VoidCallback onTap) {
@@ -265,50 +374,37 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
     );
   }
 
-  Widget _buildDropdown(String label) {
-    return Expanded(
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFE4E7EC)),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 12, color: Color(0xFF6B7280))),
-            const Icon(Icons.keyboard_arrow_down,
-                size: 15, color: Color(0xFF9CA3AF)),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildFilterChip(String label) {
+  Widget _buildFilterChip(String label, VoidCallback onRemove) {
     return Container(
       margin: const EdgeInsets.only(right: 8),
-      padding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
       decoration: BoxDecoration(
         color: const Color(0xFFB7E7EA),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: Color(0xFF0F5F6B),
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF0F5F6B),
+            ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onRemove,
+            child: const Icon(Icons.close, size: 14, color: Color(0xFF0F5F6B)),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildProjectCard(BuildContext context, Project p) {
+  Widget _buildProjectCard(BuildContext context, Project p, {Bid? bid}) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -336,7 +432,10 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                 ),
               ),
               const SizedBox(width: 6),
-              const Icon(Icons.verified,
+              if (bid != null)
+                _buildBidStatusBadge(bid.status)
+              else
+                const Icon(Icons.verified,
                   color: Color(0xFF4ADE80), size: 18),
             ],
           ),
@@ -371,7 +470,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
               child: Image.asset(
                 'assets/images/lekki-complex.png', // Temporary placeholder
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
+                errorBuilder: (_, _, _) =>
                     Container(color: const Color(0xFF309DAA)),
               ),
             ),
@@ -406,6 +505,49 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBidStatusBadge(String status) {
+    Color bg;
+    Color fg;
+    String label = status.toUpperCase();
+
+    switch (status.toLowerCase()) {
+      case 'accepted':
+        bg = const Color(0xFFDCFCE7);
+        fg = const Color(0xFF166534);
+        break;
+      case 'shortlisted':
+        bg = const Color(0xFFF0FBFB);
+        fg = const Color(0xFF309DAA);
+        break;
+      case 'rejected':
+      case 'declined':
+        bg = const Color(0xFFFEE2E2);
+        fg = const Color(0xFF991B1B);
+        break;
+      case 'pending':
+      default:
+        bg = const Color(0xFFFEF3C7);
+        fg = const Color(0xFF92400E);
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: fg,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

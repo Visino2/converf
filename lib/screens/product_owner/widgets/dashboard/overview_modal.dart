@@ -1,12 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:converf/features/projects/providers/project_providers.dart';
+import 'package:converf/features/projects/providers/schedule_providers.dart';
+import 'package:intl/intl.dart';
+import 'package:converf/core/api/api_client.dart';
 
-class OverviewModal extends StatelessWidget {
-  const OverviewModal({super.key});
+class OverviewModal extends ConsumerWidget {
+  final String projectId;
+  const OverviewModal({super.key, required this.projectId});
 
   @override
-  Widget build(BuildContext context) {
-    return SafeArea(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final projectAsync = ref.watch(projectDetailsProvider(projectId));
+    final scheduleAsync = ref.watch(projectScheduleProvider(projectId));
+
+    return projectAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+      error: (error, _) => Center(child: Text('Error: $error')),
+      data: (response) {
+        final project = response.data;
+        if (project == null) return const Center(child: Text('Project not found'));
+        
+        return SafeArea(
       bottom: false,
       child: Container(
         padding: const EdgeInsets.all(24),
@@ -66,9 +82,9 @@ class OverviewModal extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Luxury housing development featuring 12 units of 4-bedroom terrace houses with premium finishes, integrated smart home systems, and communal leisure facilities.',
-              style: TextStyle(
+            Text(
+              project.description,
+              style: const TextStyle(
                 fontSize: 14,
                 color: Color(0xFF475467),
                 height: 1.5,
@@ -84,34 +100,63 @@ class OverviewModal extends StatelessWidget {
               ),
             ),
             const Divider(height: 24, color: Color(0xFFEAECF0)),
-            _buildDetailRow('Lead Contractor', 'BuildRight Africa'),
+            _buildDetailRow('Project Owner', project.owner?.displayName ?? 'Not Assigned'),
             const SizedBox(height: 16),
-            _buildDetailRow('Start Date', 'August 15, 2023'),
+            _buildDetailRow('Start Date', project.formattedDates.split(' - ').first),
             const SizedBox(height: 16),
-            _buildDetailRow('Expected Completion', 'July 30, 2024'),
+            _buildDetailRow('Expected Completion', project.formattedDates.split(' - ').last),
             const SizedBox(height: 16),
-            _buildDetailRow('Team Size', '12 Active Members'),
+            _buildDetailRow('Location', project.formattedLocation),
             const SizedBox(height: 24),
-            const Text(
-              'Current Status',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF101828),
-              ),
+            scheduleAsync.when(
+              loading: () => const SizedBox(),
+              error: (error, stackTrace) {
+                final errStr = error.toString().toLowerCase();
+                bool isNotFound = false;
+                if (error is ApiException && error.statusCode == 404) isNotFound = true;
+                if (errStr.contains('404') || errStr.contains('no query results')) isNotFound = true;
+                
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    isNotFound ? 'No schedule has been created yet' : 'Schedule details not available (Error)',
+                    style: const TextStyle(fontSize: 14, color: Color(0xFF667085), fontStyle: FontStyle.italic),
+                  ),
+                );
+              },
+              data: (schedule) {
+                final currentPhase = schedule.phases.isNotEmpty ? schedule.phases.first.name : 'Not started';
+                final completedCount = schedule.phases.where((p) => p.status == 'completed').length;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Current Status',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF101828),
+                      ),
+                    ),
+                    const Divider(height: 24, color: Color(0xFFEAECF0)),
+                    _buildDetailRow('Current Phase', currentPhase),
+                    const SizedBox(height: 16),
+                    _buildDetailRow('Phases Completed', '$completedCount of ${schedule.phases.length}'),
+                    const SizedBox(height: 16),
+                    _buildDetailRowStatus('Schedule Status', schedule.statusLabel),
+                    const SizedBox(height: 16),
+                    if (schedule.updatedAt.isNotEmpty)
+                       _buildDetailRow('Last Activity', DateFormat('MMM d, y').format(DateTime.tryParse(schedule.updatedAt) ?? DateTime.now())),
+                  ],
+                );
+              },
             ),
-            const Divider(height: 24, color: Color(0xFFEAECF0)),
-            _buildDetailRow('Current Phase', 'Roofing'),
-            const SizedBox(height: 16),
-            _buildDetailRow('Phases Completed', '2 of 16'),
-            const SizedBox(height: 16),
-            _buildDetailRowStatus('BIC Holder', 'Project Owner'),
-            const SizedBox(height: 16),
-            _buildDetailRow('Last Activity', '2 hours ago'),
             const SizedBox(height: 24),
           ],
         ),
       ),
+        );
+      },
     );
   }
 

@@ -9,22 +9,22 @@ import '../repositories/project_repository.dart';
 
 
 final projectsListProvider = FutureProvider.family<PaginatedProjectsResponse, int>((ref, page) async {
-  final repository = ref.watch(projectRepositoryProvider);
+  final repository = ref.read(projectRepositoryProvider);
   return repository.fetchProjects(page: page);
 });
 
 final assignedProjectsProvider = FutureProvider.family<PaginatedProjectsResponse, int>((ref, page) async {
-  final repository = ref.watch(projectRepositoryProvider);
+  final repository = ref.read(projectRepositoryProvider);
   return repository.fetchAssignedProjects(page: page);
 });
 
 final projectDetailsProvider = FutureProvider.family<ProjectResponse, String>((ref, id) async {
-  final repository = ref.watch(projectRepositoryProvider);
+  final repository = ref.read(projectRepositoryProvider);
   return repository.fetchProjectById(id);
 });
 
 final projectFinancialsProvider = FutureProvider.family<ProjectFinancials, String>((ref, id) async {
-  final repository = ref.watch(projectRepositoryProvider);
+  final repository = ref.read(projectRepositoryProvider);
   return repository.fetchProjectFinancials(id);
 });
 
@@ -35,7 +35,7 @@ class ProjectWizardNotifier extends AsyncNotifier<void> {
 
   @override
   FutureOr<void> build() {
-    _repository = ref.watch(projectRepositoryProvider);
+    _repository = ref.read(projectRepositoryProvider);
   }
 
   Future<WizardResponse> startWizard(StartWizardPayload payload) async {

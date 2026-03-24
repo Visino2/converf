@@ -165,7 +165,7 @@ class HelpSupportScreen extends StatelessWidget {
                         colorFilter: (iconBg == null || iconBg == Colors.transparent)
                             ? null
                             : ColorFilter.mode(iconColor, BlendMode.srcIn),
-                        errorBuilder: (_, __, ___) => Icon(
+                        errorBuilder: (_, _, _) => Icon(
                           Icons.help_outline,
                           color: iconColor,
                           size: 20,
@@ -176,7 +176,7 @@ class HelpSupportScreen extends StatelessWidget {
                         width: 22,
                         height: 22,
                         color: (iconBg == null || iconBg == Colors.transparent) ? null : iconColor,
-                        errorBuilder: (_, __, ___) => Icon(
+                        errorBuilder: (_, _, _) => Icon(
                           Icons.help_outline,
                           color: iconColor,
                           size: 20,
@@ -216,7 +216,7 @@ class HelpSupportScreen extends StatelessWidget {
                     width: 20,
                     height: 20,
                     colorFilter: const ColorFilter.mode(Color(0xFF9CA3AF), BlendMode.srcIn),
-                    errorBuilder: (_, __, ___) => const Icon(
+                    errorBuilder: (_, _, _) => const Icon(
                       Icons.chevron_right,
                       color: Color(0xFF9CA3AF),
                       size: 22,
@@ -227,7 +227,7 @@ class HelpSupportScreen extends StatelessWidget {
                     width: 20,
                     height: 20,
                     color: const Color(0xFF9CA3AF),
-                    errorBuilder: (_, __, ___) => const Icon(
+                    errorBuilder: (_, _, _) => const Icon(
                       Icons.chevron_right,
                       color: Color(0xFF9CA3AF),
                       size: 22,

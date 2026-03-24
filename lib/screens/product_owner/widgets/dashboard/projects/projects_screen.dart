@@ -90,6 +90,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
 
                   return ListView.separated(
                     padding: EdgeInsets.zero,
+                    cacheExtent: 500,
                     itemCount: projects.length,
                     separatorBuilder: (context, index) => const SizedBox(height: 16),
                     itemBuilder: (context, index) {
@@ -97,9 +98,11 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                       // Just hardcode alert true for specific statuses to match mockup behavior for now
                       final hasAlert = project.status == ProjectStatus.delayed || project.status == ProjectStatus.atRisk;
                       
-                      return ProjectCard(
-                        project: project,
-                        hasAlert: hasAlert,
+                      return RepaintBoundary(
+                        child: ProjectCard(
+                          project: project,
+                          hasAlert: hasAlert,
+                        ),
                       );
                     },
                   );

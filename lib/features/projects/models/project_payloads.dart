@@ -1,22 +1,25 @@
 class StartWizardPayload {
-  final String? title;
-  final String? description;
+  final String title;
+  final String description;
   final String constructionType;
   final String? constructionSubType;
+  final int wizardStep;
 
   StartWizardPayload({
-    this.title,
-    this.description,
+    required this.title,
+    required this.description,
     required this.constructionType,
     this.constructionSubType,
+    required this.wizardStep,
   });
 
   Map<String, dynamic> toJson() {
     return {
-      if (title != null) 'title': title,
-      if (description != null) 'description': description,
+      'title': title,
+      'description': description,
       'construction_type': constructionType,
       if (constructionSubType != null) 'construction_sub_type': constructionSubType,
+      'wizard_step': wizardStep,
     };
   }
 }
@@ -25,12 +28,14 @@ class UpdateBasicInfoPayload {
   final int wizardStep;
   final String title;
   final String description;
+  final String? constructionType;
   final String? constructionSubType;
 
   UpdateBasicInfoPayload({
     required this.wizardStep,
     required this.title,
     required this.description,
+    this.constructionType,
     this.constructionSubType,
   });
 
@@ -39,6 +44,7 @@ class UpdateBasicInfoPayload {
       'wizard_step': wizardStep,
       'title': title,
       'description': description,
+      if (constructionType != null) 'construction_type': constructionType,
       if (constructionSubType != null) 'construction_sub_type': constructionSubType,
     };
   }
@@ -128,16 +134,19 @@ class UpdateSpecialisationsPayload {
 class ConfirmProjectPayload {
   final int wizardStep;
   final bool confirm;
+  final bool agreeTerms;
 
   ConfirmProjectPayload({
     required this.wizardStep,
     required this.confirm,
+    required this.agreeTerms,
   });
 
   Map<String, dynamic> toJson() {
     return {
       'wizard_step': wizardStep,
       'confirm': confirm,
+      'agree_terms': agreeTerms,
     };
   }
 }

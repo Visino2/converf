@@ -4,6 +4,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import '../../../../../features/marketplace/providers/marketplace_providers.dart';
 import '../../../../../features/marketplace/models/bid.dart';
+import '../../../../contractor/projects/widgets/tools/bid_detail_screen.dart';
+import '../../../../contractor/projects/widgets/tools/contractor_profile_screen.dart';
 
 class BidsModal extends ConsumerWidget {
   final String projectId;
@@ -13,7 +15,6 @@ class BidsModal extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bidsAsync = ref.watch(projectBidsProvider((projectId: projectId, page: 1)));
-    final actionStatus = ref.watch(marketplaceActionProvider);
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
@@ -91,7 +92,7 @@ class BidsModal extends ConsumerWidget {
                 return ListView.separated(
                   padding: const EdgeInsets.all(24),
                   itemCount: bids.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 16),
+                  separatorBuilder: (_, _) => const SizedBox(height: 16),
                   itemBuilder: (context, index) {
                     final bid = bids[index];
                     return _BidCard(bid: bid, projectId: projectId);
@@ -144,9 +145,19 @@ class _BidCard extends ConsumerWidget {
                       '${bid.contractor?.firstName} ${bid.contractor?.lastName}',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF101828)),
                     ),
-                    Text(
-                      'Contractor',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ContractorProfileScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'View Profile',
+                        style: TextStyle(fontSize: 12, color: const Color(0xFF276572), fontWeight: FontWeight.w600, decoration: TextDecoration.underline),
+                      ),
                     ),
                   ],
                 ),
@@ -171,6 +182,86 @@ class _BidCard extends ConsumerWidget {
             style: const TextStyle(fontSize: 14, color: Color(0xFF344054), height: 1.5),
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
+          ),
+          if (bid.duration != null || bid.paymentPreference != null) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (bid.duration != null)
+                  Chip(
+                    avatar: const Icon(Icons.access_time, size: 14, color: Color(0xFF667085)),
+                    label: Text(bid.duration!, style: const TextStyle(fontSize: 12, color: Color(0xFF475467))),
+                    backgroundColor: const Color(0xFFF9FAFB),
+                    side: const BorderSide(color: Color(0xFFEAECF0)),
+                  ),
+                if (bid.paymentPreference != null)
+                  Chip(
+                    avatar: const Icon(Icons.payment, size: 14, color: Color(0xFF667085)),
+                    label: Text(bid.paymentPreference!, style: const TextStyle(fontSize: 12, color: Color(0xFF475467))),
+                    backgroundColor: const Color(0xFFF9FAFB),
+                    side: const BorderSide(color: Color(0xFFEAECF0)),
+                  ),
+              ],
+            ),
+          ],
+          if (bid.equipment != null && bid.equipment!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Text('EQUIPMENT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF475467), letterSpacing: 0.5)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: bid.equipment!.map((e) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: const Color(0xFFF2F4F7), borderRadius: BorderRadius.circular(4)),
+                child: Text(e, style: const TextStyle(fontSize: 12, color: Color(0xFF344054))),
+              )).toList(),
+            ),
+          ],
+          if (bid.milestones != null && bid.milestones!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Text('MILESTONES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF475467), letterSpacing: 0.5)),
+            const SizedBox(height: 4),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: bid.milestones!.take(3).map((m) {
+                final title = m['title'] ?? 'Milestone';
+                final amount = m['amount']?.toString() ?? '0';
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_outline, size: 14, color: Color(0xFF276572)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(title.toString(), style: const TextStyle(fontSize: 12, color: Color(0xFF344054)))),
+                      Text('₦$amount', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF344054))),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+            if (bid.milestones!.length > 3)
+              Text('+ ${bid.milestones!.length - 3} more', style: const TextStyle(fontSize: 12, color: Color(0xFF276572))),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => BidDetailScreen(bid: bid)),
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFFEAECF0)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: const Text('View Full Proposal', style: TextStyle(color: Color(0xFF344054), fontWeight: FontWeight.w600)),
+            ),
           ),
           const SizedBox(height: 16),
           Row(
@@ -206,8 +297,22 @@ class _BidCard extends ConsumerWidget {
               ),
               const SizedBox(width: 12),
               OutlinedButton(
-                onPressed: isLoading ? null : () {
-                  // TODO: Implement Reject
+                onPressed: isLoading ? null : () async {
+                  try {
+                    await ref.read(marketplaceActionProvider.notifier).rejectBid(bid.id, projectId: projectId);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Bid declined successfully.')),
+                      );
+                      Navigator.pop(context);
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                      );
+                    }
+                  }
                 },
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Color(0xFFD0D5DD)),

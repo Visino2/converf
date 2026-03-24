@@ -12,7 +12,7 @@ final routerRefreshProvider = Provider((ref) => RouterRefreshNotifier(ref));
 
 class RouterRefreshNotifier extends ChangeNotifier {
   RouterRefreshNotifier(Ref ref) {
-    ref.listen(authProvider, (_, __) => notifyListeners());
+    ref.listen(authProvider, (_, _) => notifyListeners());
   }
 }
 
@@ -40,11 +40,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // If authenticated and on onboarding/splash, go to dashboard
       if (isLoggingIn) {
-        if (user.role == UserRole.projectOwner) {
-          return '/owner-dashboard';
-        } else if (user.role == UserRole.contractor) {
-          return '/contractor-dashboard';
-        }
+        return authState.value?.role == UserRole.projectOwner ? '/owner-dashboard' : '/contractor-dashboard';
       }
 
       return null;

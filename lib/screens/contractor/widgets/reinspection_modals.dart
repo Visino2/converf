@@ -57,117 +57,121 @@ class QualityVerificationFailedModal extends StatelessWidget {
                 color: const Color(0xFFFFF1F0), // faint red
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFFDA29B)),
-                image: const DecorationImage(
-                  image: AssetImage('assets/images/Grid.png'),
-                  fit: BoxFit.cover,
-                  opacity: 0.1,
-                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: SvgPicture.asset('assets/images/completed.svg', width: 20, height: 20, colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn)),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF276572),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Text('Completed', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('QA/QC Inspection Required', style: TextStyle(fontSize: 14, color: Color(0xFF475467))),
-                  const SizedBox(height: 4),
-                  const Text('Independent verification by Converf Certified Inspectors', style: TextStyle(fontSize: 14, color: Color(0xFF276572))),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.cancel, color: Color(0xFFD92D20), size: 18),
-                          const SizedBox(width: 8),
-                          const Text('Quality Verification Failed', style: TextStyle(fontSize: 14, color: Color(0xFFD92D20), fontWeight: FontWeight.w500)),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFEAECF0)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Text('62', style: TextStyle(color: Color(0xFFD92D20), fontWeight: FontWeight.bold, fontSize: 14)),
-                            const SizedBox(width: 8),
-                            Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFD92D20), shape: BoxShape.circle)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFFAEB),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFFEDF89)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.warning_amber_rounded, color: Color(0xFFB4543E), size: 18),
-                            const SizedBox(width: 8),
-                            const Text('Critical Non-Compliance Detected:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFB4543E))),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        _buildWarningItem('Membrane overlap insufficient (min 150mm required, found 80mm)'),
-                        const SizedBox(height: 8),
-                        _buildWarningItem('3 penetration points inadequately sealed'),
-                        const SizedBox(height: 8),
-                        _buildWarningItem('Standing water detected in southeast corner'),
-                      ],
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _DottedGridPainter(),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFFDA29B)),
-                        ),
-                        child: const Icon(Icons.info, color: Color(0xFFD92D20), size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.only(top: 4.0),
-                          child: Text(
-                            'Fix all issues and upload proof\nto request re-inspection.',
-                            style: TextStyle(fontSize: 13, color: Color(0xFF475467), height: 1.4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: SvgPicture.asset('assets/images/completed.svg', width: 20, height: 20, colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn)),
                           ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF276572),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Text('Completed', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('QA/QC Inspection Required', style: TextStyle(fontSize: 14, color: Color(0xFF475467))),
+                      const SizedBox(height: 4),
+                      const Text('Independent verification by Converf Certified Inspectors', style: TextStyle(fontSize: 14, color: Color(0xFF276572))),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.cancel, color: Color(0xFFD92D20), size: 18),
+                              const SizedBox(width: 8),
+                              const Text('Quality Verification Failed', style: TextStyle(fontSize: 14, color: Color(0xFFD92D20), fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFEAECF0)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Text('62', style: TextStyle(color: Color(0xFFD92D20), fontWeight: FontWeight.bold, fontSize: 14)),
+                                const SizedBox(width: 8),
+                                Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFD92D20), shape: BoxShape.circle)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFFAEB),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFEDF89)),
                         ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, color: Color(0xFFB4543E), size: 18),
+                                const SizedBox(width: 8),
+                                const Text('Critical Non-Compliance Detected:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFB4543E))),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            _buildWarningItem('Membrane overlap insufficient (min 150mm required, found 80mm)'),
+                            const SizedBox(height: 8),
+                            _buildWarningItem('3 penetration points inadequately sealed'),
+                            const SizedBox(height: 8),
+                            _buildWarningItem('Standing water detected in southeast corner'),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFFDA29B)),
+                            ),
+                            child: const Icon(Icons.info, color: Color(0xFFD92D20), size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                'Fix all issues and upload proof\nto request re-inspection.',
+                                style: TextStyle(fontSize: 13, color: Color(0xFF475467), height: 1.4),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -358,60 +362,64 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF1F0),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFFDA29B)),
-                        image: const DecorationImage(
-                          image: AssetImage('assets/images/Grid.png'),
-                          fit: BoxFit.cover,
-                          opacity: 0.1,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF1F0),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFDA29B)),
                         ),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.cancel, color: Color(0xFFD92D20), size: 18),
-                                  const SizedBox(width: 8),
-                                  const Text('Initial Quality Audit Failed', style: TextStyle(fontSize: 14, color: Color(0xFFD92D20), fontWeight: FontWeight.w500)),
-                                ],
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: _DottedGridPainter(),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFFEAECF0)),
-                                ),
-                                child: Row(
+                            ),
+                            Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Text('62', style: TextStyle(color: Color(0xFFD92D20), fontWeight: FontWeight.bold, fontSize: 14)),
-                                    const SizedBox(width: 8),
-                                    Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFD92D20), shape: BoxShape.circle)),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.cancel, color: Color(0xFFD92D20), size: 18),
+                                        const SizedBox(width: 8),
+                                        const Text('Initial Quality Audit Failed', style: TextStyle(fontSize: 14, color: Color(0xFFD92D20), fontWeight: FontWeight.w500)),
+                                      ],
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: const Color(0xFFEAECF0)),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Text('62', style: TextStyle(color: Color(0xFFD92D20), fontWeight: FontWeight.bold, fontSize: 14)),
+                                          const SizedBox(width: 8),
+                                          Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFD92D20), shape: BoxShape.circle)),
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFFAEB),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFFEDF89)),
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFFAEB),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: const Color(0xFFFEDF89)),
+                                  ),
+                                  child: const Text(
+                                    'Critical waterproofing membrane installation defects detected. Does not meet ASTM D6134 standards.',
+                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFB4543E)),
+                                  ),
+                                ),
+                              ],
                             ),
-                            child: const Text(
-                              'Critical waterproofing membrane installation defects detected. Does not meet ASTM D6134 standards.',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFB4543E)),
-                            ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
                     ),
                     const SizedBox(height: 24),
                     const Text('Correction Checklist', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF344054))),
@@ -454,22 +462,26 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
                     const SizedBox(height: 24),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF102A2E), // very dark green
-                        borderRadius: BorderRadius.circular(16),
-                        image: const DecorationImage(
-                          image: AssetImage('assets/images/Grid.png'),
-                          fit: BoxFit.cover,
-                          opacity: 0.1,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF102A2E), // very dark green
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Amount Payable', style: TextStyle(fontSize: 16, color: Color(0xFFEAECF0))),
-                          const Text('₦50,000', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-                        ],
-                      ),
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: _DottedGridPainter(color: Colors.white.withValues(alpha: 0.1)),
+                              ),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Amount Payable', style: TextStyle(fontSize: 16, color: Color(0xFFEAECF0))),
+                                const Text('₦50,000', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                              ],
+                            ),
+                          ],
+                        ),
                     ),
                     const SizedBox(height: 24), // padding for scroll indicator
                   ],
@@ -480,7 +492,7 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: Colors.white,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))],
               ),
               child: Row(
                 children: [
@@ -505,7 +517,7 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
                       } : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF276572),
-                        disabledBackgroundColor: const Color(0xFF276572).withOpacity(0.5),
+                        disabledBackgroundColor: const Color(0xFF276572).withValues(alpha: 0.5),
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -646,4 +658,28 @@ class SuccessModal extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DottedGridPainter extends CustomPainter {
+  final Color? color;
+  _DottedGridPainter({this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color ?? const Color(0xFFF1F5F9).withValues(alpha: 0.5)
+      ..style = PaintingStyle.fill;
+
+    const spacing = 12.0;
+    const dotSize = 1.5;
+
+    for (double x = spacing; x < size.width; x += spacing) {
+      for (double y = spacing; y < size.height; y += spacing) {
+        canvas.drawCircle(Offset(x, y), dotSize / 2, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

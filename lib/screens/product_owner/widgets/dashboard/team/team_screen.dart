@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../../../features/team/providers/team_providers.dart';
-import '../../../../../../features/team/models/team_member.dart';
 
 import 'add_team_modal.dart';
 import 'team_member_detail_sheet.dart';
@@ -11,9 +10,9 @@ class TeamScreen extends ConsumerStatefulWidget {
   final VoidCallback? onNavigateToProjects;
 
   const TeamScreen({
-    Key? key,
+    super.key,
     this.onNavigateToProjects,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<TeamScreen> createState() => _TeamScreenState();
@@ -24,7 +23,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
   void _showAddTeamMenu(BuildContext context) {
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.5),
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (BuildContext context) {
         return Stack(
           children: [
@@ -40,7 +39,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -199,7 +198,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.01),
+                      color: Colors.black.withValues(alpha: 0.01),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),

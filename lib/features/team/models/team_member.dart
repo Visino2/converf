@@ -1,5 +1,3 @@
-import '../../auth/models/auth_response.dart';
-
 class TeamMember {
   final String id;
   final String? userId;

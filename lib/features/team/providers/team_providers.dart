@@ -6,7 +6,7 @@ import '../models/team_responses.dart';
 import '../repositories/team_repository.dart';
 
 final teamMembersProvider = FutureProvider.family<TeamMembersResponse, ({String? projectId, int page, int perPage})>((ref, args) async {
-  final repository = ref.watch(teamRepositoryProvider);
+  final repository = ref.read(teamRepositoryProvider);
   return repository.fetchTeamMembers(
     projectId: args.projectId,
     page: args.page,
@@ -15,7 +15,7 @@ final teamMembersProvider = FutureProvider.family<TeamMembersResponse, ({String?
 });
 
 final teamMemberDetailsProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
-  final repository = ref.watch(teamRepositoryProvider);
+  final repository = ref.read(teamRepositoryProvider);
   return repository.fetchTeamMember(id);
 });
 
@@ -24,7 +24,7 @@ class TeamNotifier extends AsyncNotifier<void> {
 
   @override
   FutureOr<void> build() {
-    _repository = ref.watch(teamRepositoryProvider);
+    _repository = ref.read(teamRepositoryProvider);
   }
 
   Future<void> inviteMember(InviteMemberPayload payload) async {

@@ -86,16 +86,37 @@ class BookmarkResponse {
 class SubmitBidPayload {
   final num amount;
   final String proposal;
+  final String? duration;
+  final String? paymentPreference;
+  final List<Map<String, dynamic>>? milestones;
+  final List<Map<String, dynamic>>? teamMembers;
+  final List<String>? equipment;
+  final List<Map<String, dynamic>>? portfolioProjects;
+  final List<Map<String, dynamic>>? certifications;
 
   SubmitBidPayload({
     required this.amount,
     required this.proposal,
+    this.duration,
+    this.paymentPreference,
+    this.milestones,
+    this.teamMembers,
+    this.equipment,
+    this.portfolioProjects,
+    this.certifications,
   });
 
   Map<String, dynamic> toJson() {
     return {
       'amount': amount,
       'proposal': proposal,
+      if (duration != null) 'duration': duration,
+      if (paymentPreference != null) 'payment_preference': paymentPreference,
+      if (milestones != null) 'milestones': milestones,
+      if (teamMembers != null) 'team_members': teamMembers,
+      if (equipment != null) 'equipment': equipment,
+      if (portfolioProjects != null) 'portfolio_projects': portfolioProjects,
+      if (certifications != null) 'certifications': certifications,
     };
   }
 }

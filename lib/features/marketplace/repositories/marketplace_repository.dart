@@ -45,7 +45,11 @@ class MarketplaceRepository {
     if (response.data is! Map<String, dynamic>) {
         throw Exception("Invalid response format from server");
     }
-    return BidResponse.fromJson(response.data);
+    final data = response.data as Map<String, dynamic>;
+    if (data['status'] == false) {
+       throw Exception(data['message'] ?? 'Failed to submit bid');
+    }
+    return BidResponse.fromJson(data);
   }
 
   Future<PaginatedBidsResponse> fetchProjectBids(String projectId, {int page = 1}) async {
@@ -64,7 +68,11 @@ class MarketplaceRepository {
     if (response.data is! Map<String, dynamic>) {
         throw Exception("Invalid response format from server");
     }
-    return BidResponse.fromJson(response.data);
+    final data = response.data as Map<String, dynamic>;
+    if (data['status'] == false) {
+       throw Exception(data['message'] ?? 'Failed to accept bid');
+    }
+    return BidResponse.fromJson(data);
   }
 
   Future<BidResponse> rejectBid(String bidId) async {
@@ -72,7 +80,11 @@ class MarketplaceRepository {
     if (response.data is! Map<String, dynamic>) {
         throw Exception("Invalid response format from server");
     }
-    return BidResponse.fromJson(response.data);
+    final data = response.data as Map<String, dynamic>;
+    if (data['status'] == false) {
+       throw Exception(data['message'] ?? 'Failed to decline bid');
+    }
+    return BidResponse.fromJson(data);
   }
 
   Future<BookmarkResponse> toggleProjectBookmark(String projectId) async {

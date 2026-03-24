@@ -30,9 +30,9 @@ class SearchResultsState extends StatelessWidget {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        const Color(0xFF8DC0DC).withOpacity(0.9),
+                        const Color(0xFF8DC0DC).withValues(alpha: 0.9),
                         Colors.transparent,
-                        Colors.black.withOpacity(0.8),
+                        Colors.black.withValues(alpha: 0.8),
                       ],
                     ),
                   ),
@@ -103,7 +103,7 @@ class SearchResultsState extends StatelessWidget {
                           Text(
                             'Lekki Phase 1, Lagos',
                             style: TextStyle(
-                              color: Colors.black87.withOpacity(0.7),
+                              color: Colors.black87.withValues(alpha: 0.7),
                               fontSize: 13,
                             ),
                           ),

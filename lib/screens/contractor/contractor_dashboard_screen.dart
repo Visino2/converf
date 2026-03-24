@@ -22,7 +22,9 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> {
   void initState() {
     super.initState();
     _pages = [
-      const ContractorDashboardContent(),
+      ContractorDashboardContent(
+        onNavigateToProjects: () => _onItemTapped(1),
+      ),
       const ContractorProjectsScreen(),
       const ContractorMilestoneScreen(),
       const ToolsScreen(),
@@ -41,12 +43,15 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> {
       backgroundColor: const Color(
         0xFFF9FAFB,
       ), // App background color from design
-      body: _pages[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),

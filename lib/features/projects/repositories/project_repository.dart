@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/dio_provider.dart';
@@ -28,11 +29,24 @@ class ProjectRepository {
   }
 
   Future<ProjectResponse> fetchProjectById(String projectId) async {
-    final response = await _apiClient.get('/api/v1/projects/$projectId');
-    if (response.data is! Map<String, dynamic>) {
+    debugPrint('--- ProjectRepository: fetchProjectById($projectId) ---');
+    try {
+      final response = await _apiClient.get('/api/v1/projects/$projectId');
+      debugPrint('--- ProjectRepository: Received response: ${response.statusCode} ---');
+      
+      if (response.data is! Map<String, dynamic>) {
+        debugPrint('--- ProjectRepository ERROR: Invalid response format ---');
         throw Exception("Invalid response format from server");
+      }
+      
+      final result = ProjectResponse.fromJson(response.data);
+      debugPrint('--- ProjectRepository: Parsing successful. Project: ${result.data?.title} ---');
+      return result;
+    } catch (e, stack) {
+      debugPrint('--- ProjectRepository ERROR: $e ---');
+      debugPrint(stack.toString());
+      rethrow;
     }
-    return ProjectResponse.fromJson(response.data);
   }
 
   Future<ProjectFinancials> fetchProjectFinancials(String projectId) async {
@@ -53,6 +67,8 @@ class ProjectRepository {
       '/api/v1/projects/wizard',
       data: payload.toJson(),
     );
+    debugPrint('*** Wizard Response ***');
+    debugPrint(response.data.toString());
     if (response.data is! Map<String, dynamic>) {
         throw Exception("Invalid response format from server");
     }

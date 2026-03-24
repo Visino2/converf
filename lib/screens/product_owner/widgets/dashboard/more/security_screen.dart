@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../../features/profile/models/profile_models.dart';
+import '../../../../../features/profile/providers/profile_providers.dart';
 
-class SecurityScreen extends StatefulWidget {
+class SecurityScreen extends ConsumerStatefulWidget {
   const SecurityScreen({super.key});
 
   @override
-  State<SecurityScreen> createState() => _SecurityScreenState();
+  ConsumerState<SecurityScreen> createState() => _SecurityScreenState();
 }
 
-class _SecurityScreenState extends State<SecurityScreen> {
+class _SecurityScreenState extends ConsumerState<SecurityScreen> {
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -24,8 +27,54 @@ class _SecurityScreenState extends State<SecurityScreen> {
     super.dispose();
   }
 
+  Future<void> _updatePassword() async {
+    final current = _currentPasswordController.text.trim();
+    final newPassword = _newPasswordController.text.trim();
+    final confirm = _confirmPasswordController.text.trim();
+
+    if (current.isEmpty || newPassword.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+
+    if (newPassword != confirm) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('New passwords do not match')),
+      );
+      return;
+    }
+
+    final payload = ChangePasswordPayload(
+      currentPassword: current,
+      newPassword: newPassword,
+      newPasswordConfirmation: confirm,
+    );
+
+    try {
+      await ref.read(profileNotifierProvider.notifier).changePassword(payload);
+      if (mounted) {
+        _currentPasswordController.clear();
+        _newPasswordController.clear();
+        _confirmPasswordController.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password changed successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to change password: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final actionState = ref.watch(profileNotifierProvider);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -45,7 +94,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
         ),
         centerTitle: true,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,6 +129,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
               _currentPasswordController,
               _showCurrent,
               () => setState(() => _showCurrent = !_showCurrent),
+              enabled: !actionState.isLoading,
             ),
             const SizedBox(height: 16),
 
@@ -91,6 +141,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                     _newPasswordController,
                     _showNew,
                     () => setState(() => _showNew = !_showNew),
+                    enabled: !actionState.isLoading,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -100,6 +151,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                     _confirmPasswordController,
                     _showConfirm,
                     () => setState(() => _showConfirm = !_showConfirm),
+                    enabled: !actionState.isLoading,
                   ),
                 ),
               ],
@@ -109,7 +161,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: actionState.isLoading ? null : _updatePassword,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2A8090),
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -118,14 +170,23 @@ class _SecurityScreenState extends State<SecurityScreen> {
                     borderRadius: BorderRadius.circular(30),
                   ),
                 ),
-                child: const Text(
-                  'Save Changes',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
+                child: actionState.isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Save Changes',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -138,8 +199,9 @@ class _SecurityScreenState extends State<SecurityScreen> {
     String label,
     TextEditingController controller,
     bool isVisible,
-    VoidCallback onToggle,
-  ) {
+    VoidCallback onToggle, {
+    bool enabled = true,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -155,6 +217,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
         TextField(
           controller: controller,
           obscureText: !isVisible,
+          enabled: enabled,
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.white,

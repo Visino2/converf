@@ -1,5 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'project_image.dart';
+import '../../messages/models/message.dart';
+
+// Helper for safely parsing numbers from dynamic API responses
+num? _parseNum(dynamic value, [String? fieldName]) {
+  if (value == null) return null;
+  if (value is num) return value;
+  if (value is String) return num.tryParse(value);
+  if (value is Map) {
+    debugPrint('DEBUG: field $fieldName expected num? but got Map: $value');
+    if (value.containsKey('amount')) return _parseNum(value['amount'], fieldName);
+    if (value.containsKey('value')) return _parseNum(value['value'], fieldName);
+    if (value.containsKey('id')) return _parseNum(value['id'], fieldName);
+  }
+  return null;
+}
 
 enum ProjectStatus {
   draft,
@@ -90,10 +106,6 @@ enum ProjectStatus {
   }
 
   dynamic get color {
-    // Note: To avoid direct dependency on flutter/material.dart in the model file,
-    // we could return hex strings or use an extension in a UI-aware file.
-    // However, the current UI expects .color to return a Color object.
-    // Since this project already has some mixing, I'll provide standard hex codes or Map.
     switch (this) {
       case ProjectStatus.completed:
         return const Color(0xFF10B981); // Success
@@ -109,6 +121,84 @@ enum ProjectStatus {
         return const Color(0xFF374151); // Gray
     }
   }
+
+  Color get bgColor {
+    switch (this) {
+      case ProjectStatus.active:
+        return const Color(0xFFECFDF3); // Green bg
+      case ProjectStatus.completed:
+        return const Color(0xFFF2F4F7); // Gray bg
+      case ProjectStatus.atRisk:
+      case ProjectStatus.delayed:
+      case ProjectStatus.cancelled:
+        return const Color(0xFFFEF3F2); // Red bg
+      case ProjectStatus.pendingTender:
+      case ProjectStatus.onHold:
+        return const Color(0xFFFFFAEB); // Orange bg
+      default:
+        return const Color(0xFFF9FAFB);
+    }
+  }
+
+  Color get textColor {
+    switch (this) {
+      case ProjectStatus.active:
+        return const Color(0xFF027A48); // Green text
+      case ProjectStatus.completed:
+        return const Color(0xFF344054); // Gray text
+      case ProjectStatus.atRisk:
+      case ProjectStatus.delayed:
+      case ProjectStatus.cancelled:
+        return const Color(0xFFB42318); // Red text
+      case ProjectStatus.pendingTender:
+      case ProjectStatus.onHold:
+        return const Color(0xFFB54708); // Orange text
+      default:
+        return const Color(0xFF475467);
+    }
+  }
+}
+
+enum UrgencyLevel {
+  low,
+  medium,
+  high,
+  critical;
+
+  String toJson() => name;
+
+  static UrgencyLevel fromString(String urgency) {
+    return UrgencyLevel.values.firstWhere(
+      (e) => e.name.toLowerCase() == urgency.toLowerCase(),
+      orElse: () => UrgencyLevel.medium,
+    );
+  }
+
+  Color get bgColor {
+    switch (this) {
+      case UrgencyLevel.critical:
+        return const Color(0xFFFEE4E2);
+      case UrgencyLevel.high:
+        return const Color(0xFFFFEDD5);
+      case UrgencyLevel.medium:
+        return const Color(0xFFDBEAFE);
+      case UrgencyLevel.low:
+        return const Color(0xFFF3F4F6);
+    }
+  }
+
+  Color get textColor {
+    switch (this) {
+      case UrgencyLevel.critical:
+        return const Color(0xFF7F1D1D);
+      case UrgencyLevel.high:
+        return const Color(0xFF7F1D1D);
+      case UrgencyLevel.medium:
+        return const Color(0xFF1E3A8A);
+      case UrgencyLevel.low:
+        return const Color(0xFF111827);
+    }
+  }
 }
 
 class ProjectParty {
@@ -116,25 +206,44 @@ class ProjectParty {
   final String firstName;
   final String lastName;
   final String email;
+  final String? companyName;
   final String? avatar;
+  final String? avatarUrl;
 
   ProjectParty({
     required this.id,
     required this.firstName,
     required this.lastName,
     required this.email,
+    this.companyName,
     this.avatar,
+    this.avatarUrl,
   });
 
   factory ProjectParty.fromJson(Map<String, dynamic> json) {
+    // Web API can have company_name at top level or inside profile
+    String? companyName = json['company_name']?.toString();
+    if (companyName == null && json['profile'] is Map) {
+      companyName = (json['profile'] as Map<String, dynamic>)['company_name']?.toString();
+    }
+    if (companyName == null && json['contractor_profile'] is Map) {
+      companyName = (json['contractor_profile'] as Map<String, dynamic>)['company_name']?.toString();
+    }
+
     return ProjectParty(
       id: json['id']?.toString() ?? '',
-      firstName: json['first_name'] as String? ?? '',
-      lastName: json['last_name'] as String? ?? '',
-      email: json['email'] as String? ?? '',
-      avatar: json['avatar'] as String?,
+      firstName: json['first_name']?.toString() ?? '',
+      lastName: json['last_name']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      companyName: companyName,
+      avatar: ProjectImage.normalizeImageUrl(json['avatar']?.toString()),
+      avatarUrl: ProjectImage.normalizeImageUrl(json['avatar_url']?.toString()),
     );
   }
+
+  String get displayName => companyName != null && companyName!.isNotEmpty 
+      ? companyName! 
+      : '$firstName $lastName'.trim().isEmpty ? 'Unknown' : '$firstName $lastName'.trim();
 }
 
 class Project {
@@ -153,7 +262,7 @@ class Project {
   final String city;
   final String state;
   final String country;
-  final String urgencyLevel;
+  final UrgencyLevel urgencyLevel;
   final String assignmentMethod;
   final String? biddingDeadline;
   final int? bidsCount;
@@ -165,10 +274,24 @@ class Project {
   final List<String> specialisations;
   final String createdAt;
   final String? updatedAt;
+  final Message? latestMessage;
 
   String get formattedLocation {
-    final parts = [city, state, country].where((s) => s.isNotEmpty);
-    return parts.isEmpty ? location : parts.join(', ');
+    String formatSegment(String? value) {
+      if (value == null || value.isEmpty) return '';
+      return value
+          .split(' ')
+          .map((word) => word.isNotEmpty
+              ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+              : '')
+          .join(' ');
+    }
+
+    final segments = [city, state, country]
+        .map(formatSegment)
+        .where((s) => s.isNotEmpty)
+        .toList();
+    return segments.isNotEmpty ? segments.join(', ') : location ?? 'Location N/A';
   }
 
   String get formattedDates {
@@ -233,44 +356,50 @@ class Project {
     required this.specialisations,
     required this.createdAt,
     this.updatedAt,
+    this.latestMessage,
   });
 
   factory Project.fromJson(Map<String, dynamic> json) {
     return Project(
       id: json['id']?.toString() ?? '',
-      title: json['title'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-      constructionType: json['construction_type'] as String? ?? '',
-      status: ProjectStatus.fromString(json['status'] as String? ?? ''),
-      currentStep: json['current_step'] as int? ?? 1,
-      isBookmarked: json['is_bookmarked'] as bool? ?? false,
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      constructionType: json['construction_type']?.toString() ?? '',
+      status: ProjectStatus.fromString(json['status']?.toString() ?? ''),
+      currentStep: _parseNum(json['current_step'], 'current_step')?.toInt() ?? 1,
+      isBookmarked: json['is_bookmarked'] == true,
       budget: json['budget']?.toString() ?? '0',
-      currency: json['currency'] as String? ?? '',
-      startDate: json['start_date'] as String? ?? '',
-      endDate: json['end_date'] as String? ?? '',
-      location: json['location'] as String? ?? '',
-      city: json['city'] as String? ?? '',
-      state: json['state'] as String? ?? '',
-      country: json['country'] as String? ?? '',
-      urgencyLevel: json['urgency_level'] as String? ?? 'medium',
-      assignmentMethod: json['assignment_method'] as String? ?? '',
-      biddingDeadline: json['bidding_deadline'] as String?,
-      bidsCount: json['bids_count'] as int?,
+      currency: json['currency']?.toString() ?? '',
+      startDate: json['start_date']?.toString() ?? '',
+      endDate: json['end_date']?.toString() ?? '',
+      location: json['location']?.toString() ?? '',
+      city: json['city']?.toString() ?? '',
+      state: json['state']?.toString() ?? '',
+      country: json['country']?.toString() ?? '',
+      urgencyLevel: UrgencyLevel.fromString(json['urgency_level']?.toString() ?? 'medium'),
+      assignmentMethod: json['assignment_method']?.toString() ?? '',
+      biddingDeadline: json['bidding_deadline']?.toString(),
+      bidsCount: _parseNum(json['bids_count'], 'bids_count')?.toInt(),
       contractorId: json['contractor_id']?.toString(),
-      contractor: json['contractor'] != null
+      contractor: json['contractor'] is Map<String, dynamic>
           ? ProjectParty.fromJson(json['contractor'] as Map<String, dynamic>)
           : null,
-      owner: json['owner'] != null
+      owner: json['owner'] is Map<String, dynamic>
           ? ProjectParty.fromJson(json['owner'] as Map<String, dynamic>)
           : null,
-      matchRate: json['match_rate'] as num?,
-      constructionSubType: json['construction_sub_type'] as String?,
+      matchRate: _parseNum(json['match_rate'], 'match_rate'),
+      constructionSubType: json['construction_sub_type']?.toString(),
       specialisations: (json['specialisations'] as List<dynamic>?)
-              ?.map((e) => (e as Map<String, dynamic>)['specialisation'] as String)
+              ?.map((e) => (e is Map ? e['specialisation']?.toString() : e.toString()) ?? '')
+              .where((s) => s.isNotEmpty)
+              .cast<String>()
               .toList() ??
           [],
-      createdAt: json['created_at'] as String? ?? '',
-      updatedAt: json['updated_at'] as String?,
+      createdAt: json['created_at']?.toString() ?? '',
+      updatedAt: json['updated_at']?.toString(),
+      latestMessage: json['latest_message'] != null 
+          ? Message.fromJson(json['latest_message'] as Map<String, dynamic>) 
+          : null,
     );
   }
 }
@@ -288,11 +417,19 @@ class ProjectFinancials {
     required this.currency,
   });
 
+  String get formattedContractValue => '${currency == 'NGN' ? '₦' : currency} ${(totalContractValue / 1000000).toStringAsFixed(1)}M';
+  String get formattedEarnedValue => '${currency == 'NGN' ? '₦' : currency} ${(totalEarned / 1000000).toStringAsFixed(1)}M';
+  String get formattedPaidValue => '${currency == 'NGN' ? '₦' : currency} ${(totalPaid / 1000000).toStringAsFixed(1)}M';
+  
+  int get budgetUtilizedPercentage => totalContractValue > 0 
+      ? ((totalEarned / totalContractValue) * 100).toInt() 
+      : 0;
+
   factory ProjectFinancials.fromJson(Map<String, dynamic> json) {
     return ProjectFinancials(
-      totalContractValue: json['total_contract_value'] as num? ?? 0,
-      totalEarned: json['total_earned'] as num? ?? 0,
-      totalPaid: json['total_paid'] as num? ?? 0,
+      totalContractValue: _parseNum(json['total_contract_value'], 'total_contract_value') ?? 0,
+      totalEarned: _parseNum(json['total_earned'], 'total_earned') ?? 0,
+      totalPaid: _parseNum(json['total_paid'], 'total_paid') ?? 0,
       currency: json['currency'] as String? ?? '',
     );
   }

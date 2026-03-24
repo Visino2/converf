@@ -13,7 +13,7 @@ class TeamMemberDetailSheet extends ConsumerWidget {
   void _showRemoveConfirmation(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.4),
+      barrierColor: Colors.black.withValues(alpha: 0.4),
       builder: (dialogContext) => Dialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),

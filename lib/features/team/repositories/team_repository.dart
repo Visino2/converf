@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/dio_provider.dart';
 import '../../../core/api/api_client.dart';
-import '../models/team_member.dart';
 import '../models/invite_member_payload.dart';
 import '../models/team_responses.dart';
 

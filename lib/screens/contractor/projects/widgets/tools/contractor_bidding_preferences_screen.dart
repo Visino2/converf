@@ -86,7 +86,7 @@ class _ContractorBiddingPreferencesScreenState extends State<ContractorBiddingPr
                                 child: Switch(
                                   value: _autoSuggest,
                                   onChanged: (v) => setState(() => _autoSuggest = v),
-                                  activeColor: const Color(0xFF276572),
+                                  activeThumbColor: const Color(0xFF276572),
                                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 ),
                               ),
@@ -196,7 +196,7 @@ class _ContractorBiddingPreferencesScreenState extends State<ContractorBiddingPr
                         activeTrackColor: const Color(0xFF276572),
                         inactiveTrackColor: const Color(0xFFF3F4F6),
                         thumbColor: const Color(0xFF276572),
-                        overlayColor: const Color(0xFF276572).withOpacity(0.12),
+                        overlayColor: const Color(0xFF276572).withValues(alpha: 0.12),
                         trackHeight: 12.0,
                         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10.0),
                       ),

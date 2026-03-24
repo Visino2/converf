@@ -190,7 +190,7 @@ class StepLocationTimeline extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: value != null && items.contains(value) ? value : null,
+          initialValue: value != null && items.contains(value) ? value : null,
           items: items
               .map(
                 (e) => DropdownMenuItem(

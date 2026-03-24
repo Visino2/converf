@@ -89,15 +89,18 @@ class _ContractorProjectsScreenState extends ConsumerState<ContractorProjectsScr
 
                   return ListView.separated(
                     padding: EdgeInsets.zero,
+                    cacheExtent: 500,
                     itemCount: projects.length,
                     separatorBuilder: (context, index) => const SizedBox(height: 16),
                     itemBuilder: (context, index) {
                       final project = projects[index];
                       final hasAlert = project.status == ProjectStatus.delayed || project.status == ProjectStatus.atRisk;
                       
-                      return ContractorProjectCard(
-                        project: project,
-                        hasAlert: hasAlert,
+                      return RepaintBoundary(
+                        child: ContractorProjectCard(
+                          project: project,
+                          hasAlert: hasAlert,
+                        ),
                       );
                     },
                   );

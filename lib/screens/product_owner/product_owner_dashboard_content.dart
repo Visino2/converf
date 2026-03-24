@@ -3,12 +3,12 @@ import 'widgets/dashboard/home/search_empty_state.dart';
 import 'widgets/dashboard/home/search_results_state.dart';
 import 'widgets/dashboard/new_project_modal.dart';
 import 'widgets/dashboard/messages/project_inbox_screen.dart';
+import 'widgets/dashboard/projects/project_details_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/features/projects/providers/project_providers.dart';
 import 'package:converf/features/projects/models/project.dart';
 import 'package:converf/features/dashboard/providers/dashboard_providers.dart';
-import 'package:converf/core/utils/project_utils.dart';
 
 class ProductOwnerDashboardContent extends ConsumerStatefulWidget {
   const ProductOwnerDashboardContent({super.key});
@@ -81,7 +81,7 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
                         vertical: 16,
                       ),
                       elevation: 8,
-                      shadowColor: const Color(0xFF2A8090).withOpacity(0.5),
+                      shadowColor: const Color(0xFF2A8090).withValues(alpha: 0.5),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
@@ -456,7 +456,7 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
           );
         } else {
           // Normal navigation to project details
-          // Navigator.push(context, MaterialPageRoute(builder: (context) => ProjectDetailsScreen(projectId: highlightedProject.id)));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => ProjectDetailsScreen(projectId: highlightedProject.id)));
         }
       },
       child: Container(
@@ -477,9 +477,9 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    const Color(0xFF8DC0DC).withOpacity(0.9),
+                    const Color(0xFF8DC0DC).withValues(alpha: 0.9),
                     Colors.transparent,
-                    Colors.black.withOpacity(0.6),
+                    Colors.black.withValues(alpha: 0.6),
                   ],
                 ),
               ),
@@ -511,7 +511,7 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: highlightedProject.status.color.withOpacity(0.15),
+                          color: highlightedProject.status.color.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -550,7 +550,7 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
                       Text(
                         highlightedProject.formattedLocation,
                         style: TextStyle(
-                          color: Colors.black87.withOpacity(0.7),
+                          color: Colors.black87.withValues(alpha: 0.7),
                           fontSize: 13,
                         ),
                       ),
@@ -586,7 +586,7 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
           // Dotted Grid Background
           Positioned.fill(
             child: CustomPaint(
-              painter: _DottedGridPainter(),
+              painter: _cachedDottedGridPainter,
             ),
           ),
           Padding(
@@ -605,7 +605,7 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
                         color: innerColor,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: borderColor.withOpacity(0.5),
+                          color: borderColor.withValues(alpha: 0.5),
                           width: 1,
                         ),
                       ),
@@ -613,8 +613,8 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
                         imagePath,
                         fit: BoxFit.contain,
                         colorFilter: ColorFilter.mode(
-                          borderColor.withOpacity(1.0).computeLuminance() > 0.5 
-                            ? borderColor.withOpacity(1.0).withRed(10).withGreen(120).withBlue(130) // Fallback for very light colors
+                          borderColor.withValues(alpha: 1.0).computeLuminance() > 0.5 
+                            ? borderColor.withValues(alpha: 1.0).withRed(10).withGreen(120).withBlue(130) // Fallback for very light colors
                             : borderColor, 
                           BlendMode.srcIn,
                         ),
@@ -654,11 +654,13 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
   }
 }
 
+final _cachedDottedGridPainter = _DottedGridPainter();
+
 class _DottedGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFFF1F5F9).withOpacity(0.5)
+      ..color = const Color(0xFFF1F5F9).withValues(alpha: 0.5)
       ..style = PaintingStyle.fill;
 
     const spacing = 12.0;

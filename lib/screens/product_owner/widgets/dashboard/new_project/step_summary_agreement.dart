@@ -56,7 +56,7 @@ class StepSummaryAgreement extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xFFF0FBFB),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF309DAA).withOpacity(0.3)),
+            border: Border.all(color: const Color(0xFF309DAA).withValues(alpha: 0.3)),
           ),
           child: Row(
             children: [

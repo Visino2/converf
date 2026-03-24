@@ -26,7 +26,6 @@ class ContractorCompanyInfoStep extends StatefulWidget {
 class _ContractorCompanyInfoStepState extends State<ContractorCompanyInfoStep> {
   final _formKey = GlobalKey<FormState>();
 
-  bool _isYearsValid = false; // Note: although mentioned in plan, usually we avoid these for PO/Contractor consistent with what we did there.
  // Actually removing them check by check.
    void _showYearsPicker() {
     final yearsOptions = ['1-2 Years', '3-5 Years', '5-10 Years', '10+ Years'];

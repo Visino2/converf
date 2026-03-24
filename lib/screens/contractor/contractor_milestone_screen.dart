@@ -142,7 +142,7 @@ class _ContractorMilestoneScreenState extends State<ContractorMilestoneScreen> {
                         color: innerColor,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: iconColor.withOpacity(0.3),
+                          color: iconColor.withValues(alpha: 0.3),
                           width: 1,
                         ),
                       ),
@@ -236,7 +236,7 @@ class _ContractorMilestoneScreenState extends State<ContractorMilestoneScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -335,76 +335,82 @@ class _ContractorMilestoneScreenState extends State<ContractorMilestoneScreen> {
                 GestureDetector(
                   onTap: () => showQaQcAuditModal(context),
                   child: Container(
-                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: const Color(0xFFEAECF0)),
-                    image: const DecorationImage(
-                      image: AssetImage('assets/images/Grid.png'),
-                      fit: BoxFit.cover,
-                      opacity: 0.1,
-                    ),
                   ),
-                  child: Column(
+                  child: Stack(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('QA/QC Inspection Required', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF276572),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text('Completed', style: TextStyle(color: Colors.white, fontSize: 10)),
-                          ),
-                        ],
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _DottedGridPainter(),
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xFFEAECF0)),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(isQualityGood ? 'Quality Score: ' : 'Fail Score : ', 
-                                    style: const TextStyle(fontSize: 12, color: Color(0xFF667085))),
-                                  Text(qualityScore, 
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, 
-                                      color: isQualityGood ? const Color(0xFF12B76A) : const Color(0xFFD92D20))),
-                                ],
-                              ),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('QA/QC Inspection Required', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF276572),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Text('Completed', style: TextStyle(color: Colors.white, fontSize: 10)),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFFAEB),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xFFFEDF89)),
-                              ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.info_outline, size: 16, color: Color(0xFFB4543E)),
-                                  SizedBox(width: 4),
-                                  Text('1 Issue to rectify', style: TextStyle(fontSize: 10, color: Color(0xFFB4543E))),
-                                ],
-                              ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFEAECF0)),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(isQualityGood ? 'Quality Score: ' : 'Fail Score : ', 
+                                          style: const TextStyle(fontSize: 12, color: Color(0xFF667085))),
+                                        Text(qualityScore, 
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, 
+                                            color: isQualityGood ? const Color(0xFF12B76A) : const Color(0xFFD92D20))),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFFAEB),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFFEDF89)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.info_outline, size: 16, color: Color(0xFFB4543E)),
+                                        SizedBox(width: 4),
+                                        Text('1 Issue to rectify', style: TextStyle(fontSize: 10, color: Color(0xFFB4543E))),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -450,7 +456,7 @@ class _DottedGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFFF1F5F9).withOpacity(0.5)
+      ..color = const Color(0xFFF1F5F9).withValues(alpha: 0.5)
       ..style = PaintingStyle.fill;
 
     const spacing = 12.0;

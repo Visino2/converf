@@ -1,22 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../../../../features/profile/providers/profile_providers.dart';
+import '../../../../../features/profile/models/profile_models.dart';
 
 import 'verification_tab.dart';
 import 'certification_tab.dart';
 
-class ContractorProfileScreen extends StatefulWidget {
+class ContractorProfileScreen extends ConsumerStatefulWidget {
   const ContractorProfileScreen({super.key});
 
   @override
-  State<ContractorProfileScreen> createState() => _ContractorProfileScreenState();
+  ConsumerState<ContractorProfileScreen> createState() => _ContractorProfileScreenState();
 }
 
-class _ContractorProfileScreenState extends State<ContractorProfileScreen> {
+class _ContractorProfileScreenState extends ConsumerState<ContractorProfileScreen> {
   bool _isVerificationExpanded = false;
   String _selectedFilter = 'Overview';
 
   @override
   Widget build(BuildContext context) {
+    final profileAsync = ref.watch(profileProvider);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -37,456 +43,454 @@ class _ContractorProfileScreenState extends State<ContractorProfileScreen> {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Profile Card ────────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF9FAFB),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFF0F2F5), width: 1),
-                  ),
-                  child: Column(
+        child: profileAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+          error: (error, _) => Center(child: Text('Error loading profile: $error')),
+          data: (profile) => _buildContent(profile),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(UserProfile profile) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Profile Card ────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFF0F2F5), width: 1),
+              ),
+              child: Column(
+                children: [
+                  // Top portion with Image and Camera Circle
+                  Stack(
+                    alignment: Alignment.bottomCenter,
+                    clipBehavior: Clip.none,
                     children: [
-                      // Top portion with Image and Camera Circle
-                      Stack(
-                        alignment: Alignment.bottomCenter,
-                        clipBehavior: Clip.none,
-                        children: [
-                          // Top Image
-                          ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(16)),
-                            child: SizedBox(
-                              height: 140,
-                              width: double.infinity,
-                              child: Image.asset(
-                                'assets/images/lekki-complex.png',
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
-                                  color: const Color(0xFF309DAA),
+                      // Top Image
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                        child: SizedBox(
+                          height: 140,
+                          width: double.infinity,
+                          child: profile.avatarUrl != null || profile.profilePicture != null
+                              ? Image.network(
+                                  profile.avatarUrl ?? profile.profilePicture!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(color: const Color(0xFF309DAA)),
+                                )
+                              : Image.asset(
+                                  'assets/images/lekki-complex.png',
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => Container(color: const Color(0xFF309DAA)),
                                 ),
-                              ),
-                            ),
-                          ),
-                          // Camera / Upload Circle
-                          Positioned(
-                            bottom: -40,
-                            child: Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFFF3C08B),
-                                border:
-                                    Border.all(color: Colors.white, width: 3),
-                              ),
-                              child: Center(
-                                child: SvgPicture.asset(
-                                  'assets/images/camera.svg',
-                                  width: 24,
-                                  height: 24,
-                                  colorFilter: const ColorFilter.mode(
-                                      Colors.white, BlendMode.srcIn),
-                                  errorBuilder: (_, __, ___) => const Icon(
-                                      Icons.camera_alt,
-                                      color: Colors.white),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 50),
-                      // Profile Info
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text(
-                                  'Converf Construction Ltd',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF111827),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                const Icon(Icons.verified,
-                                    color: Color(0xFF309DAA), size: 20),
-                              ],
+                      // Camera / Upload Circle
+                      Positioned(
+                        bottom: -40,
+                        child: Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFF3C08B),
+                            border: Border.all(color: Colors.white, width: 3),
+                          ),
+                          child: Center(
+                            child: SvgPicture.asset(
+                              'assets/images/camera.svg',
+                              width: 24,
+                              height: 24,
+                              colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                              errorBuilder: (_, _, _) => const Icon(Icons.camera_alt, color: Colors.white),
                             ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SvgPicture.asset(
-                                  'assets/images/map.svg',
-                                  width: 14,
-                                  height: 14,
-                                  colorFilter: const ColorFilter.mode(
-                                      Color(0xFF6B7280), BlendMode.srcIn),
-                                ),
-                                const SizedBox(width: 4),
-                                const Text(
-                                  'Lagos, Nigeria',
-                                  style: TextStyle(
-                                      fontSize: 13, color: Color(0xFF6B7280)),
-                                ),
-                                const SizedBox(width: 16),
-                                SvgPicture.asset(
-                                  'assets/images/calendar-3.svg',
-                                  width: 14,
-                                  height: 14,
-                                  colorFilter: const ColorFilter.mode(
-                                      Color(0xFF6B7280), BlendMode.srcIn),
-                                ),
-                                const SizedBox(width: 4),
-                                const Text(
-                                  'Member since Jan 2021',
-                                  style: TextStyle(
-                                      fontSize: 13, color: Color(0xFF6B7280)),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-
-                            // Statistics Grid
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                _buildStatItem('COMPLETED', '12', 'assets/images/circle.svg'),
-                                _buildStatItem('SUCCESS RATE', '96%', 'assets/images/star.svg'),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                _buildStatItem('AVG. QUALITY', '94%', 'assets/images/star-1.svg'),
-                                _buildStatItem('RESPONSE', '<2h', 'assets/images/clock-circle.svg'),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-
-                            // Edit Profile Button
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: () {},
-                                icon: SvgPicture.asset(
-                                  'assets/images/edit-profile.svg',
-                                  width: 20,
-                                  height: 20,
-                                  colorFilter: const ColorFilter.mode(
-                                      Color(0xFF276572), BlendMode.srcIn),
-                                ),
-                                label: const Text(
-                                  'Edit Profile',
-                                  style: TextStyle(
-                                    color: Color(0xFF276572),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: Color(0xFF276572)),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                          ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-    
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _isVerificationExpanded = !_isVerificationExpanded;
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF309DAA), Color(0xFF276572)],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                  const SizedBox(height: 50),
+                  // Profile Info
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       children: [
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text(
-                              'Verification Status',
-                              style: TextStyle(
-                                color: Colors.white,
+                            Text(
+                              profile.companyName ?? '${profile.firstName} ${profile.lastName}',
+                              style: const TextStyle(
+                                fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                                color: Color(0xFF111827),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.verified,
-                              color: Colors.white,
-                              size: 20,
+                            const SizedBox(width: 6),
+                            const Icon(Icons.verified, color: Color(0xFF309DAA), size: 20),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SvgPicture.asset(
+                              'assets/images/map.svg',
+                              width: 14,
+                              height: 14,
+                              colorFilter: const ColorFilter.mode(Color(0xFF6B7280), BlendMode.srcIn),
                             ),
-                            const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF143038),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: const Color(0xFF143038)),
-                              ),
-                              child: Icon(
-                                _isVerificationExpanded
-                                    ? Icons.keyboard_arrow_up
-                                    : Icons.keyboard_arrow_down,
-                                color: Colors.white,
-                                size: 16,
-                              ),
+                            const SizedBox(width: 4),
+                            Text(
+                              profile.city ?? profile.state ?? 'Nigeria',
+                              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                            ),
+                            const SizedBox(width: 16),
+                            SvgPicture.asset(
+                              'assets/images/calendar-3.svg',
+                              width: 14,
+                              height: 14,
+                              colorFilter: const ColorFilter.mode(Color(0xFF6B7280), BlendMode.srcIn),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Member since ${DateFormat('MMM yyyy').format(profile.createdAt)}',
+                              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
                             ),
                           ],
                         ),
-                        if (_isVerificationExpanded) ...[
-                          const SizedBox(height: 16),
-                          const Divider(color: Colors.white24),
-                          const SizedBox(height: 16),
-                          _buildVerificationRow('Company Registration', 'VERIFIED'),
-                          _buildVerificationRow('Engineering License', 'VERIFIED'),
-                          _buildVerificationRow('Tax Clearance ID', 'VERIFIED'),
-                          _buildVerificationRow('Liability Insurance', 'VERIFIED'),
-                          _buildVerificationRow('Past Project Review', 'VERIFIED'),
-                          const SizedBox(height: 16),
-                          const Divider(color: Colors.white24),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: const [
-                              Text(
-                                'Last Verified: Jan 12, 2024',
-                                style: TextStyle(color: Colors.white70, fontSize: 11),
+                        const SizedBox(height: 20),
+
+                        // Statistics Grid
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildStatItem('COMPLETED', profile.completedProjectsCount?.toString() ?? '0', 'assets/images/circle.svg'),
+                            _buildStatItem('SUCCESS RATE', profile.successRate ?? '0%', 'assets/images/star.svg'),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildStatItem('AVG. QUALITY', profile.averageQualityScore ?? '0%', 'assets/images/star-1.svg'),
+                            _buildStatItem('RESPONSE', profile.responseTime ?? 'N/A', 'assets/images/clock-circle.svg'),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Edit Profile Button
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {},
+                            icon: SvgPicture.asset(
+                              'assets/images/edit-profile.svg',
+                              width: 20,
+                              height: 20,
+                              colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn),
+                            ),
+                            label: const Text(
+                              'Edit Profile',
+                              style: TextStyle(
+                                color: Color(0xFF276572),
+                                fontWeight: FontWeight.w600,
                               ),
-                              Text(
-                                'Renewal Date: Jan 12, 2025',
-                                style: TextStyle(color: Colors.white70, fontSize: 11),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFF276572)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
                               ),
-                            ],
+                            ),
                           ),
-                        ],
+                        ),
+                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
+            ),
+          ),
 
-              const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-              
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    'Overview',
-                    'Portfolio',
-                    'Verification',
-                    'Certification',
-                  ].map((filter) {
-                    final isSelected = _selectedFilter == filter;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _selectedFilter = filter),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF276572) : const Color(0xFFF0F2F5),
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: Text(
-                            filter,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : const Color(0xFF6B7280),
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-           
-              if (_selectedFilter == 'Overview') ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFF0F2F5)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _isVerificationExpanded = !_isVerificationExpanded;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF309DAA), Color(0xFF276572)],
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'About Company',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF111827),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Converf Construction Ltd is a premier civil engineering and general contracting firm based in Lagos, with a footprint across West Africa. For over 15 years, we have specialized in high-end residential complexes, industrial logistics hubs, and urban road infrastructure.\n\nOur team of 45+ registered professionals is dedicated to safety, precision, and the integration of sustainable building practices. We pride ourselves on transparent project management and a commitment to quality that consistently exceeds client expectations.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 1.6,
-                          color: Color(0xFF4B5563),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Divider(color: Color(0xFFE5E7EB)),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildInfoCard(
-                              'YEARS EXPERIENCE',
-                              '12+ years',
-                              'assets/images/years.svg',
-                              const Color(0xFFE0F2F1),
-                            ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'Verification Status',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _buildInfoCard(
-                              'CORE TEAM',
-                              '12 Professionals',
-                              'assets/images/group.svg',
-                              const Color(0xFFFFF3E0),
-                            ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.verified,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF143038),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFF143038)),
+                          ),
+                          child: Icon(
+                            _isVerificationExpanded
+                                ? Icons.keyboard_arrow_up
+                                : Icons.keyboard_arrow_down,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_isVerificationExpanded) ...[
+                      const SizedBox(height: 16),
+                      const Divider(color: Colors.white24),
+                      const SizedBox(height: 16),
+                      _buildVerificationRow('Company Registration', profile.verificationStatuses?['Company Registration'] ?? 'PENDING'),
+                      _buildVerificationRow('Engineering License', profile.verificationStatuses?['Engineering License'] ?? 'PENDING'),
+                      _buildVerificationRow('Tax Clearance ID', profile.verificationStatuses?['Tax Clearance ID'] ?? 'PENDING'),
+                      _buildVerificationRow('Liability Insurance', profile.verificationStatuses?['Liability Insurance'] ?? 'PENDING'),
+                      _buildVerificationRow('Past Project Review', profile.verificationStatuses?['Past Project Review'] ?? 'PENDING'),
+                      const SizedBox(height: 16),
+                      const Divider(color: Colors.white24),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Last Verified: ${DateFormat('MMM dd, yyyy').format(profile.updatedAt)}',
+                            style: const TextStyle(color: Colors.white70, fontSize: 11),
+                          ),
+                          const Text(
+                            'Renewal Date: Verification pending',
+                            style: TextStyle(color: Colors.white70, fontSize: 11),
                           ),
                         ],
                       ),
                     ],
-                  ),
+                  ],
                 ),
               ),
+            ),
+          ),
 
-              const SizedBox(height: 24),
+          const SizedBox(height: 24),
 
-             
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFF0F2F5)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Skills & Expertise',
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                'Overview',
+                'Portfolio',
+                'Verification',
+                'Certification',
+              ].map((filter) {
+                final isSelected = _selectedFilter == filter;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedFilter = filter),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF276572) : const Color(0xFFF0F2F5),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Text(
+                        filter,
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF111827),
+                          color: isSelected ? Colors.white : const Color(0xFF6B7280),
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          if (_selectedFilter == 'Overview') ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFF0F2F5)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'About Company',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      profile.bio ?? 'No company bio provided. Please edit your profile to add more information about your construction services and expertise.',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.6,
+                        color: Color(0xFF4B5563),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(color: Color(0xFFE5E7EB)),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildInfoCard(
+                            'YEARS EXPERIENCE',
+                            'N/A',
+                            'assets/images/years.svg',
+                            const Color(0xFFE0F2F1),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildInfoCard(
+                            'CORE TEAM',
+                            'N/A',
+                            'assets/images/group.svg',
+                            const Color(0xFFFFF3E0),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFF0F2F5)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Skills & Expertise',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (profile.skills != null && profile.skills!.isNotEmpty)
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
-                        children: [
-                          _buildSkillChip('Civil Engineering'),
-                          _buildSkillChip('Project Management'),
-                          _buildSkillChip('Roofing'),
-                          _buildSkillChip('HVAC'),
-                          _buildSkillChip('Solar Integration'),
-                          _buildSkillChip('Road Construction'),
-                          _buildSkillChip('Quality Assurance'),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFF0F2F5)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                        children: profile.skills!.map((skill) => _buildSkillChip(skill)).toList(),
+                      )
+                    else
                       const Text(
-                        'Service Areas',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF111827),
-                        ),
+                        'No skills listed yet.',
+                        style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
                       ),
-                      const SizedBox(height: 16),
-                      _buildServiceAreaItem('Nigeria'),
-                      _buildServiceAreaItem('Ghana'),
-                      _buildServiceAreaItem('Kenya'),
-                    ],
-                  ),
+                  ],
                 ),
               ),
-              ] else if (_selectedFilter == 'Portfolio') ...[
-                _buildPortfolioTab(),
-              ] else if (_selectedFilter == 'Verification') ...[
-                const VerificationTab(),
-              ] else if (_selectedFilter == 'Certification') ...[
-                const CertificationTab(),
-              ],
+            ),
 
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
+            const SizedBox(height: 24),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFF0F2F5)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Service Areas',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (profile.serviceAreas != null && profile.serviceAreas!.isNotEmpty)
+                      ...profile.serviceAreas!.map((area) => _buildServiceAreaItem(area)).toList()
+                    else
+                      const Text(
+                        'No service areas listed yet.',
+                        style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ] else if (_selectedFilter == 'Portfolio') ...[
+            _buildPortfolioTab(),
+          ] else if (_selectedFilter == 'Verification') ...[
+            const VerificationTab(),
+          ] else if (_selectedFilter == 'Certification') ...[
+            const CertificationTab(),
+          ],
+
+          const SizedBox(height: 40),
+        ],
       ),
     );
   }

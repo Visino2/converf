@@ -69,7 +69,7 @@ class MoreScreen extends ConsumerWidget {
               const SizedBox(height: 20),
 
               // Menu Items
-              ...menuItems.map((item) => _buildMenuItem(context, item)).toList(),
+              ...menuItems.map((item) => _buildMenuItem(context, item)),
 
               const SizedBox(height: 16),
 
@@ -110,7 +110,7 @@ class MoreScreen extends ConsumerWidget {
                         width: 22,
                         height: 22,
                         colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
-                        errorBuilder: (_, __, ___) => const Icon(
+                        errorBuilder: (_, _, _) => const Icon(
                           Icons.logout,
                           color: Colors.white,
                           size: 22,
@@ -159,7 +159,7 @@ class MoreScreen extends ConsumerWidget {
                     width: 22,
                     height: 22,
                     color: const Color(0xFF276572),
-                    errorBuilder: (_, __, ___) => const Icon(
+                    errorBuilder: (_, _, _) => const Icon(
                       Icons.settings,
                       color: Color(0xFF276572),
                       size: 22,

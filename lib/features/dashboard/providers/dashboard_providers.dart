@@ -3,6 +3,6 @@ import '../repositories/dashboard_repository.dart';
 import '../models/dashboard_stats.dart';
 
 final dashboardStatsProvider = FutureProvider<DashboardResponse>((ref) async {
-  final repository = ref.watch(dashboardRepositoryProvider);
+  final repository = ref.read(dashboardRepositoryProvider);
   return repository.fetchDashboardStats();
 });

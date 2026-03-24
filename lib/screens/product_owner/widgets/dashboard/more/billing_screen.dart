@@ -251,7 +251,7 @@ class _CrossPatternPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.10)
+      ..color = Colors.white.withValues(alpha: 0.10)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 

@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'package:dio/dio.dart';
 import 'lib/features/dashboard/models/dashboard_stats.dart';
 import 'lib/core/api/api_client.dart';

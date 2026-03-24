@@ -127,7 +127,7 @@ class _ContractorProjectSettingsScreenState extends State<ContractorProjectSetti
           Switch(
             value: _settings[title] ?? false,
             onChanged: (v) => setState(() => _settings[title] = v),
-            activeColor: const Color(0xFF276572),
+            activeThumbColor: const Color(0xFF276572),
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: const Color(0xFFE5E7EB),
           ),

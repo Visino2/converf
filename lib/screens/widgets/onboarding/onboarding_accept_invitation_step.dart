@@ -160,8 +160,9 @@ class _OnboardingAcceptInvitationStepState
                                 return 'Password must be at least 8 characters';
                               }
                               WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (!_isConfirmPasswordValid)
+                                if (!_isConfirmPasswordValid) {
                                   setState(() => _isConfirmPasswordValid = true);
+                                }
                               });
                               return null;
                             },

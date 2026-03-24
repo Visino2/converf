@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/features/projects/providers/project_providers.dart';
-import 'package:converf/core/utils/project_utils.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:converf/features/marketplace/models/bid.dart';
+import 'package:converf/features/marketplace/providers/marketplace_providers.dart';
 import 'submit_proposal/submit_proposal_modal.dart';
+import 'bid_detail_screen.dart';
+import 'package:converf/features/projects/providers/project_document_providers.dart';
+import 'package:converf/features/projects/providers/project_image_providers.dart';
+import 'package:intl/intl.dart';
+import 'package:converf/features/projects/providers/schedule_providers.dart';
+import '../project_hub_modal.dart';
 
 class MarketplaceProjectDetailsScreen extends ConsumerWidget {
   final String projectId;
@@ -21,7 +26,7 @@ class MarketplaceProjectDetailsScreen extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => const _OverviewSheet(),
+      builder: (_) => _OverviewSheet(projectId: projectId),
     );
   }
 
@@ -33,7 +38,7 @@ class MarketplaceProjectDetailsScreen extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => const _DocumentsSheet(),
+      builder: (_) => _DocumentsSheet(projectId: projectId),
     );
   }
 
@@ -45,7 +50,7 @@ class MarketplaceProjectDetailsScreen extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => const _SiteSheet(),
+      builder: (_) => _SiteSheet(projectId: projectId),
     );
   }
 
@@ -57,7 +62,34 @@ class MarketplaceProjectDetailsScreen extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => const _ClientSheet(),
+      builder: (_) => _ClientSheet(projectId: projectId),
+    );
+  }
+
+  void _showSchedule(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ProjectHubModal(projectId: projectId, initialTabIndex: 1),
+    );
+  }
+
+  void _showDailyReports(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ProjectHubModal(projectId: projectId, initialTabIndex: 3),
+    );
+  }
+
+  void _showFieldInspections(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ProjectHubModal(projectId: projectId, initialTabIndex: 2),
     );
   }
 
@@ -214,31 +246,20 @@ class MarketplaceProjectDetailsScreen extends ConsumerWidget {
                       ],
                     ),
                     const Spacer(),
-                    ElevatedButton(
-                      onPressed: () {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (context) => SubmitProposalModal(projectId: projectId),
+                    ref.watch(myBidsProvider(1)).when(
+                      loading: () => const CircularProgressIndicator(color: Color(0xFF276572)),
+                      error: (_, _) => _buildSubmitButton(context), // Fallback to submit
+                      data: (response) {
+                        final existingBid = response.data.cast<Bid?>().firstWhere(
+                          (b) => b?.projectId == projectId,
+                          orElse: () => null,
                         );
+
+                        if (existingBid != null) {
+                          return _buildReviewButton(context, existingBid);
+                        }
+                        return _buildSubmitButton(context);
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF276572),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 28, vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Submit Proposal',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14),
-                      ),
                     ),
                   ],
                 ),
@@ -357,38 +378,68 @@ class MarketplaceProjectDetailsScreen extends ConsumerWidget {
                   border: Border(
                       top: BorderSide(color: Color(0xFFF0F2F5))),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _tabButton(
-                      context,
-                      label: 'Overview',
-                      iconPath: 'assets/images/home-2.svg',
-                      iconColor: const Color(0xFF98A2B3),
-                      onTap: () => _showOverview(context),
-                    ),
-                    _tabButton(
-                      context,
-                      label: 'Documents',
-                      iconPath: 'assets/images/document-1.svg',
-                      iconColor: const Color(0xFF98A2B3),
-                      onTap: () => _showDocuments(context),
-                    ),
-                    _tabButton(
-                      context,
-                      label: 'Site',
-                      iconPath: 'assets/images/site.svg',
-                      iconColor: const Color(0xFF98A2B3),
-                      onTap: () => _showSite(context),
-                    ),
-                    _tabButton(
-                      context,
-                      label: 'Client',
-                      iconPath: 'assets/images/more.svg',
-                      iconColor: const Color(0xFF98A2B3),
-                      onTap: () => _showClient(context),
-                    ),
-                  ],
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _tabButton(
+                        context,
+                        label: 'Overview',
+                        iconPath: 'assets/images/home-2.svg',
+                        iconColor: const Color(0xFF98A2B3),
+                        onTap: () => _showOverview(context),
+                      ),
+                      const SizedBox(width: 16),
+                      _tabButton(
+                        context,
+                        label: 'Schedule',
+                        iconPath: 'assets/images/calendar-3.svg',
+                        iconColor: const Color(0xFF98A2B3),
+                        onTap: () => _showSchedule(context),
+                      ),
+                      const SizedBox(width: 16),
+                      _tabButton(
+                        context,
+                        label: 'Documents',
+                        iconPath: 'assets/images/document-1.svg',
+                        iconColor: const Color(0xFF98A2B3),
+                        onTap: () => _showDocuments(context),
+                      ),
+                      const SizedBox(width: 16),
+                      _tabButton(
+                        context,
+                        label: 'Site',
+                        iconPath: 'assets/images/site.svg',
+                        iconColor: const Color(0xFF98A2B3),
+                        onTap: () => _showSite(context),
+                      ),
+                      const SizedBox(width: 16),
+                      _tabButton(
+                        context,
+                        label: 'Reports',
+                        iconPath: 'assets/images/document-1.svg',
+                        iconColor: const Color(0xFF98A2B3),
+                        onTap: () => _showDailyReports(context),
+                      ),
+                      const SizedBox(width: 16),
+                      _tabButton(
+                        context,
+                        label: 'Inspections',
+                        iconPath: 'assets/images/Target.svg',
+                        iconColor: const Color(0xFF98A2B3),
+                        onTap: () => _showFieldInspections(context),
+                      ),
+                      const SizedBox(width: 16),
+                      _tabButton(
+                        context,
+                        label: 'Client',
+                        iconPath: 'assets/images/more.svg',
+                        iconColor: const Color(0xFF98A2B3),
+                        onTap: () => _showClient(context),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -402,6 +453,71 @@ class MarketplaceProjectDetailsScreen extends ConsumerWidget {
   }
 
 
+
+  Widget _buildSubmitButton(BuildContext context) {
+    return ElevatedButton(
+      onPressed: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => SubmitProposalModal(projectId: projectId),
+        );
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF276572),
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        elevation: 0,
+      ),
+      child: const Text(
+        'Submit Proposal',
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+      ),
+    );
+  }
+
+  Widget _buildReviewButton(BuildContext context, Bid bid) {
+    return Column(
+      children: [
+        ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => BidDetailScreen(bid: bid)),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white,
+            side: const BorderSide(color: Color(0xFF276572)),
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            elevation: 0,
+          ),
+          child: const Text(
+            'Review Proposal',
+            style: TextStyle(color: Color(0xFF276572), fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: bid.status == 'accepted' ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            bid.status.toUpperCase(),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: bid.status == 'accepted' ? const Color(0xFF166534) : const Color(0xFF92400E),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   static Widget _badge(String text, Color bg, Color fg,
       {double letterSpacing = 0}) {
@@ -524,11 +640,14 @@ class MarketplaceProjectDetailsScreen extends ConsumerWidget {
 
 
 
-class _OverviewSheet extends StatelessWidget {
-  const _OverviewSheet();
+class _OverviewSheet extends ConsumerWidget {
+  final String projectId;
+  const _OverviewSheet({required this.projectId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheduleAsync = ref.watch(projectScheduleProvider(projectId));
+    
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.65,
@@ -585,10 +704,32 @@ class _OverviewSheet extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF111827))),
           const SizedBox(height: 20),
-          _phaseItem('Documents Submitted', false),
-          _phaseItem('Identity Vetted', false),
-          _phaseItem('Field Office Inspection', false),
-          _phaseItem('Verification Finalized', true),
+          scheduleAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text(
+                  'Schedule not available for this project',
+                  style: TextStyle(color: Color(0xFF6B7280), fontStyle: FontStyle.italic),
+                ),
+              ),
+            ),
+            data: (schedule) {
+              if (schedule.phases.isEmpty) {
+                return const Center(child: Text('No phases found'));
+              }
+              return Column(
+                children: [
+                  ...schedule.phases.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final phase = entry.value;
+                    return _phaseItem(phase.name, index == schedule.phases.length - 1);
+                  }),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
@@ -654,11 +795,14 @@ class _OverviewSheet extends StatelessWidget {
 
 
 
-class _DocumentsSheet extends StatelessWidget {
-  const _DocumentsSheet();
+class _DocumentsSheet extends ConsumerWidget {
+  final String projectId;
+  const _DocumentsSheet({required this.projectId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final docsAsync = ref.watch(projectDocumentsProvider(projectId));
+
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.65,
@@ -716,99 +860,28 @@ class _DocumentsSheet extends StatelessWidget {
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF111827)),
           ),
-          const SizedBox(height: 4),
-          const Text(
-            '2 files stored securely',
-            style:
-                TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-          ),
           const SizedBox(height: 16),
-          // Upload button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {},
-              icon: SvgPicture.asset(
-                'assets/images/uplaod-2.svg',
-                width: 18,
-                height: 18,
-                colorFilter: const ColorFilter.mode(
-                    Colors.white, BlendMode.srcIn),
-              ),
-              label: const Text(
-                'Upload Document',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF276572),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30)),
-                elevation: 0,
-              ),
-            ),
+          docsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(child: Text('Error loading documents: $err')),
+            data: (docs) {
+              if (docs.isEmpty) {
+                 return const Center(child: Padding(
+                   padding: EdgeInsets.symmetric(vertical: 40),
+                   child: Text('No documents uploaded for this project.'),
+                 ));
+              }
+              return Column(
+                children: docs.map((doc) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.insert_drive_file, color: Color(0xFF276572)),
+                  title: Text(doc.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  subtitle: Text('${doc.type.toUpperCase()} • ${DateFormat('MMM d, y').format(doc.createdAt)}', style: const TextStyle(fontSize: 12)),
+                  trailing: const Icon(Icons.download, size: 20),
+                )).toList(),
+              );
+            },
           ),
-          const SizedBox(height: 20),
-          // Header row
-          const Padding(
-            padding:
-                EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                    child: Text('Document Name',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF9CA3AF)))),
-                Text('Size',
-                    style: TextStyle(
-                        fontSize: 12, color: Color(0xFF9CA3AF))),
-              ],
-            ),
-          ),
-          const Divider(color: Color(0xFFF0F2F5)),
-          _docRow('Roofing_Plan_V1', '2.5MB'),
-          const Divider(color: Color(0xFFF0F2F5)),
-          _docRow('Lekki_Permit_App', '2.5MB'),
-          const Divider(color: Color(0xFFF0F2F5)),
-        ],
-      ),
-    );
-  }
-
-  Widget _docRow(String name, String size) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFD1FAE5),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: SvgPicture.asset(
-              'assets/images/document.svg',
-              width: 18,
-              height: 18,
-              colorFilter: const ColorFilter.mode(
-                  Color(0xFF059669), BlendMode.srcIn),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(name,
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF111827))),
-          ),
-          Text(size,
-              style: const TextStyle(
-                  fontSize: 13, color: Color(0xFF6B7280))),
         ],
       ),
     );
@@ -817,11 +890,15 @@ class _DocumentsSheet extends StatelessWidget {
 
 
 
-class _SiteSheet extends StatelessWidget {
-  const _SiteSheet();
+class _SiteSheet extends ConsumerWidget {
+  final String projectId;
+  const _SiteSheet({required this.projectId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final projectAsync = ref.watch(projectDetailsProvider(projectId));
+    final imagesAsync = ref.watch(projectImagesProvider(projectId));
+
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.65,
@@ -849,7 +926,7 @@ class _SiteSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              const Text('Site',
+              const Text('Site Details',
                   style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -869,81 +946,54 @@ class _SiteSheet extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          // Map image
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Stack(
-              children: [
-                SizedBox(
-                  height: 220,
-                  width: double.infinity,
-                  child: Image.asset(
-                    'assets/images/container-1.png',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        Container(color: const Color(0xFF309DAA)),
+          const SizedBox(height: 28),
+          projectAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(child: Text('Error: $err')),
+            data: (response) {
+              final project = response.data;
+              if (project == null) return const Center(child: Text('Project not found'));
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 8),
+                  Text(project.formattedLocation, style: const TextStyle(fontSize: 14, color: Color(0xFF4B5563))),
+                  const SizedBox(height: 24),
+                  imagesAsync.when(
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (err, _) => const SizedBox.shrink(),
+                    data: (images) {
+                      if (images.isEmpty) return const SizedBox.shrink();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Site Images', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 120,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: images.length,
+                              separatorBuilder: (context, index) => const SizedBox(width: 12),
+                              itemBuilder: (_, i) => ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  images[i].fileUrl,
+                                  width: 160,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => Container(width: 160, color: const Color(0xFFF3F4F6), child: const Icon(Icons.image)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
-                ),
-                const Positioned(
-                  top: 16,
-                  left: 16,
-                  child: Text(
-                    'Site Locator',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // GPS Coordinates box
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFF0F2F5)),
-              boxShadow: const [
-                BoxShadow(
-                    color: Color(0x0A000000),
-                    blurRadius: 4,
-                    offset: Offset(0, 1))
-              ],
-            ),
-            child: Row(
-              children: [
-                SvgPicture.asset(
-                  'assets/images/street.svg',
-                  width: 24,
-                  height: 24,
-                  // street.svg native color is #2A8090 — no colorFilter needed
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'GPS Coordinates',
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF111827)),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      '6.4281° N, 3.4219° E',
-                      style: TextStyle(
-                          fontSize: 13, color: Color(0xFF6B7280)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -952,11 +1002,14 @@ class _SiteSheet extends StatelessWidget {
 }
 
 
-class _ClientSheet extends StatelessWidget {
-  const _ClientSheet();
+class _ClientSheet extends ConsumerWidget {
+  final String projectId;
+  const _ClientSheet({required this.projectId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final projectAsync = ref.watch(projectDetailsProvider(projectId));
+
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.50,
@@ -1005,75 +1058,77 @@ class _ClientSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          // Client profile row
-          Row(
-            children: [
-              ClipOval(
-                child: Image.asset(
-                  'assets/images/chinedu.png',
-                  width: 52,
-                  height: 52,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const CircleAvatar(
-                    radius: 26,
-                    backgroundColor: Color(0xFF276572),
-                    child: Text('CO',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          projectAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(child: Text('Error: $err')),
+            data: (response) {
+              final project = response.data;
+              if (project == null || project.owner == null) return const Center(child: Text('Client info not available'));
+              final owner = project.owner!;
+              return Column(
                 children: [
-                  Row(
-                    children: const [
-                      Text(
-                        'Chinedu Okafor',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF111827)),
+                   Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 26,
+                        backgroundColor: const Color(0xFF276572),
+                        child: Text(owner.displayName.isNotEmpty ? owner.displayName[0].toUpperCase() : 'C',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold)),
                       ),
-                      SizedBox(width: 6),
-                      Icon(Icons.verified,
-                          color: Color(0xFF2A8090), size: 18),
+                      const SizedBox(width: 14),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                owner.displayName,
+                                style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF111827)),
+                              ),
+                              const SizedBox(width: 6),
+                              const Icon(Icons.verified,
+                                  color: Color(0xFF2A8090), size: 18),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: const [
+                              Icon(Icons.star,
+                                  color: Color(0xFFF59E0B), size: 14),
+                              SizedBox(width: 4),
+                              Text('4.9',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFF6B7280))),
+                            ],
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 24),
+                  const Divider(color: Color(0xFFF0F2F5)),
+                  const SizedBox(height: 16),
                   Row(
-                    children: const [
-                      Icon(Icons.star,
-                          color: Color(0xFFF59E0B), size: 14),
-                      SizedBox(width: 4),
-                      Text('4.9',
-                          style: TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF6B7280))),
+                    children: [
+                      _statCell('PROJECTS', '8'),
+                      _statCell('HIRE RATE', '90%'),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      _statCell('EMAIL', owner.email),
                     ],
                   ),
                 ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          const Divider(color: Color(0xFFF0F2F5)),
-          const SizedBox(height: 16),
-          // Stats grid
-          Row(
-            children: [
-              _statCell('PROJECTS', '8'),
-              _statCell('HIRE RATE', '90%'),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _statCell('AVG. PAY', 'On time'),
-              _statCell('REPLIES', '1 hour'),
-            ],
+              );
+            },
           ),
         ],
       ),

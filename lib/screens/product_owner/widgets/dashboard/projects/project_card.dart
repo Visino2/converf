@@ -173,26 +173,14 @@ class ProjectCard extends StatelessWidget {
                             const Text('Current Phase', style: TextStyle(color: Colors.white, fontSize: 13)),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Stack(
-                                children: [
-                                  Container(
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                  ),
-                                  FractionallySizedBox(
-                                    widthFactor: 0.15, // Hardcoded phases percentage since wait for phase feature
-                                    child: Container(
-                                      height: 8,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF276572),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: const LinearProgressIndicator(
+                                  value: 0.15,
+                                  minHeight: 8,
+                                  backgroundColor: Colors.white,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF276572)),
+                                ),
                               ),
                             ),
                           ],

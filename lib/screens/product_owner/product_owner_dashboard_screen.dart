@@ -45,12 +45,15 @@ class _ProductOwnerDashboardScreenState extends State<ProductOwnerDashboardScree
       backgroundColor: const Color(
         0xFFF9FAFB,
       ), // App background color from design
-      body: _pages[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),

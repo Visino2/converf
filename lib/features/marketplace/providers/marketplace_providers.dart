@@ -7,12 +7,12 @@ import '../models/marketplace_responses.dart';
 import '../repositories/marketplace_repository.dart';
 
 final marketplaceProjectsProvider = FutureProvider.family<PaginatedProjectsResponse, int>((ref, page) async {
-  final repository = ref.watch(marketplaceRepositoryProvider);
+  final repository = ref.read(marketplaceRepositoryProvider);
   return repository.fetchMarketplaceProjects(page: page);
 });
 
 final myBidsProvider = FutureProvider.family<PaginatedBidsResponse, int>((ref, page) async {
-  final repository = ref.watch(marketplaceRepositoryProvider);
+  final repository = ref.read(marketplaceRepositoryProvider);
   return repository.fetchMyBids(page: page);
 });
 
@@ -20,7 +20,7 @@ final myBidsProvider = FutureProvider.family<PaginatedBidsResponse, int>((ref, p
 typedef ProjectBidsArgs = ({String projectId, int page});
 
 final projectBidsProvider = FutureProvider.family<PaginatedBidsResponse, ProjectBidsArgs>((ref, args) async {
-  final repository = ref.watch(marketplaceRepositoryProvider);
+  final repository = ref.read(marketplaceRepositoryProvider);
   return repository.fetchProjectBids(args.projectId, page: args.page);
 });
 
@@ -29,7 +29,7 @@ class MarketplaceActionNotifier extends AsyncNotifier<void> {
 
   @override
   FutureOr<void> build() {
-    _repository = ref.watch(marketplaceRepositoryProvider);
+    _repository = ref.read(marketplaceRepositoryProvider);
   }
 
   Future<BidResponse> submitBid(String projectId, SubmitBidPayload payload) async {

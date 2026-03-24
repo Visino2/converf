@@ -31,12 +31,9 @@ class _AddTeamModalState extends ConsumerState<AddTeamModal> {
   String? _assignedProjectTitle;
   String? _selectedCountry;
   final List<Map<String, String>> _roles = [
-    {'label': 'Project Manager', 'value': 'project_manager'},
-    {'label': 'Site Engineer', 'value': 'site_engineer'},
-    {'label': 'Structural Engineer', 'value': 'structural_engineer'},
-    {'label': 'Architect', 'value': 'architect'},
-    {'label': 'QA/QC Inspector', 'value': 'qa_inspector'},
-    {'label': 'Contractor', 'value': 'contractor'},
+    {'label': 'Member', 'value': 'member'},
+    {'label': 'Manager', 'value': 'manager'},
+    {'label': 'Admin', 'value': 'admin'},
   ];
 
   @override
@@ -89,8 +86,34 @@ class _AddTeamModalState extends ConsumerState<AddTeamModal> {
       } catch (e) {
         if (mounted) {
           setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to invite member: $e')),
+          
+          // Extract a clean error message
+          String errorMessage = 'Failed to invite member.';
+          final errorStr = e.toString();
+          
+          if (errorStr.contains('Validation Error:')) {
+            errorMessage = errorStr.split('Validation Error:').last.trim();
+          } else if (errorStr.contains('message:')) {
+             final match = RegExp(r'message:\s*([^,}]+)').firstMatch(errorStr);
+             if (match != null) {
+               errorMessage = match.group(1)?.trim() ?? errorMessage;
+             }
+          } else {
+             errorMessage = errorStr.replaceAll('Exception:', '').trim();
+          }
+          
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Invitation Failed'),
+              content: Text(errorMessage),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
           );
         }
       }
@@ -291,7 +314,7 @@ class _AddTeamModalState extends ConsumerState<AddTeamModal> {
                                     Icon(
                                       Icons.arrow_forward_ios,
                                       size: 14,
-                                      color: Colors.white.withOpacity(
+                                      color: Colors.white.withValues(alpha: 
                                         _isStepValid() ? 1.0 : 0.8,
                                       ),
                                     ),
@@ -498,7 +521,7 @@ class _AddTeamModalState extends ConsumerState<AddTeamModal> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '${project.city ?? ""}, ${project.state ?? ""}',
+                              '${project.city}, ${project.state}',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,

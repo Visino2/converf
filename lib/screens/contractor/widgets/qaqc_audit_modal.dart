@@ -178,79 +178,83 @@ class _QaQcAuditModalState extends State<QaQcAuditModal> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: const Color(0xFFEAECF0)),
-                        image: const DecorationImage(
-                          image: AssetImage('assets/images/Grid.png'),
-                          fit: BoxFit.cover,
-                          opacity: 0.08,
-                        ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Stack(
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                '94%',
-                                style: TextStyle(
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF276572),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFECFDF3),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: const Text(
-                                  'EXCELLENT',
-                                  style: TextStyle(
-                                    color: Color(0xFF039855),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: const LinearProgressIndicator(
-                              value: 0.94,
-                              minHeight: 8,
-                              backgroundColor: Color(0xFFEAECF0),
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF276572)),
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _DottedGridPainter(),
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Column(
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Physical Standards Met', style: TextStyle(fontSize: 12, color: Color(0xFF667085))),
-                                  const SizedBox(height: 2),
-                                  const Text('Audit Status', style: TextStyle(fontSize: 12, color: Color(0xFF667085))),
-                                  const SizedBox(height: 2),
                                   const Text(
-                                    'Certified',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2A8090)),
+                                    '94%',
+                                    style: TextStyle(
+                                      fontSize: 36,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF276572),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFECFDF3),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Text(
+                                      'EXCELLENT',
+                                      style: TextStyle(
+                                        color: Color(0xFF039855),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
+                              const SizedBox(height: 10),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: const LinearProgressIndicator(
+                                  value: 0.94,
+                                  minHeight: 8,
+                                  backgroundColor: Color(0xFFEAECF0),
+                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF276572)),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('18/19 Passed', style: TextStyle(fontSize: 12, color: Color(0xFF101828), fontWeight: FontWeight.w600)),
-                                  const SizedBox(height: 2),
-                                  const Text('Total Deviations', style: TextStyle(fontSize: 12, color: Color(0xFF667085))),
-                                  const SizedBox(height: 2),
-                                  const Text('1 Findings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2A8090))),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Physical Standards Met', style: TextStyle(fontSize: 12, color: Color(0xFF667085))),
+                                      const SizedBox(height: 2),
+                                      const Text('Audit Status', style: TextStyle(fontSize: 12, color: Color(0xFF667085))),
+                                      const SizedBox(height: 2),
+                                      const Text(
+                                        'Certified',
+                                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2A8090)),
+                                      ),
+                                    ],
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      const Text('18/19 Passed', style: TextStyle(fontSize: 12, color: Color(0xFF101828), fontWeight: FontWeight.w600)),
+                                      const SizedBox(height: 2),
+                                      const Text('Total Deviations', style: TextStyle(fontSize: 12, color: Color(0xFF667085))),
+                                      const SizedBox(height: 2),
+                                      const Text('1 Findings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2A8090))),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ],
@@ -341,50 +345,54 @@ class _QaQcAuditModalState extends State<QaQcAuditModal> {
                         color: const Color(0xFFF0FBFB),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFB7E7EA)),
-                        image: const DecorationImage(
-                          image: AssetImage('assets/images/Grid.png'),
-                          fit: BoxFit.cover,
-                          opacity: 0.08,
-                        ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Stack(
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _DottedGridPainter(),
+                            ),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                'Auditor Signature',
-                                style: TextStyle(fontSize: 12, color: Color(0xFF667085)),
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  ClipOval(
-                                    child: Image.asset(
-                                      'assets/images/chinedu.png',
-                                      width: 36,
-                                      height: 36,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
                                   const Text(
-                                    'Ibrahim : Converf',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF101828),
-                                    ),
+                                    'Auditor Signature',
+                                    style: TextStyle(fontSize: 12, color: Color(0xFF667085)),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      ClipOval(
+                                        child: Image.asset(
+                                          'assets/images/chinedu.png',
+                                          width: 36,
+                                          height: 36,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      const Text(
+                                        'Ibrahim : Converf',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF101828),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
+                              SvgPicture.asset(
+                                'assets/images/logo.svg',
+                                width: 28,
+                                height: 28,
+                              ),
                             ],
-                          ),
-                          SvgPicture.asset(
-                            'assets/images/logo.svg',
-                            width: 28,
-                            height: 28,
                           ),
                         ],
                       ),
@@ -402,7 +410,7 @@ class _QaQcAuditModalState extends State<QaQcAuditModal> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, -5),
                   ),
@@ -417,7 +425,7 @@ class _QaQcAuditModalState extends State<QaQcAuditModal> {
                             : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF276572),
-                          disabledBackgroundColor: const Color(0xFF276572).withOpacity(0.5),
+                          disabledBackgroundColor: const Color(0xFF276572).withValues(alpha: 0.5),
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -524,4 +532,28 @@ class _QaQcAuditModalState extends State<QaQcAuditModal> {
       ),
     );
   }
+}
+
+class _DottedGridPainter extends CustomPainter {
+  final Color? color;
+  _DottedGridPainter({this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color ?? const Color(0xFFF1F5F9).withValues(alpha: 0.5)
+      ..style = PaintingStyle.fill;
+
+    const spacing = 12.0;
+    const dotSize = 1.5;
+
+    for (double x = spacing; x < size.width; x += spacing) {
+      for (double y = spacing; y < size.height; y += spacing) {
+        canvas.drawCircle(Offset(x, y), dotSize / 2, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

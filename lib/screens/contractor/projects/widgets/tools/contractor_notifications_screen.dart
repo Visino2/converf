@@ -127,7 +127,7 @@ class _ContractorNotificationsScreenState extends State<ContractorNotificationsS
           Switch(
             value: _notificationSettings[title] ?? false,
             onChanged: (v) => setState(() => _notificationSettings[title] = v),
-            activeColor: const Color(0xFF276572),
+            activeThumbColor: const Color(0xFF276572),
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: const Color(0xFFE5E7EB),
           ),

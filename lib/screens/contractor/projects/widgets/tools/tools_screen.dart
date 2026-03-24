@@ -9,6 +9,7 @@ import 'package:converf/screens/contractor/projects/widgets/tools/contractor_bid
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_notifications_screen.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_project_settings_screen.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_help_support_screen.dart';
+import 'package:converf/screens/contractor/projects/schedule/schedule_library_import_screen.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/features/auth/providers/auth_provider.dart';
@@ -43,6 +44,10 @@ class ToolsScreen extends ConsumerWidget {
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => const ContractorHelpSupportScreen()));
         break;
+      case 'Schedule Library':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const ScheduleLibraryImportScreen(projectId: 'library_preview')));
+        break;
       default:
         break;
     }
@@ -56,6 +61,7 @@ class ToolsScreen extends ConsumerWidget {
       {'title': 'Bidding Preferences', 'icon': 'assets/images/Shield.svg'},
       {'title': 'Notifications', 'icon': 'assets/images/Bell.svg'},
       {'title': 'Privacy & Visibility', 'icon': 'assets/images/Shield.svg'},
+      {'title': 'Schedule Library', 'icon': 'assets/images/Calendar.svg'},
       {'title': 'Help & Support', 'icon': 'assets/images/headset.svg'},
     ];
 
@@ -112,7 +118,7 @@ class ToolsScreen extends ConsumerWidget {
                                 child: Image.asset(
                                   'assets/images/lekki-complex.png',
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
+                                  errorBuilder: (_, _, _) => Container(
                                     color: const Color(0xFF309DAA),
                                   ),
                                 ),
@@ -137,7 +143,7 @@ class ToolsScreen extends ConsumerWidget {
                                     height: 24,
                                     colorFilter: const ColorFilter.mode(
                                         Colors.white, BlendMode.srcIn),
-                                    errorBuilder: (_, __, ___) => const Icon(
+                                    errorBuilder: (_, _, _) => const Icon(
                                         Icons.camera_alt,
                                         color: Colors.white),
                                   ),
@@ -250,7 +256,7 @@ class ToolsScreen extends ConsumerWidget {
                             width: 260,
                             height: 140,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const SizedBox(),
+                            errorBuilder: (_, _, _) => const SizedBox(),
                           ),
                         ),
                         Center(
@@ -263,7 +269,7 @@ class ToolsScreen extends ConsumerWidget {
                                 height: 60,
                                 colorFilter: const ColorFilter.mode(
                                     Colors.white, BlendMode.srcIn),
-                                errorBuilder: (_, __, ___) => const Icon(
+                                errorBuilder: (_, _, _) => const Icon(
                                   Icons.storefront,
                                   color: Colors.white,
                                   size: 60,
@@ -354,7 +360,7 @@ class ToolsScreen extends ConsumerWidget {
                               height: 22,
                               colorFilter: const ColorFilter.mode(
                                   Colors.white, BlendMode.srcIn),
-                              errorBuilder: (_, __, ___) => const Icon(
+                              errorBuilder: (_, _, _) => const Icon(
                                 Icons.logout,
                                 color: Colors.white,
                                 size: 22,
@@ -401,7 +407,7 @@ class ToolsScreen extends ConsumerWidget {
                 Color(0xFF276572),
                 BlendMode.srcIn,
               ),
-              errorBuilder: (_, __, ___) => const Icon(
+              errorBuilder: (_, _, _) => const Icon(
                 Icons.settings,
                 color: Color(0xFF276572),
                 size: 22,

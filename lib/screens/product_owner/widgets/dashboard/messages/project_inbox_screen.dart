@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
-import 'message_details_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:intl/intl.dart';
 
-class ProjectInboxScreen extends StatefulWidget {
+import '../../../../../features/projects/providers/project_providers.dart';
+import '../../../../../features/projects/models/project.dart';
+import 'message_details_screen.dart';
+
+class ProjectInboxScreen extends ConsumerStatefulWidget {
   const ProjectInboxScreen({super.key});
 
   @override
-  State<ProjectInboxScreen> createState() => _ProjectInboxScreenState();
+  ConsumerState<ProjectInboxScreen> createState() => _ProjectInboxScreenState();
 }
 
-class _ProjectInboxScreenState extends State<ProjectInboxScreen> {
+class _ProjectInboxScreenState extends ConsumerState<ProjectInboxScreen> {
   String _selectedFilter = 'All';
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
@@ -21,45 +26,10 @@ class _ProjectInboxScreenState extends State<ProjectInboxScreen> {
     super.dispose();
   }
 
-  final List<Map<String, dynamic>> _allMessages = [
-    {
-      'title': 'Lekki Residential Complex',
-      'message': 'Let\'s schedule an urgent review meeting for tomorrow morning.',
-      'time': '10:45 AM',
-      'isUnread': true,
-      'type': 'project',
-    },
-    {
-      'title': 'Ikeja Commercial Plaza',
-      'message': 'Let\'s schedule an urgent review meeting for tomorrow morning.',
-      'time': '10:45 AM',
-      'isUnread': false,
-      'type': 'project',
-    },
-    {
-      'title': 'Lekki Residential Complex',
-      'message': 'Let\'s schedule an urgent review meeting for tomorrow morning.',
-      'time': '10:45 AM',
-      'isUnread': false,
-      'type': 'project',
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
-    List<Map<String, dynamic>> displayedMessages = _allMessages.where((msg) {
-      bool matchesFilter = true;
-      if (_selectedFilter == 'Unread') matchesFilter = msg['isUnread'] == true;
-      if (_selectedFilter == 'Projects') matchesFilter = msg['type'] == 'project';
-
-      if (!matchesFilter) return false;
-
-      if (_searchQuery.isNotEmpty) {
-        return msg['title'].toString().toLowerCase().contains(_searchQuery) ||
-               msg['message'].toString().toLowerCase().contains(_searchQuery);
-      }
-      return true;
-    }).toList();
+    // For now we fetch page 1 of projects
+    final projectsAsync = ref.watch(projectsListProvider(1));
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -150,25 +120,53 @@ class _ProjectInboxScreenState extends State<ProjectInboxScreen> {
           ),
         ),
       ),
-      body: displayedMessages.isEmpty
-          ? const Center(
+      body: projectsAsync.when(
+        data: (projectsResponse) {
+          final projects = projectsResponse.data;
+          
+          List<Project> displayedProjects = projects.where((proj) {
+            bool matchesFilter = true;
+            // Fake filter logic since API doesn't expose unread right now
+            if (_selectedFilter == 'Unread') matchesFilter = false; 
+            
+            if (!matchesFilter) return false;
+
+            if (_searchQuery.isNotEmpty) {
+              return proj.title.toLowerCase().contains(_searchQuery) ||
+                     (proj.latestMessage?.body.toLowerCase().contains(_searchQuery) ?? false);
+            }
+            return true;
+          }).toList();
+
+          // Sort by latest message date descending
+          displayedProjects.sort((a, b) {
+            final dateA = (a.latestMessage?.created_at ?? a.createdAt);
+            final dateB = (b.latestMessage?.created_at ?? b.createdAt);
+            return DateTime.parse(dateB).compareTo(DateTime.parse(dateA));
+          });
+
+          if (displayedProjects.isEmpty) {
+            return const Center(
               child: Text(
                 'No messages found.',
                 style: TextStyle(color: Color(0xFF667085)),
               ),
-            )
-          : ListView.builder(
-              itemCount: displayedMessages.length,
-              itemBuilder: (context, index) {
-                final msg = displayedMessages[index];
-                return _buildMessageItem(
-                  title: msg['title'],
-                  message: msg['message'],
-                  time: msg['time'],
-                  isUnread: msg['isUnread'],
-                );
-              },
-            ),
+            );
+          }
+
+          return ListView.builder(
+            itemCount: displayedProjects.length,
+            itemBuilder: (context, index) {
+              final proj = displayedProjects[index];
+              return _buildMessageItem(proj: proj);
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+        error: (error, stack) => Center(
+          child: Text('Error loading inbox: \${error.toString()}', style: const TextStyle(color: Colors.red)),
+        ),
+      ),
     );
   }
 
@@ -189,7 +187,7 @@ class _ProjectInboxScreenState extends State<ProjectInboxScreen> {
         child: Text(
           title,
           style: TextStyle(
-            fontSize: 14,
+             fontSize: 14,
             fontWeight: FontWeight.w500,
             color: isSelected ? Colors.white : const Color(0xFF667085),
           ),
@@ -198,18 +196,35 @@ class _ProjectInboxScreenState extends State<ProjectInboxScreen> {
     );
   }
 
-  Widget _buildMessageItem({
-    required String title,
-    required String message,
-    required String time,
-    required bool isUnread,
-  }) {
+  Widget _buildMessageItem({required Project proj}) {
+    String messageBody = proj.latestMessage?.body ?? 'No messages yet';
+    String timeStr = '';
+    
+    try {
+      final dateToFormat = proj.latestMessage?.created_at ?? proj.createdAt;
+      final date = DateTime.parse(dateToFormat);
+      
+      // Simple relative format, e.g. "Just now", "2m ago"
+      final diff = DateTime.now().difference(date);
+      if (diff.inDays > 1) {
+        timeStr = DateFormat('MMM d').format(date);
+      } else if (diff.inDays == 1) {
+        timeStr = 'Yesterday';
+      } else if (diff.inHours > 0) {
+        timeStr = '\${diff.inHours}h ago';
+      } else if (diff.inMinutes > 0) {
+        timeStr = '\${diff.inMinutes}m ago';
+      } else {
+        timeStr = 'Just now';
+      }
+    } catch (_) {}
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => MessageDetailsScreen(title: title),
+            builder: (context) => MessageDetailsScreen(project: proj),
           ),
         );
       },
@@ -226,7 +241,7 @@ class _ProjectInboxScreenState extends State<ProjectInboxScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        title,
+                        proj.title,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -237,27 +252,18 @@ class _ProjectInboxScreenState extends State<ProjectInboxScreen> {
                     Row(
                       children: [
                         Text(
-                          time,
+                          timeStr,
                           style: const TextStyle(fontSize: 12, color: Color(0xFF475467)),
                         ),
-                        if (isUnread) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF276572),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  message,
+                  messageBody,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 14, color: Color(0xFF475467), height: 1.5),
                 ),
               ],

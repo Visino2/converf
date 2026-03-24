@@ -88,23 +88,39 @@ class ProjectResponse {
 class WizardResponse {
   final bool status;
   final String message;
+  final String id;
   final int currentStep;
   final Project? project;
 
   WizardResponse({
     required this.status,
     required this.message,
+    required this.id,
     required this.currentStep,
     this.project,
   });
 
   factory WizardResponse.fromJson(Map<String, dynamic> json) {
-    final data = json['data'] as Map<String, dynamic>? ?? {};
+    final data = json['data'] is Map<String, dynamic> ? json['data'] as Map<String, dynamic> : null;
+    
+    // Look for ID in multiple possible locations
+    final String id = (
+      data?['id'] ?? 
+      data?['project_id'] ?? 
+      data?['uuid'] ?? 
+      (data?['project'] as Map?)?['id'] ??
+      json['id'] ?? 
+      json['project_id'] ?? 
+      json['uuid'] ?? 
+      ''
+    ).toString();
+
     return WizardResponse(
       status: json['status'] as bool? ?? false,
       message: json['message'] as String? ?? '',
-      currentStep: data['current_step'] as int? ?? 1,
-      project: data['project'] != null ? Project.fromJson(data['project'] as Map<String, dynamic>) : null,
+      id: id,
+      currentStep: (data?['current_step'] ?? json['current_step'] ?? 1) as int,
+      project: data?['project'] != null ? Project.fromJson(data!['project'] as Map<String, dynamic>) : null,
     );
   }
 }

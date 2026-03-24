@@ -1,7 +1,18 @@
 import 'package:dio/dio.dart';
 
+class ApiException implements Exception {
+  final String message;
+  final int? statusCode;
+
+  ApiException(this.message, [this.statusCode]);
+
+  @override
+  String toString() => message;
+}
+
 class ApiClient {
   final Dio _dio;
+  Dio get dio => _dio;
 
   ApiClient(this._dio);
 
@@ -84,6 +95,6 @@ class ApiClient {
     } else {
       message = error.message ?? message;
     }
-    return Exception(message);
+    return ApiException(message, error.response?.statusCode);
   }
 }
