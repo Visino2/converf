@@ -5,7 +5,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:converf/core/api/api_client.dart';
 import 'package:converf/features/projects/models/schedule.dart';
 import 'package:converf/features/projects/providers/schedule_providers.dart';
-
+import 'package:converf/features/projects/models/project.dart';
+import 'package:converf/features/projects/providers/project_providers.dart';
 
 class _StatusStyle {
   final String label;
@@ -51,6 +52,32 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
 
   @override
   Widget build(BuildContext context) {
+    // Eagerly resolve project data to check if we even can have a schedule
+    final projectAsync = ref.watch(projectDetailsProvider(widget.projectId));
+    final project = projectAsync.value?.data;
+
+    if (project != null) {
+      final isEarlyStage = project.status == ProjectStatus.draft || 
+                           project.status == ProjectStatus.pendingTender;
+      if (isEarlyStage || project.contractorId == null || project.contractorId!.isEmpty) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.92,
+          decoration: const BoxDecoration(
+            color: Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              _buildHandle(),
+              _buildHeader(context),
+              const Divider(height: 1, color: Color(0xFFEAECF0)),
+              Expanded(child: _buildEmpty()),
+            ],
+          ),
+        );
+      }
+    }
+
     final scheduleAsync = ref.watch(projectScheduleProvider(widget.projectId));
 
     return Container(
@@ -66,7 +93,7 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
           const Divider(height: 1, color: Color(0xFFEAECF0)),
           Expanded(
             child: scheduleAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+              loading: () => _buildLoadingSkeleton(),
               error: (error, _) {
                 final isNotFound = (error is ApiException && error.statusCode == 404) ||
                     error.toString().toLowerCase().contains('404') ||
@@ -95,6 +122,81 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
         ),
       );
 
+  Widget _buildLoadingSkeleton() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header skeleton
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFEAECF0)),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _shimmerBox(width: 140, height: 20),
+                    const Spacer(),
+                    _shimmerBox(width: 80, height: 24, radius: 999),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _shimmerBox(width: double.infinity, height: 14),
+                const SizedBox(height: 8),
+                _shimmerBox(width: 200, height: 12),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Phase skeletons
+          for (int i = 0; i < 3; i++) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: const Color(0xFFEAECF0)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _shimmerBox(width: 160, height: 14),
+                        const SizedBox(height: 6),
+                        _shimmerBox(width: 120, height: 12),
+                      ],
+                    ),
+                  ),
+                  _shimmerBox(width: 90, height: 24, radius: 999),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _shimmerBox({required double height, double? width, double radius = 6}) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAECF0),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+
   Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
@@ -104,7 +206,7 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
           Row(children: [
             SvgPicture.asset('assets/images/calendar-3.svg', width: 22, height: 22,
               colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn),
-              errorBuilder: (_, __, ___) => const Icon(Icons.calendar_month, color: Color(0xFF276572))),
+              errorBuilder: (context, error, stackTrace) => const Icon(Icons.calendar_month, color: Color(0xFF276572))),
             const SizedBox(width: 10),
             const Text('Project Schedule', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF101828))),
           ]),
@@ -389,11 +491,17 @@ class _ReviewActionsState extends ConsumerState<_ReviewActions> {
             onPressed: isLoading ? null : () async {
               try {
                 await ref.read(scheduleActionProvider.notifier).approveSchedule(widget.scheduleId, widget.projectId);
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Schedule approved successfully.')));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Schedule approved successfully.')),
+                  );
+                }
               } catch (e) {
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to approve: $e')));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to approve: $e')),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(

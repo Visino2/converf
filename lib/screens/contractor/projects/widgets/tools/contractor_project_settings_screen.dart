@@ -4,10 +4,12 @@ class ContractorProjectSettingsScreen extends StatefulWidget {
   const ContractorProjectSettingsScreen({super.key});
 
   @override
-  State<ContractorProjectSettingsScreen> createState() => _ContractorProjectSettingsScreenState();
+  State<ContractorProjectSettingsScreen> createState() =>
+      _ContractorProjectSettingsScreenState();
 }
 
-class _ContractorProjectSettingsScreenState extends State<ContractorProjectSettingsScreen> {
+class _ContractorProjectSettingsScreenState
+    extends State<ContractorProjectSettingsScreen> {
   final Map<String, bool> _settings = {
     'Public Profile Visibility': false,
     'Show Earnings': false,
@@ -24,7 +26,11 @@ class _ContractorProjectSettingsScreenState extends State<ContractorProjectSetti
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.black,
+            size: 20,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(

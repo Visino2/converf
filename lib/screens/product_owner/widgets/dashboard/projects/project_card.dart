@@ -48,80 +48,102 @@ class ProjectCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             height: 380,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/bg-1.png'),
+                image: (project.coverImage != null && project.coverImage!.isNotEmpty)
+                    ? NetworkImage(project.coverImage!) as ImageProvider
+                    : const AssetImage('assets/images/bg-1.png'),
                 fit: BoxFit.cover,
               ),
             ),
-            child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Top Section
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                project.title,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF101828),
-                                  fontFamily: 'Inter',
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  SvgPicture.asset('assets/images/map.svg',
-                                    width: 16,
-                                    height: 16,
-                                    colorFilter: const ColorFilter.mode(Color(0xFF475467), BlendMode.srcIn),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    project.formattedLocation,
-                                    style: const TextStyle(fontSize: 14, color: Color(0xFF475467)),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        Row(
+            child: Container(
+              // If we have a real thumbnail, add an overlay to ensure text is readable
+              decoration: BoxDecoration(
+                color: (project.coverImage != null && project.coverImage!.isNotEmpty)
+                    ? Colors.white.withValues(alpha: 0.65)
+                    : Colors.transparent,
+              ),
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Top Section
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                project.status.label,
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: project.status.color),
+                            Text(
+                              project.title,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF101828),
+                                fontFamily: 'Inter',
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF12B76A),
-                                shape: BoxShape.circle,
-                              ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                SvgPicture.asset(
+                                  'assets/images/map.svg',
+                                  width: 16,
+                                  height: 16,
+                                  colorFilter: const ColorFilter.mode(
+                                    Color(0xFF475467),
+                                    BlendMode.srcIn,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  project.formattedLocation,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF475467),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              project.status.label,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: project.status.color,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF12B76A),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
 
                     // Alert or Spacer
                     if (hasAlert)

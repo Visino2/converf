@@ -35,17 +35,34 @@ class QualityVerificationFailedModal extends StatelessWidget {
                 const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Abuja Office Tower', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF101828))),
+                    Text(
+                      'Abuja Office Tower',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF101828),
+                      ),
+                    ),
                     SizedBox(height: 4),
-                    Text('Victoria Island, Lagos', style: TextStyle(fontSize: 14, color: Color(0xFF667085))),
+                    Text(
+                      'Victoria Island, Lagos',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+                    ),
                   ],
                 ),
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
                   child: Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(color: Color(0xFFF2F4F7), shape: BoxShape.circle),
-                    child: const Icon(Icons.close, size: 16, color: Color(0xFF667085)),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF2F4F7),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      size: 16,
+                      color: Color(0xFF667085),
+                    ),
                   ),
                 ),
               ],
@@ -61,9 +78,7 @@ class QualityVerificationFailedModal extends StatelessWidget {
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: CustomPaint(
-                      painter: _DottedGridPainter(),
-                    ),
+                    child: CustomPaint(painter: _DottedGridPainter()),
                   ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,45 +92,105 @@ class QualityVerificationFailedModal extends StatelessWidget {
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: SvgPicture.asset('assets/images/completed.svg', width: 20, height: 20, colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn)),
+                            child: SvgPicture.asset(
+                              'assets/images/completed.svg',
+                              width: 20,
+                              height: 20,
+                              colorFilter: const ColorFilter.mode(
+                                Color(0xFF276572),
+                                BlendMode.srcIn,
+                              ),
+                            ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFF276572),
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Text('Completed', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+                            child: const Text(
+                              'Completed',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      const Text('QA/QC Inspection Required', style: TextStyle(fontSize: 14, color: Color(0xFF475467))),
+                      const Text(
+                        'QA/QC Inspection Required',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF475467),
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      const Text('Independent verification by Converf Certified Inspectors', style: TextStyle(fontSize: 14, color: Color(0xFF276572))),
+                      const Text(
+                        'Independent verification by Converf Certified Inspectors',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF276572),
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.cancel, color: Color(0xFFD92D20), size: 18),
+                              const Icon(
+                                Icons.cancel,
+                                color: Color(0xFFD92D20),
+                                size: 18,
+                              ),
                               const SizedBox(width: 8),
-                              const Text('Quality Verification Failed', style: TextStyle(fontSize: 14, color: Color(0xFFD92D20), fontWeight: FontWeight.w500)),
+                              const Text(
+                                'Quality Verification Failed',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFFD92D20),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                             ],
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFEAECF0)),
+                              border: Border.all(
+                                color: const Color(0xFFEAECF0),
+                              ),
                             ),
                             child: Row(
                               children: [
-                                const Text('62', style: TextStyle(color: Color(0xFFD92D20), fontWeight: FontWeight.bold, fontSize: 14)),
+                                const Text(
+                                  '62',
+                                  style: TextStyle(
+                                    color: Color(0xFFD92D20),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
                                 const SizedBox(width: 8),
-                                Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFD92D20), shape: BoxShape.circle)),
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFD92D20),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -134,17 +209,34 @@ class QualityVerificationFailedModal extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.warning_amber_rounded, color: Color(0xFFB4543E), size: 18),
+                                const Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: Color(0xFFB4543E),
+                                  size: 18,
+                                ),
                                 const SizedBox(width: 8),
-                                const Text('Critical Non-Compliance Detected:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFB4543E))),
+                                const Text(
+                                  'Critical Non-Compliance Detected:',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFB4543E),
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 12),
-                            _buildWarningItem('Membrane overlap insufficient (min 150mm required, found 80mm)'),
+                            _buildWarningItem(
+                              'Membrane overlap insufficient (min 150mm required, found 80mm)',
+                            ),
                             const SizedBox(height: 8),
-                            _buildWarningItem('3 penetration points inadequately sealed'),
+                            _buildWarningItem(
+                              '3 penetration points inadequately sealed',
+                            ),
                             const SizedBox(height: 8),
-                            _buildWarningItem('Standing water detected in southeast corner'),
+                            _buildWarningItem(
+                              'Standing water detected in southeast corner',
+                            ),
                           ],
                         ),
                       ),
@@ -157,9 +249,15 @@ class QualityVerificationFailedModal extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFFDA29B)),
+                              border: Border.all(
+                                color: const Color(0xFFFDA29B),
+                              ),
                             ),
-                            child: const Icon(Icons.info, color: Color(0xFFD92D20), size: 20),
+                            child: const Icon(
+                              Icons.info,
+                              color: Color(0xFFD92D20),
+                              size: 20,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           const Expanded(
@@ -167,7 +265,11 @@ class QualityVerificationFailedModal extends StatelessWidget {
                               padding: EdgeInsets.only(top: 4.0),
                               child: Text(
                                 'Fix all issues and upload proof\nto request re-inspection.',
-                                style: TextStyle(fontSize: 13, color: Color(0xFF475467), height: 1.4),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF475467),
+                                  height: 1.4,
+                                ),
                               ),
                             ),
                           ),
@@ -187,9 +289,18 @@ class QualityVerificationFailedModal extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: const BorderSide(color: Color(0xFFD0D5DD)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
                     ),
-                    child: const Text('Cancel', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF276572))),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF276572),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -203,9 +314,18 @@ class QualityVerificationFailedModal extends StatelessWidget {
                       backgroundColor: const Color(0xFFD92D20),
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
                     ),
-                    child: const Text('Request Re-inspect', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                    child: const Text(
+                      'Request Re-inspect',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -226,7 +346,12 @@ class QualityVerificationFailedModal extends StatelessWidget {
           child: Icon(Icons.error_outline, color: Color(0xFFB4543E), size: 16),
         ),
         const SizedBox(width: 8),
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: Color(0xFF475467)))),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF475467)),
+          ),
+        ),
       ],
     );
   }
@@ -245,7 +370,8 @@ class RequestReInspectionModal extends StatefulWidget {
   const RequestReInspectionModal({super.key});
 
   @override
-  State<RequestReInspectionModal> createState() => _RequestReInspectionModalState();
+  State<RequestReInspectionModal> createState() =>
+      _RequestReInspectionModalState();
 }
 
 class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
@@ -291,7 +417,8 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
     super.initState();
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients && _scrollController.position.maxScrollExtent == 0) {
+      if (_scrollController.hasClients &&
+          _scrollController.position.maxScrollExtent == 0) {
         setState(() {
           _isScrolledToBottom = true;
         });
@@ -300,7 +427,8 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
   }
 
   void _onScroll() {
-    if (_scrollController.offset >= _scrollController.position.maxScrollExtent - 20) {
+    if (_scrollController.offset >=
+        _scrollController.position.maxScrollExtent - 20) {
       if (!_isScrolledToBottom) {
         setState(() {
           _isScrolledToBottom = true;
@@ -328,7 +456,12 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 16),
+              padding: const EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: 16,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -336,17 +469,37 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
                   const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Request Re-Inspection', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF101828))),
+                      Text(
+                        'Request Re-Inspection',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF101828),
+                        ),
+                      ),
                       SizedBox(height: 4),
-                      Text('Milestone: Phase 4 - Substructure', style: TextStyle(fontSize: 14, color: Color(0xFF667085))),
+                      Text(
+                        'Milestone: Phase 4 - Substructure',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF667085),
+                        ),
+                      ),
                     ],
                   ),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(color: Color(0xFFF2F4F7), shape: BoxShape.circle),
-                      child: const Icon(Icons.close, size: 16, color: Color(0xFF667085)),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF2F4F7),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Color(0xFF667085),
+                      ),
                     ),
                   ),
                 ],
@@ -362,74 +515,125 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF1F0),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFFDA29B)),
-                        ),
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: CustomPaint(
-                                painter: _DottedGridPainter(),
-                              ),
-                            ),
-                            Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Row(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF1F0),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFDA29B)),
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: CustomPaint(painter: _DottedGridPainter()),
+                          ),
+                          Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.cancel,
+                                        color: Color(0xFFD92D20),
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Text(
+                                        'Initial Quality Audit Failed',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xFFD92D20),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: const Color(0xFFEAECF0),
+                                      ),
+                                    ),
+                                    child: Row(
                                       children: [
-                                        const Icon(Icons.cancel, color: Color(0xFFD92D20), size: 18),
+                                        const Text(
+                                          '62',
+                                          style: TextStyle(
+                                            color: Color(0xFFD92D20),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
                                         const SizedBox(width: 8),
-                                        const Text('Initial Quality Audit Failed', style: TextStyle(fontSize: 14, color: Color(0xFFD92D20), fontWeight: FontWeight.w500)),
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFFD92D20),
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
                                       ],
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: const Color(0xFFEAECF0)),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Text('62', style: TextStyle(color: Color(0xFFD92D20), fontWeight: FontWeight.bold, fontSize: 14)),
-                                          const SizedBox(width: 8),
-                                          Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFD92D20), shape: BoxShape.circle)),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFFAEB),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: const Color(0xFFFEDF89)),
                                   ),
-                                  child: const Text(
-                                    'Critical waterproofing membrane installation defects detected. Does not meet ASTM D6134 standards.',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFB4543E)),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFFAEB),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0xFFFEDF89),
                                   ),
                                 ),
-                              ],
-                            ),
-                          ],
-                        ),
+                                child: const Text(
+                                  'Critical waterproofing membrane installation defects detected. Does not meet ASTM D6134 standards.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFB4543E),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 24),
-                    const Text('Correction Checklist', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF344054))),
+                    const Text(
+                      'Correction Checklist',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF344054),
+                      ),
+                    ),
                     const SizedBox(height: 16),
-                    _buildWarningItem('Membrane overlap insufficient (min 150mm required, found 80mm)', const Color(0xFFF79009)),
+                    _buildWarningItem(
+                      'Membrane overlap insufficient (min 150mm required, found 80mm)',
+                      const Color(0xFFF79009),
+                    ),
                     const SizedBox(height: 12),
-                    _buildWarningItem('3 penetration points inadequately sealed', const Color(0xFFF79009)),
+                    _buildWarningItem(
+                      '3 penetration points inadequately sealed',
+                      const Color(0xFFF79009),
+                    ),
                     const SizedBox(height: 12),
-                    _buildWarningItem('Standing water detected in southeast corner', const Color(0xFFF79009)),
-                    
+                    _buildWarningItem(
+                      'Standing water detected in southeast corner',
+                      const Color(0xFFF79009),
+                    ),
+
                     const SizedBox(height: 24),
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -441,47 +645,95 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Correction Checklist', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF344054))),
+                          const Text(
+                            'Correction Checklist',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF344054),
+                            ),
+                          ),
                           const SizedBox(height: 16),
-                          _buildWarningItem('Membrane overlap insufficient (min 150mm required, found 80mm)', const Color(0xFF276572)),
+                          _buildWarningItem(
+                            'Membrane overlap insufficient (min 150mm required, found 80mm)',
+                            const Color(0xFF276572),
+                          ),
                           const SizedBox(height: 12),
-                          _buildWarningItem('3 penetration points inadequately sealed', const Color(0xFF276572)),
+                          _buildWarningItem(
+                            '3 penetration points inadequately sealed',
+                            const Color(0xFF276572),
+                          ),
                           const SizedBox(height: 12),
-                          _buildWarningItem('Standing water detected in southeast corner', const Color(0xFF276572)),
+                          _buildWarningItem(
+                            'Standing water detected in southeast corner',
+                            const Color(0xFF276572),
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 24),
                     Row(
                       children: [
-                        Expanded(child: _buildDropdownField('New Audit Date', _formatDate(_selectedDate), 'assets/images/Calendar.svg', _pickDate)),
+                        Expanded(
+                          child: _buildDropdownField(
+                            'New Audit Date',
+                            _formatDate(_selectedDate),
+                            'assets/images/Calendar.svg',
+                            _pickDate,
+                          ),
+                        ),
                         const SizedBox(width: 16),
-                        Expanded(child: _buildDropdownField('Window Preference', _formatTime(_selectedWindow), 'assets/images/Calendar.svg', _pickTime)),
+                        Expanded(
+                          child: _buildDropdownField(
+                            'Window Preference',
+                            _formatTime(_selectedWindow),
+                            'assets/images/Calendar.svg',
+                            _pickTime,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 24),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF102A2E), // very dark green
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: CustomPaint(
-                                painter: _DottedGridPainter(color: Colors.white.withValues(alpha: 0.1)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 24,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF102A2E), // very dark green
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _DottedGridPainter(
+                                color: Colors.white.withValues(alpha: 0.1),
                               ),
                             ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Amount Payable', style: TextStyle(fontSize: 16, color: Color(0xFFEAECF0))),
-                                const Text('₦50,000', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-                              ],
-                            ),
-                          ],
-                        ),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Amount Payable',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Color(0xFFEAECF0),
+                                ),
+                              ),
+                              const Text(
+                                '₦50,000',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 24), // padding for scroll indicator
                   ],
@@ -492,7 +744,13 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: Colors.white,
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
@@ -501,33 +759,62 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: Color(0xFF276572), width: 1.5),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                        side: const BorderSide(
+                          color: Color(0xFF276572),
+                          width: 1.5,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
                       ),
-                      child: const Text('Close', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF276572))),
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF276572),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     flex: 2,
                     child: ElevatedButton(
-                      onPressed: _isScrolledToBottom ? () {
-                        Navigator.pop(context);
-                        showSuccessModal(context);
-                      } : null,
+                      onPressed: _isScrolledToBottom
+                          ? () {
+                              Navigator.pop(context);
+                              showSuccessModal(context);
+                            }
+                          : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF276572),
-                        disabledBackgroundColor: const Color(0xFF276572).withValues(alpha: 0.5),
+                        disabledBackgroundColor: const Color(
+                          0xFF276572,
+                        ).withValues(alpha: 0.5),
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('Pay & Request Audit', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                          const Text(
+                            'Pay & Request Audit',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
                           const SizedBox(width: 8),
-                          const Icon(Icons.lock_outline, color: Colors.white, size: 18),
+                          const Icon(
+                            Icons.lock_outline,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                         ],
                       ),
                     ),
@@ -550,18 +837,39 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
           child: Icon(Icons.warning_amber_rounded, color: iconColor, size: 20),
         ),
         const SizedBox(width: 12),
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 13, color: Color(0xFF475467), height: 1.4))),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF475467),
+              height: 1.4,
+            ),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildDropdownField(String label, String value, String iconPath, VoidCallback onTap) {
+  Widget _buildDropdownField(
+    String label,
+    String value,
+    String iconPath,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF344054))),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF344054),
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -573,8 +881,22 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(value, style: const TextStyle(fontSize: 14, color: Color(0xFF667085))),
-                SvgPicture.asset(iconPath, width: 18, height: 18, colorFilter: const ColorFilter.mode(Color(0xFF667085), BlendMode.srcIn)),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF667085),
+                  ),
+                ),
+                SvgPicture.asset(
+                  iconPath,
+                  width: 18,
+                  height: 18,
+                  colorFilter: const ColorFilter.mode(
+                    Color(0xFF667085),
+                    BlendMode.srcIn,
+                  ),
+                ),
               ],
             ),
           ),
@@ -585,10 +907,7 @@ class _RequestReInspectionModalState extends State<RequestReInspectionModal> {
 }
 
 void showSuccessModal(BuildContext context) {
-  showDialog(
-    context: context,
-    builder: (context) => const SuccessModal(),
-  );
+  showDialog(context: context, builder: (context) => const SuccessModal());
 }
 
 class SuccessModal extends StatelessWidget {
@@ -616,13 +935,21 @@ class SuccessModal extends StatelessWidget {
             const SizedBox(height: 24),
             const Text(
               'Success!',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF101828),
+              ),
             ),
             const SizedBox(height: 16),
             const Text(
               'Audit re-inspection requested. ₦50,000 processed successfully. Auditor arrival confirmed for your selected window.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Color(0xFF475467), height: 1.5),
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF475467),
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 32),
             SizedBox(
@@ -633,7 +960,9 @@ class SuccessModal extends StatelessWidget {
                   // Navigate to dashboard based on route structure
                   Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (context) => const ContractorDashboardScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const ContractorDashboardScreen(),
+                    ),
                     (route) => false,
                   );
                 },
@@ -641,14 +970,27 @@ class SuccessModal extends StatelessWidget {
                   backgroundColor: const Color(0xFF276572),
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('Go to Dashboard', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                    const Text(
+                      'Go to Dashboard',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    const Icon(Icons.arrow_outward, color: Colors.white, size: 18),
+                    const Icon(
+                      Icons.arrow_outward,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ],
                 ),
               ),

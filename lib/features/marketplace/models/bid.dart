@@ -15,6 +15,7 @@ class Bid {
   final String? paymentPreference;
   final List<dynamic>? milestones;
   final List<String>? equipment;
+  final List<BidDocument>? documents;
 
   Bid({
     required this.id,
@@ -31,6 +32,7 @@ class Bid {
     this.paymentPreference,
     this.milestones,
     this.equipment,
+    this.documents,
   });
 
   factory Bid.fromJson(Map<String, dynamic> json) {
@@ -53,6 +55,25 @@ class Bid {
       paymentPreference: json['payment_preference'] as String?,
       milestones: json['milestones'] as List<dynamic>?,
       equipment: (json['equipment'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+      documents: (json['documents'] as List<dynamic>?)
+          ?.map((e) => BidDocument.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+class BidDocument {
+  final String id;
+  final String name;
+  final String url;
+
+  BidDocument({required this.id, required this.name, required this.url});
+
+  factory BidDocument.fromJson(Map<String, dynamic> json) {
+    return BidDocument(
+      id: json['id']?.toString() ?? '',
+      name: json['name'] as String? ?? 'Document',
+      url: json['url'] as String? ?? '',
     );
   }
 }

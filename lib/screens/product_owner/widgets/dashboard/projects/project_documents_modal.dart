@@ -3,8 +3,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:converf/features/documents/models/document_models.dart';
-import 'package:converf/features/documents/providers/document_providers.dart';
+import 'package:converf/features/projects/models/project_document.dart';
+import 'package:converf/features/projects/providers/project_document_providers.dart';
 
 class ProjectDocumentsModal extends ConsumerStatefulWidget {
   final String projectId;
@@ -27,41 +27,42 @@ class _ProjectDocumentsModalState extends ConsumerState<ProjectDocumentsModal> {
 
   @override
   Widget build(BuildContext context) {
-    final documentsAsync = ref.watch(documentsProvider(widget.projectId));
+    final documentsAsync = ref.watch(projectDocumentsProvider(widget.projectId));
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
+    return SafeArea(
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(context),
-          const Divider(height: 1, color: Color(0xFFEAECF0)),
-          Expanded(
-            child: documentsAsync.when(
-              data: (response) {
-                final documents = response.data;
-                if (documents.isEmpty) {
-                  return _buildEmptyState();
-                }
-                return _buildDocumentsList(documents);
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text('Error loading documents: $err', style: const TextStyle(color: Colors.red)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(context),
+            const Divider(height: 1, color: Color(0xFFEAECF0)),
+            Expanded(
+              child: documentsAsync.when(
+                data: (documents) {
+                  if (documents.isEmpty) {
+                    return _buildEmptyState();
+                  }
+                  return _buildDocumentsList(documents);
+                },
+                loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+                error: (err, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text('Error loading documents: $err', style: const TextStyle(color: Colors.red)),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -77,18 +78,20 @@ class _ProjectDocumentsModalState extends ConsumerState<ProjectDocumentsModal> {
             children: [
               ElevatedButton.icon(
                 onPressed: () => _showUploadSheet(context),
-                icon: const Icon(Icons.upload_file, size: 18, color: Colors.white),
-                label: const Text('Upload Document', style: TextStyle(color: Colors.white)),
+                icon: const Icon(Icons.upload_file, size: 16, color: Colors.white),
+                label: const Text('Upload', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F973D),
+                  backgroundColor: const Color(0xFF276572),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  minimumSize: const Size(0, 40),
                   elevation: 0,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               IconButton(
                 icon: const Icon(Icons.close, color: Color(0xFF667185)),
+                tooltip: 'Close',
                 onPressed: () => Navigator.pop(context),
               ),
             ],
@@ -131,7 +134,7 @@ class _ProjectDocumentsModalState extends ConsumerState<ProjectDocumentsModal> {
     return ListView.separated(
       padding: const EdgeInsets.all(20),
       itemCount: documents.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final doc = documents[index];
         return Container(
@@ -145,8 +148,8 @@ class _ProjectDocumentsModalState extends ConsumerState<ProjectDocumentsModal> {
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: const Color(0xFFE7F6EC), borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.insert_drive_file, color: Color(0xFF0F973D)),
+                decoration: BoxDecoration(color: const Color(0xFFF0FBFB), borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.insert_drive_file, color: Color(0xFF309DAA)),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -159,14 +162,20 @@ class _ProjectDocumentsModalState extends ConsumerState<ProjectDocumentsModal> {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(color: const Color(0xFFF0FBFB), borderRadius: BorderRadius.circular(16)),
+                          decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(16)),
                           child: Text(
                             doc.type.toUpperCase(),
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF309DAA)),
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF667185)),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(doc.createdAt?.split('T').first ?? '', style: const TextStyle(fontSize: 12, color: Color(0xFF667185))),
+                        Text(
+                          doc.createdAt.toIso8601String().split('T').first,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF667185),
+                          ),
+                        ),
                         if (doc.formattedSize.isNotEmpty) ...[
                           const SizedBox(width: 8),
                           const Icon(Icons.circle, size: 4, color: Color(0xFFD0D5DD)),
@@ -189,7 +198,7 @@ class _ProjectDocumentsModalState extends ConsumerState<ProjectDocumentsModal> {
   Widget _buildActionButtons(ProjectDocument doc) {
     return Consumer(
       builder: (context, ref, _) {
-        final isLoading = ref.watch(documentActionProvider).isLoading;
+        final isLoading = ref.watch(projectDocumentNotifierProvider).isLoading;
         return Row(
           children: [
             IconButton(
@@ -197,7 +206,7 @@ class _ProjectDocumentsModalState extends ConsumerState<ProjectDocumentsModal> {
               tooltip: 'Download',
               onPressed: isLoading ? null : () async {
                 try {
-                  await ref.read(documentActionProvider.notifier).downloadAndOpenDocument(widget.projectId, doc);
+                  await ref.read(projectDocumentNotifierProvider.notifier).downloadAndOpenDocument(widget.projectId, doc);
                 } catch (e) {
                   if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to download: $e')));
                 }
@@ -220,7 +229,14 @@ class _ProjectDocumentsModalState extends ConsumerState<ProjectDocumentsModal> {
                 );
                 if (confirm == true) {
                   try {
-                    await ref.read(documentActionProvider.notifier).deleteDocument(widget.projectId, doc.id);
+                    await ref
+                        .read(projectDocumentNotifierProvider.notifier)
+                        .deleteDocument(widget.projectId, doc.id);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Document deleted'), backgroundColor: Colors.green),
+                      );
+                    }
                   } catch (e) {
                     if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
                   }
@@ -249,12 +265,31 @@ class _UploadDocumentSheetState extends ConsumerState<_UploadDocumentSheet> {
 
   final List<String> _types = ['design', 'contract', 'permit', 'report', 'other'];
 
+  @override
+  void initState() {
+    super.initState();
+    _selectedType = _types.first;
+  }
+
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
     );
     if (result != null && result.files.single.path != null) {
+      final sizeInBytes = result.files.single.size;
+      const maxBytes = 5 * 1024 * 1024; // Increased to 5MB
+      if (sizeInBytes > maxBytes) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('File is larger than 5MB. Please choose a smaller file.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
       setState(() {
         _selectedFile = File(result.files.single.path!);
       });
@@ -264,13 +299,18 @@ class _UploadDocumentSheetState extends ConsumerState<_UploadDocumentSheet> {
   Future<void> _submit() async {
     if (_selectedFile == null || _selectedType == null) return;
     try {
-      final payload = UploadDocumentPayload(
+      await ref.read(projectDocumentNotifierProvider.notifier).uploadDocument(
+        projectId: widget.projectId,
         filePath: _selectedFile!.path,
         type: _selectedType!,
-        name: _nameController.text.trim().isEmpty ? null : _nameController.text.trim(),
+        name: _nameController.text.trim().isEmpty ? _selectedFile!.path.split('/').last : _nameController.text.trim(),
       );
-      await ref.read(documentActionProvider.notifier).uploadDocument(widget.projectId, payload);
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Document uploaded'), backgroundColor: Colors.green),
+        );
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
     }
@@ -278,7 +318,7 @@ class _UploadDocumentSheetState extends ConsumerState<_UploadDocumentSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = ref.watch(documentActionProvider).isLoading;
+    final isLoading = ref.watch(projectDocumentNotifierProvider).isLoading;
     final isFormValid = _selectedFile != null && _selectedType != null && !isLoading;
 
     return Container(
@@ -290,10 +330,20 @@ class _UploadDocumentSheetState extends ConsumerState<_UploadDocumentSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Upload Document', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF101828))),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Upload Document', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF101828))),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Color(0xFF667185)),
+                  tooltip: 'Close',
+                  onPressed: isLoading ? null : () => Navigator.pop(context),
+                ),
+              ],
+            ),
             const SizedBox(height: 4),
-            const Text('Upload a PDF or image document to this project (max 2MB)', style: TextStyle(fontSize: 14, color: Color(0xFF667185))),
-            const SizedBox(height: 24),
+            const Text('Upload a PDF or image document to this project (max 5MB)', style: TextStyle(fontSize: 14, color: Color(0xFF667185))),
+            const SizedBox(height: 20),
 
             // File Picker
             GestureDetector(
@@ -307,7 +357,7 @@ class _UploadDocumentSheetState extends ConsumerState<_UploadDocumentSheet> {
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.cloud_upload_outlined, size: 32, color: Color(0xFF667185)),
+                    const Icon(Icons.cloud_upload_outlined, size: 32, color: Color(0xFF276572)),
                     const SizedBox(height: 12),
                     Text(
                       _selectedFile != null ? _selectedFile!.path.split('/').last : 'Tap to select a file',
@@ -315,12 +365,12 @@ class _UploadDocumentSheetState extends ConsumerState<_UploadDocumentSheet> {
                       textAlign: TextAlign.center,
                     ),
                     if (_selectedFile == null)
-                      const Text('PDF, PNG, JPG', style: TextStyle(fontSize: 12, color: Color(0xFF667185))),
+                      const Text('PDF, PNG, JPG, JPEG', style: TextStyle(fontSize: 12, color: Color(0xFF667185))),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // Type Dropdown
             const Text('Document Type*', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF344054))),
@@ -338,7 +388,7 @@ class _UploadDocumentSheetState extends ConsumerState<_UploadDocumentSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // Name Input
             const Text('Document Name (Optional)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF344054))),
@@ -352,7 +402,7 @@ class _UploadDocumentSheetState extends ConsumerState<_UploadDocumentSheet> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
 
             // Actions
             Row(
@@ -369,7 +419,7 @@ class _UploadDocumentSheetState extends ConsumerState<_UploadDocumentSheet> {
                   child: ElevatedButton(
                     onPressed: isFormValid ? _submit : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F973D),
+                      backgroundColor: const Color(0xFF276572),
                       disabledBackgroundColor: const Color(0xFFEAECF0),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

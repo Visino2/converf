@@ -44,7 +44,7 @@ class ProfileRepository {
 
   Future<UserProfile> updateProfilePicture(String filePath) async {
     final formData = FormData.fromMap({
-      'profile_photo': await MultipartFile.fromFile(
+      'photo': await MultipartFile.fromFile(
         filePath,
         filename: filePath.split('/').last,
       ),

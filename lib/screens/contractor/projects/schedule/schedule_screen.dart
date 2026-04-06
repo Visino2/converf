@@ -8,14 +8,64 @@ import 'package:converf/features/auth/models/auth_response.dart';
 import 'widgets/schedule_dialogs.dart';
 import 'schedule_library_import_screen.dart';
 import 'package:converf/core/api/api_client.dart';
+import 'dart:async';
+
+class _StatusStyle {
+  final String label;
+  final Color bg;
+  final Color text;
+  const _StatusStyle({
+    required this.label,
+    required this.bg,
+    required this.text,
+  });
+}
+
+const _statusStyles = <String, _StatusStyle>{
+  'draft': _StatusStyle(
+    label: 'Draft',
+    bg: Color(0xFFF0F2F5),
+    text: Color(0xFF475367),
+  ),
+  'submitted': _StatusStyle(
+    label: 'Submitted',
+    bg: Color(0xFFFEF6E7),
+    text: Color(0xFF865503),
+  ),
+  'revision_requested': _StatusStyle(
+    label: 'Revision Requested',
+    bg: Color(0xFFFFF4ED),
+    text: Color(0xFF9A3412),
+  ),
+  'resubmitted': _StatusStyle(
+    label: 'Resubmitted',
+    bg: Color(0xFFE0EAFF),
+    text: Color(0xFF1D4ED8),
+  ),
+  'approved': _StatusStyle(
+    label: 'Approved',
+    bg: Color(0xFFE7F6EC),
+    text: Color(0xFF036B26),
+  ),
+  'rejected': _StatusStyle(
+    label: 'Rejected',
+    bg: Color(0xFFFEF3F2),
+    text: Color(0xFFB42318),
+  ),
+};
+
+_StatusStyle _getStyle(String status) =>
+    _statusStyles[status.toLowerCase()] ?? _statusStyles['draft']!;
 
 class ScheduleScreen extends ConsumerStatefulWidget {
-  final String projectId;
+  final String? projectId;
+  final String? bidId;
   final bool isEmbedded;
 
   const ScheduleScreen({
     super.key,
-    required this.projectId,
+    this.projectId,
+    this.bidId,
     this.isEmbedded = false,
   });
 
@@ -24,9 +74,116 @@ class ScheduleScreen extends ConsumerStatefulWidget {
 }
 
 class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
+  String? _expandedPhaseId;
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoRefresh();
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        if (widget.projectId != null) {
+          ref.invalidate(projectScheduleProvider(widget.projectId!));
+        } else if (widget.bidId != null) {
+          ref.invalidate(bidScheduleProvider(widget.bidId!));
+        }
+      }
+    });
+  }
+
+  Widget _buildScheduleSkeleton() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFEAECF0)),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _shimmerBox(width: 140, height: 20),
+                    const Spacer(),
+                    _shimmerBox(width: 80, height: 24, radius: 999),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _shimmerBox(width: double.infinity, height: 14),
+                const SizedBox(height: 8),
+                _shimmerBox(width: 200, height: 12),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          for (int i = 0; i < 3; i++) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: const Color(0xFFEAECF0)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _shimmerBox(width: 160, height: 14),
+                        const SizedBox(height: 6),
+                        _shimmerBox(width: 120, height: 12),
+                      ],
+                    ),
+                  ),
+                  _shimmerBox(width: 30, height: 30, radius: 999),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _shimmerBox({
+    required double height,
+    double? width,
+    double radius = 6,
+  }) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F4F7),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final scheduleAsync = ref.watch(projectScheduleProvider(widget.projectId));
+    final scheduleAsync = widget.bidId != null
+        ? ref.watch(bidScheduleProvider(widget.bidId!))
+        : ref.watch(projectScheduleProvider(widget.projectId!));
     final userRole = ref.watch(authProvider).value?.role ?? UserRole.unknown;
     final isOwner = userRole == UserRole.projectOwner;
 
@@ -35,7 +192,10 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
         data: (_) {
           if (previous is AsyncLoading) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Action successful'), backgroundColor: Colors.green),
+              const SnackBar(
+                content: Text('Action successful'),
+                backgroundColor: Colors.green,
+              ),
             );
           }
         },
@@ -43,10 +203,16 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
           final errStr = err.toString().toLowerCase();
           String message = 'Error: $err';
           if (errStr.contains('not the assigned contractor')) {
-            message = 'Information: Schedules can only be officially created after the project is awarded. You can use the Library to plan your proposal timeline.';
+            message =
+                'Information: Schedules can only be officially created after the project is awarded. You can use the Library to plan your proposal timeline.';
           }
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message), backgroundColor: errStr.contains('not the assigned contractor') ? Colors.orange : Colors.red),
+            SnackBar(
+              content: Text(message),
+              backgroundColor: errStr.contains('not the assigned contractor')
+                  ? Colors.orange
+                  : Colors.red,
+            ),
           );
         },
         loading: () {},
@@ -54,23 +220,51 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
     });
 
     final content = scheduleAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+      loading: () => scheduleAsync.hasValue
+          ? _buildScheduleContent(scheduleAsync.value!, isOwner)
+          : _buildScheduleSkeleton(),
       error: (error, _) {
         final errStr = error.toString().toLowerCase();
         bool isNotFound = false;
-        
+
         if (error is ApiException) {
           if (error.statusCode == 404) isNotFound = true;
         }
-        
-        if (errStr.contains('404') || errStr.contains('no query results') || errStr.contains('not found')) {
+
+        if (errStr.contains('404') ||
+            errStr.contains('no query results') ||
+            errStr.contains('not found')) {
           isNotFound = true;
         }
 
         if (isNotFound) {
           return _buildNoScheduleView();
         }
-        return Center(child: Text('Error: $error', style: const TextStyle(color: Colors.red)));
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Error: $error', style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  if (widget.projectId != null) {
+                    ref.invalidate(projectScheduleProvider(widget.projectId!));
+                  } else if (widget.bidId != null) {
+                    ref.invalidate(bidScheduleProvider(widget.bidId!));
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF276572),
+                ),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        );
       },
       data: (schedule) => _buildScheduleContent(schedule, isOwner),
     );
@@ -78,12 +272,22 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
     final bottomBar = scheduleAsync.when(
       data: (schedule) {
         if (isOwner) {
-          if (schedule.status == 'submitted') return _buildOwnerApprovalBar(schedule);
-           return null;
+          if (schedule.status == 'submitted') {
+            return _buildOwnerApprovalBar(schedule);
+          }
+          return null;
         }
-         return schedule.status == 'draft' ? _buildSubmitBar(schedule) : null;
+        return schedule.status == 'draft' ? _buildSubmitBar(schedule) : null;
       },
-      loading: () => null,
+      loading: () => scheduleAsync.hasValue
+          ? (isOwner
+                ? (scheduleAsync.value!.status == 'submitted'
+                      ? _buildOwnerApprovalBar(scheduleAsync.value!)
+                      : null)
+                : (scheduleAsync.value!.status == 'draft'
+                      ? _buildSubmitBar(scheduleAsync.value!)
+                      : null))
+          : null,
       error: (err, stack) => null,
     );
 
@@ -91,7 +295,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
       return Column(
         children: [
           Expanded(child: content),
-          if (bottomBar != null) bottomBar,
+          ...?(bottomBar == null ? null : [bottomBar]),
         ],
       );
     }
@@ -107,7 +311,11 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
         ),
         title: const Text(
           'Project Schedule',
-          style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
       ),
@@ -123,11 +331,19 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.calendar_today_outlined, size: 64, color: Color(0xFF98A2B3)),
+            const Icon(
+              Icons.calendar_today_outlined,
+              size: 64,
+              color: Color(0xFF98A2B3),
+            ),
             const SizedBox(height: 16),
             const Text(
               'No Schedule Found',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF101828),
+              ),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -140,10 +356,21 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
               onPressed: _createInitialSchedule,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF276572),
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
               ),
-              child: const Text('Create Schedule', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Create Schedule',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
@@ -153,7 +380,14 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
 
   Widget _buildScheduleContent(Schedule schedule, bool isOwner) {
     return RefreshIndicator(
-      onRefresh: () => ref.refresh(projectScheduleProvider(widget.projectId).future),
+      onRefresh: () {
+        if (widget.projectId != null) {
+          return ref.refresh(projectScheduleProvider(widget.projectId!).future);
+        } else if (widget.bidId != null) {
+          return ref.refresh(bidScheduleProvider(widget.bidId!).future);
+        }
+        return Future.value();
+      },
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -166,13 +400,27 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
               children: [
                 const Text(
                   'Schedule Phases',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF101828),
+                  ),
                 ),
                 if (schedule.status == 'draft' && !isOwner)
                   TextButton.icon(
                     onPressed: () => _importFromLibrary(schedule),
-                    icon: const Icon(Icons.download, size: 18, color: Color(0xFF276572)),
-                    label: const Text('Import Library', style: TextStyle(color: Color(0xFF276572), fontWeight: FontWeight.w600)),
+                    icon: const Icon(
+                      Icons.download,
+                      size: 18,
+                      color: Color(0xFF276572),
+                    ),
+                    label: const Text(
+                      'Import Library',
+                      style: TextStyle(
+                        color: Color(0xFF276572),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -180,7 +428,9 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
             if (schedule.phases.isEmpty)
               _buildEmptyPhasesView(schedule, isOwner)
             else
-              ...schedule.phases.map((phase) => _buildPhaseItem(schedule, phase, isOwner)),
+              ...schedule.phases.map(
+                (phase) => _buildPhaseItem(schedule, phase, isOwner),
+              ),
             if (schedule.status == 'draft' && !isOwner) ...[
               const SizedBox(height: 16),
               _buildAddPhaseButton(schedule),
@@ -193,7 +443,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
   }
 
   Widget _buildStatusCard(Schedule schedule) {
-    final statusColor = _getStatusColor(schedule.status);
+    final style = _getStyle(schedule.status);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -205,49 +455,51 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.info_outline, color: statusColor, size: 24),
+            decoration: BoxDecoration(color: style.bg, shape: BoxShape.circle),
+            child: Icon(Icons.info_outline, color: style.text, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Schedule Status', style: TextStyle(fontSize: 12, color: Color(0xFF667085))),
+                const Text(
+                  'Schedule Status',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF667085)),
+                ),
                 Text(
-                  schedule.statusLabel.toUpperCase(),
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: statusColor),
+                  style.label.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: style.text,
+                  ),
                 ),
               ],
             ),
           ),
           if (schedule.submittedAt != null)
-             Column(
-               crossAxisAlignment: CrossAxisAlignment.end,
-               children: [
-                 const Text('Submitted', style: TextStyle(fontSize: 12, color: Color(0xFF667085))),
-                 Text(
-                   DateFormat('MMM d, y').format(DateTime.parse(schedule.submittedAt!)),
-                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                 ),
-               ],
-             ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                const Text(
+                  'Submitted',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF667085)),
+                ),
+                Text(
+                  DateFormat(
+                    'MMM d, y',
+                  ).format(DateTime.parse(schedule.submittedAt!)),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'draft': return const Color(0xFF667085);
-      case 'submitted': return const Color(0xFFF79009);
-      case 'approved': return const Color(0xFF12B76A);
-      case 'revision_requested': return const Color(0xFFD92D20);
-      default: return const Color(0xFF276572);
-    }
   }
 
   Widget _buildEmptyPhasesView(Schedule schedule, bool isOwner) {
@@ -257,59 +509,140 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEAECF0), style: BorderStyle.none),
+        border: Border.all(
+          color: const Color(0xFFEAECF0),
+          style: BorderStyle.none,
+        ),
       ),
       child: const Column(
         children: [
           Icon(Icons.layers_clear_outlined, size: 48, color: Color(0xFFD0D5DD)),
           SizedBox(height: 12),
-          Text('No phases added yet', style: TextStyle(color: Color(0xFF667085))),
+          Text(
+            'No phases added yet',
+            style: TextStyle(color: Color(0xFF667085)),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildPhaseItem(Schedule schedule, SchedulePhase phase, bool isOwner) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
+    final isExpanded = _expandedPhaseId == phase.id;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFEAECF0)),
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFFEAECF0)),
       ),
-      child: ExpansionTile(
-        title: Text('Phase ${phase.order}: ${phase.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        subtitle: Text('${phase.activities.length} Activities'),
-        childrenPadding: const EdgeInsets.all(16),
-        trailing: (schedule.status == 'draft' && !isOwner) ? PopupMenuButton<String>(
-          onSelected: (val) => _handlePhaseAction(val, schedule, phase),
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'edit', child: Text('Edit Phase')),
-            const PopupMenuItem(value: 'delete', child: Text('Delete Phase', style: TextStyle(color: Colors.red))),
-          ],
-        ) : null,
+      child: Column(
         children: [
-          if (phase.activities.isEmpty)
-             const Padding(
-               padding: EdgeInsets.symmetric(vertical: 20),
-               child: Text('No activities in this phase', style: TextStyle(color: Color(0xFF98A2B3))),
-             )
-          else
-            ...phase.activities.map((activity) => _buildActivityItem(schedule, phase, activity, isOwner)),
-          if (schedule.status == 'draft' && !isOwner)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _addActivity(schedule, phase),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Activity'),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    side: const BorderSide(color: Color(0xFFD0D5DD)),
+          InkWell(
+            onTap: () =>
+                setState(() => _expandedPhaseId = isExpanded ? null : phase.id),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Phase ${phase.order}: ${phase.name}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: Color(0xFF111827),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${phase.activities.length} Activities',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF667085),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  if (schedule.status == 'draft' && !isOwner)
+                    PopupMenuButton<String>(
+                      onSelected: (val) =>
+                          _handlePhaseAction(val, schedule, phase),
+                      icon: const Icon(
+                        Icons.more_vert,
+                        size: 20,
+                        color: Color(0xFF667085),
+                      ),
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Text('Edit Phase'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text(
+                            'Delete Phase',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Icon(
+                      isExpanded ? Icons.expand_less : Icons.expand_more,
+                      color: const Color(0xFF667085),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (isExpanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                children: [
+                  if (phase.activities.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Text(
+                        'No activities in this phase',
+                        style: TextStyle(color: Color(0xFF98A2B3)),
+                      ),
+                    )
+                  else
+                    ...phase.activities.map(
+                      (activity) => _buildActivityItem(
+                        schedule,
+                        phase,
+                        activity,
+                        isOwner,
+                      ),
+                    ),
+                  if (schedule.status == 'draft' && !isOwner)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _addActivity(schedule, phase),
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Add Activity'),
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            side: const BorderSide(color: Color(0xFFD0D5DD)),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
         ],
@@ -317,7 +650,12 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
     );
   }
 
-  Widget _buildActivityItem(Schedule schedule, SchedulePhase phase, ScheduleActivity activity, bool isOwner) {
+  Widget _buildActivityItem(
+    Schedule schedule,
+    SchedulePhase phase,
+    ScheduleActivity activity,
+    bool isOwner,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -338,12 +676,19 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
                   children: [
                     Text(
                       activity.title,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                     if (activity.activityCode != null)
                       Text(
                         activity.activityCode!,
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF667085), fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF667085),
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                   ],
                 ),
@@ -352,15 +697,24 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF667085)),
+                      icon: const Icon(
+                        Icons.edit_outlined,
+                        size: 18,
+                        color: Color(0xFF667085),
+                      ),
                       onPressed: () => _editActivity(schedule, phase, activity),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFD92D20)),
-                      onPressed: () => _deleteActivity(schedule, phase, activity),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        size: 18,
+                        color: Color(0xFFD92D20),
+                      ),
+                      onPressed: () =>
+                          _deleteActivity(schedule, phase, activity),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -372,15 +726,28 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
           Row(
             children: [
               if (activity.deadline != null) ...[
-                const Icon(Icons.calendar_today, size: 12, color: Color(0xFF667085)),
+                const Icon(
+                  Icons.calendar_today,
+                  size: 12,
+                  color: Color(0xFF667085),
+                ),
                 const SizedBox(width: 4),
                 Text(
-                  DateFormat('MMM d, y').format(DateTime.parse(activity.deadline!)),
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF667085)),
+                  DateFormat(
+                    'MMM d, y',
+                  ).format(DateTime.parse(activity.deadline!)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF667085),
+                  ),
                 ),
                 const SizedBox(width: 16),
               ],
-              const Icon(Icons.timer_outlined, size: 12, color: Color(0xFF667085)),
+              const Icon(
+                Icons.timer_outlined,
+                size: 12,
+                color: Color(0xFF667085),
+              ),
               const SizedBox(width: 4),
               Text(
                 '${activity.standardDurationDays ?? 0} days',
@@ -390,16 +757,24 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
           ),
           if (activity.assignedTo != null) ...[
             const SizedBox(height: 8),
-             Row(
-               children: [
-                 const Icon(Icons.person_outline, size: 12, color: Color(0xFF667085)),
-                 const SizedBox(width: 4),
-                 Text(
-                   activity.assignedTo!.displayName,
-                   style: const TextStyle(fontSize: 12, color: Color(0xFF344054), fontWeight: FontWeight.w500),
-                 ),
-               ],
-             ),
+            Row(
+              children: [
+                const Icon(
+                  Icons.person_outline,
+                  size: 12,
+                  color: Color(0xFF667085),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  activity.assignedTo!.displayName,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF344054),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ],
         ],
       ),
@@ -412,10 +787,15 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
       child: OutlinedButton.icon(
         onPressed: () => _addPhase(schedule),
         icon: const Icon(Icons.add),
-        label: const Text('Add New Phase', style: TextStyle(fontWeight: FontWeight.bold)),
+        label: const Text(
+          'Add New Phase',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           side: const BorderSide(color: Color(0xFF276572), width: 1.5),
           foregroundColor: const Color(0xFF276572),
         ),
@@ -428,17 +808,32 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
       ),
       child: ElevatedButton(
         onPressed: () => _confirmSubmitSchedule(schedule),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF276572),
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
           minimumSize: const Size(double.infinity, 54),
         ),
-        child: const Text('Submit Schedule for Approval', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+        child: const Text(
+          'Submit Schedule for Approval',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
       ),
     );
   }
@@ -446,10 +841,18 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
   // --- ACTIONS ---
 
   void _createInitialSchedule() async {
-     final notes = await _showNotesDialog();
-     if (notes == null) return;
+    final notes = await _showNotesDialog();
+    if (notes == null) return;
 
-     await ref.read(scheduleActionProvider.notifier).createScheduleFromProject(widget.projectId, notes);
+    if (widget.bidId != null) {
+      await ref
+          .read(scheduleActionProvider.notifier)
+          .createScheduleFromBid(widget.bidId!, notes);
+    } else if (widget.projectId != null) {
+      await ref
+          .read(scheduleActionProvider.notifier)
+          .createScheduleFromProject(widget.projectId!, notes);
+    }
   }
 
   Future<String?> _showNotesDialog() {
@@ -461,17 +864,25 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
         content: TextField(
           controller: controller,
           maxLines: 3,
-          decoration: const InputDecoration(hintText: 'Add any notes for the project owner...'),
+          decoration: const InputDecoration(
+            hintText: 'Add any notes for the project owner...',
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, controller.text),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF276572),
               foregroundColor: Colors.white, // Ensure text is white
             ),
-            child: const Text('Create', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Create',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -482,18 +893,33 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
     showDialog(
       context: context,
       builder: (context) => SchedulePhaseDialog(
-        onSave: (data) => ref.read(scheduleActionProvider.notifier).createPhase(schedule.id, widget.projectId, data),
+        onSave: (data) => ref.read(scheduleActionProvider.notifier).createPhase(
+              schedule.id,
+              projectId: widget.projectId,
+              bidId: widget.bidId,
+              data: data,
+            ),
       ),
     );
   }
 
-  void _handlePhaseAction(String action, Schedule schedule, SchedulePhase phase) {
+  void _handlePhaseAction(
+    String action,
+    Schedule schedule,
+    SchedulePhase phase,
+  ) {
     if (action == 'edit') {
       showDialog(
         context: context,
         builder: (context) => SchedulePhaseDialog(
           phase: phase,
-          onSave: (data) => ref.read(scheduleActionProvider.notifier).updatePhase(schedule.id, phase.id, widget.projectId, data),
+          onSave: (data) => ref.read(scheduleActionProvider.notifier).updatePhase(
+                schedule.id,
+                phase.id,
+                projectId: widget.projectId,
+                bidId: widget.bidId,
+                data: data,
+              ),
         ),
       );
     } else if (action == 'delete') {
@@ -506,12 +932,22 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Phase'),
-        content: Text('Are you sure you want to delete phase "${phase.name}"? This will delete all activities within it.'),
+        content: Text(
+          'Are you sure you want to delete phase "${phase.name}"? This will delete all activities within it.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
-              ref.read(scheduleActionProvider.notifier).deletePhase(schedule.id, phase.id, widget.projectId);
+              ref.read(scheduleActionProvider.notifier).deletePhase(
+                    schedule.id,
+                    phase.id,
+                    projectId: widget.projectId,
+                    bidId: widget.bidId,
+                  );
               Navigator.pop(context);
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
@@ -525,34 +961,68 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
     showDialog(
       context: context,
       builder: (context) => ScheduleActivityDialog(
-        projectId: widget.projectId,
-        onSave: (data) => ref.read(scheduleActionProvider.notifier).createActivity(schedule.id, phase.id, widget.projectId, data),
+        projectId: schedule.projectId,
+        onSave: (data) =>
+            ref.read(scheduleActionProvider.notifier).createActivity(
+                  schedule.id,
+                  phase.id,
+                  projectId: schedule.projectId,
+                  bidId: widget.bidId,
+                  data: data,
+                ),
       ),
     );
   }
 
-  void _editActivity(Schedule schedule, SchedulePhase phase, ScheduleActivity activity) {
+  void _editActivity(
+    Schedule schedule,
+    SchedulePhase phase,
+    ScheduleActivity activity,
+  ) {
     showDialog(
       context: context,
       builder: (context) => ScheduleActivityDialog(
-        projectId: widget.projectId,
+        projectId: schedule.projectId,
         activity: activity,
-        onSave: (data) => ref.read(scheduleActionProvider.notifier).updateActivity(schedule.id, phase.id, activity.id, widget.projectId, data),
+        onSave: (data) =>
+            ref.read(scheduleActionProvider.notifier).updateActivity(
+                  schedule.id,
+                  phase.id,
+                  activity.id,
+                  projectId: schedule.projectId,
+                  bidId: widget.bidId,
+                  data: data,
+                ),
       ),
     );
   }
 
-  void _deleteActivity(Schedule schedule, SchedulePhase phase, ScheduleActivity activity) {
+  void _deleteActivity(
+    Schedule schedule,
+    SchedulePhase phase,
+    ScheduleActivity activity,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Activity'),
-        content: Text('Are you sure you want to delete activity "${activity.title}"?'),
+        content: Text(
+          'Are you sure you want to delete activity "${activity.title}"?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
-              ref.read(scheduleActionProvider.notifier).deleteActivity(schedule.id, phase.id, activity.id, widget.projectId);
+              ref.read(scheduleActionProvider.notifier).deleteActivity(
+                    schedule.id,
+                    phase.id,
+                    activity.id,
+                    projectId: widget.projectId,
+                    bidId: widget.bidId,
+                  );
               Navigator.pop(context);
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
@@ -569,6 +1039,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
         builder: (context) => ScheduleLibraryImportScreen(
           scheduleId: schedule.id,
           projectId: widget.projectId,
+          bidId: widget.bidId,
         ),
       ),
     );
@@ -583,29 +1054,44 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Are you sure you want to submit this schedule for approval? You will not be able to edit it once submitted.'),
+            const Text(
+              'Are you sure you want to submit this schedule for approval? You will not be able to edit it once submitted.',
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: controller,
               maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Notes', hintText: 'Any final notes for the project owner...'),
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                hintText: 'Any final notes for the project owner...',
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF667085))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF667085)),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
-              ref.read(scheduleActionProvider.notifier).submitSchedule(schedule.id, widget.projectId, controller.text);
+              ref.read(scheduleActionProvider.notifier).submitSchedule(
+                    schedule.id,
+                    widget.projectId,
+                    widget.bidId,
+                    controller.text,
+                  );
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF276572),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               elevation: 0,
             ),
             child: const Text(
@@ -627,7 +1113,13 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -636,11 +1128,16 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
               onPressed: () => _requestRevision(schedule),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
                 side: const BorderSide(color: Color(0xFFD92D20)),
                 foregroundColor: const Color(0xFFD92D20),
               ),
-              child: const Text('Request Revision', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Request Revision',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -650,9 +1147,17 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF12B76A),
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
               ),
-              child: const Text('Approve', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Approve',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ],
@@ -665,15 +1170,24 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Approve Schedule'),
-        content: const Text('Are you sure you want to approve this schedule? This will set the project timeline.'),
+        content: const Text(
+          'Are you sure you want to approve this schedule? This will set the project timeline.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(scheduleActionProvider.notifier).approveSchedule(schedule.id, widget.projectId);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF12B76A)),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+              ElevatedButton(
+                onPressed: () {
+                  ref
+                      .read(scheduleActionProvider.notifier)
+                      .approveSchedule(schedule.id, schedule.projectId);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF12B76A),
+                ),
             child: const Text('Approve'),
           ),
         ],
@@ -695,18 +1209,32 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
             TextField(
               controller: controller,
               maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Feedback', hintText: 'e.g., Please adjust the foundation phase dates...'),
+              decoration: const InputDecoration(
+                labelText: 'Feedback',
+                hintText: 'e.g., Please adjust the foundation phase dates...',
+              ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(scheduleActionProvider.notifier).requestRevision(schedule.id, widget.projectId, controller.text);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD92D20)),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+              ElevatedButton(
+                onPressed: () {
+                  ref
+                      .read(scheduleActionProvider.notifier)
+                      .requestRevision(
+                        schedule.id,
+                        schedule.projectId,
+                        controller.text,
+                      );
+                  Navigator.pop(context);
+                },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD92D20),
+            ),
             child: const Text('Submit'),
           ),
         ],

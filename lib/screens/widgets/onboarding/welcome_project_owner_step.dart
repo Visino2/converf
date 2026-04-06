@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:math' as math;
 import 'package:flutter_svg/flutter_svg.dart';
+import '../../../core/auth/session_manager.dart';
 
 class OnboardingWelcomeProjectOwnerStep extends StatefulWidget {
-  const OnboardingWelcomeProjectOwnerStep({super.key});
+  final VoidCallback? onCompleted;
+  const OnboardingWelcomeProjectOwnerStep({super.key, this.onCompleted});
 
   @override
   State<OnboardingWelcomeProjectOwnerStep> createState() =>
@@ -13,14 +15,38 @@ class OnboardingWelcomeProjectOwnerStep extends StatefulWidget {
 
 class _OnboardingWelcomeProjectOwnerStepState
     extends State<OnboardingWelcomeProjectOwnerStep> {
+  static const _redirectDelay = Duration(seconds: 3);
+
+  Timer? _redirectTimer;
+
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      if (mounted) {
-        context.go('/owner-dashboard');
-      }
-    });
+    _redirectTimer = Timer(_redirectDelay, _complete);
+  }
+
+  @override
+  void dispose() {
+    _redirectTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _complete() async {
+    final router = GoRouter.of(context);
+    if (!context.mounted) return;
+    if (widget.onCompleted != null) {
+      widget.onCompleted!();
+      return;
+    }
+
+    final sessionManager = SessionManager();
+    final user = await sessionManager.getUser();
+    final userId = user?['id']?.toString() ?? '';
+    if (userId.isNotEmpty) {
+      await sessionManager.setWelcomeSeen(userId);
+    }
+    if (!context.mounted) return;
+    router.go('/owner-dashboard');
   }
 
   @override
@@ -32,7 +58,8 @@ class _OnboardingWelcomeProjectOwnerStepState
         fit: StackFit.expand,
         children: [
           Positioned.fill(
-            child: Image.asset('assets/images/frame-1.png',
+            child: Image.asset(
+              'assets/images/frame-1.png',
               fit: BoxFit.cover,
               alignment: Alignment.center,
               color: Colors.black.withValues(alpha: 0.4),
@@ -92,10 +119,10 @@ class _OnboardingWelcomeProjectOwnerStepState
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      Transform.rotate(
-                        angle: -math.pi / 2,
-                        child: const CircularProgressIndicator(
-                          value: 0.25,
+                      const SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: CircularProgressIndicator(
                           strokeWidth: 4.0,
                           color: Color(0xFFF25C19),
                           backgroundColor: Colors.white24,

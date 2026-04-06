@@ -87,6 +87,10 @@ class WizardStateNotifier extends Notifier<NewProjectState> {
     state = state.copyWith(isSuccess: success);
   }
 
+  void setLoading(bool loading) {
+    state = state.copyWith(isLoading: loading);
+  }
+
   void initFromProject(Project? project) {
     if (project == null) return;
     

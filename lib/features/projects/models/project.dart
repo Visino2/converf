@@ -9,6 +9,7 @@ num? _parseNum(dynamic value, [String? fieldName]) {
   if (value is num) return value;
   if (value is String) return num.tryParse(value);
   if (value is Map) {
+    if (value.isEmpty) return null;
     debugPrint('DEBUG: field $fieldName expected num? but got Map: $value');
     if (value.containsKey('amount')) return _parseNum(value['amount'], fieldName);
     if (value.containsKey('value')) return _parseNum(value['value'], fieldName);
@@ -274,7 +275,23 @@ class Project {
   final List<String> specialisations;
   final String createdAt;
   final String? updatedAt;
+  final String? coverImage;
   final Message? latestMessage;
+  final double? siteLatitude;
+  final double? siteLongitude;
+  final int? siteGeofenceRadiusM;
+
+  String get daysRemaining {
+    try {
+      final end = DateTime.parse(endDate);
+      final now = DateTime.now();
+      final difference = end.difference(now).inDays;
+      if (difference <= 0) return 'Due';
+      return '$difference days left';
+    } catch (e) {
+      return '--';
+    }
+  }
 
   String get formattedLocation {
     String formatSegment(String? value) {
@@ -291,7 +308,9 @@ class Project {
         .map(formatSegment)
         .where((s) => s.isNotEmpty)
         .toList();
-    return segments.isNotEmpty ? segments.join(', ') : location ?? 'Location N/A';
+    return segments.isNotEmpty
+        ? segments.join(', ')
+        : (location.isNotEmpty ? location : 'Location N/A');
   }
 
   String get formattedDates {
@@ -356,7 +375,11 @@ class Project {
     required this.specialisations,
     required this.createdAt,
     this.updatedAt,
+    this.coverImage,
     this.latestMessage,
+    this.siteLatitude,
+    this.siteLongitude,
+    this.siteGeofenceRadiusM,
   });
 
   factory Project.fromJson(Map<String, dynamic> json) {
@@ -397,9 +420,14 @@ class Project {
           [],
       createdAt: json['created_at']?.toString() ?? '',
       updatedAt: json['updated_at']?.toString(),
+      coverImage: ProjectImage.normalizeImageUrl(
+          json['cover_image']?.toString() ?? json['thumbnail']?.toString()),
       latestMessage: json['latest_message'] != null 
           ? Message.fromJson(json['latest_message'] as Map<String, dynamic>) 
           : null,
+      siteLatitude: _parseNum(json['site_latitude'], 'site_latitude')?.toDouble(),
+      siteLongitude: _parseNum(json['site_longitude'], 'site_longitude')?.toDouble(),
+      siteGeofenceRadiusM: _parseNum(json['site_geofence_radius_m'], 'site_geofence_radius_m')?.toInt(),
     );
   }
 }

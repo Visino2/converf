@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/new_project/providers/wizard_provider.dart';
 
 import 'package:converf/screens/product_owner/widgets/dashboard/projects/project_details_screen.dart';
+import 'package:converf/features/projects/providers/project_providers.dart';
+import 'package:converf/features/dashboard/providers/dashboard_providers.dart';
 
 class SuccessView extends ConsumerWidget {
   const SuccessView({super.key});
@@ -198,7 +200,11 @@ class SuccessView extends ConsumerWidget {
                 Navigator.of(context).pop();
                 if (projectId != null) {
                   debugPrint('--- SuccessView: Pushing ProjectDetailsScreen ---');
-                   Navigator.of(context).push(
+                  // Invalidate providers to refresh dashboard stats
+                  ref.invalidate(dashboardStatsProvider);
+                  ref.invalidate(projectsListProvider(1));
+                  
+                  Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (context) => ProjectDetailsScreen(projectId: projectId),
                     ),

@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:converf/core/ui/app_colors.dart';
 
 import 'step_personal_info.dart';
 import 'step_company_info.dart';
 import 'step_specialization.dart';
 import '../../../../features/auth/providers/auth_provider.dart';
+import '../../../../features/auth/providers/email_verification_provider.dart';
+import '../../../../features/auth/repositories/auth_repository.dart';
 import '../../../../features/auth/models/contractor_register_request.dart';
+import '../../../../features/auth/models/email_verification_status.dart';
+import '../../../../features/auth/utils/auth_flow.dart';
 
 class OnboardingContractorSignupStep extends ConsumerStatefulWidget {
   final VoidCallback onSignupSubmit;
@@ -26,6 +32,7 @@ class _OnboardingContractorSignupStepState
     extends ConsumerState<OnboardingContractorSignupStep> {
   int _currentStep = 1;
   String? _emailBackendError;
+  bool _isCheckingEmail = false;
 
   // Controllers for all steps
   final _firstNameController = TextEditingController();
@@ -40,7 +47,7 @@ class _OnboardingContractorSignupStepState
   final _confirmPasswordController = TextEditingController();
 
   // State for all steps
-  String? _selectedCountry;
+  String? _selectedCountry = 'Nigeria';
   String? _yearsInBusiness;
   final Map<String, bool> _specializations = {
     'residential': false,
@@ -68,7 +75,40 @@ class _OnboardingContractorSignupStepState
     super.dispose();
   }
 
-  void _nextStep() {
+  Future<void> _nextStep() async {
+    if (_currentStep == 1) {
+      setState(() {
+        _isCheckingEmail = true;
+        _emailBackendError = null;
+      });
+
+      try {
+        final email = _emailController.text.trim();
+        final repository = ref.read(authRepositoryProvider);
+        final exists = await repository.checkEmailExists(email);
+        
+        if (!mounted) return;
+        
+        if (exists) {
+          setState(() {
+            _isCheckingEmail = false;
+            _emailBackendError = 'This email is already registered';
+          });
+          return; // Stop here, do not advance
+        }
+      } catch (e) {
+        // Fallback: if checking fails for any other reason, just proceed and let step 3 catch it.
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isCheckingEmail = false;
+          });
+        }
+      }
+    }
+
+    if (!mounted) return;
+
     setState(() {
       _currentStep++;
     });
@@ -86,7 +126,9 @@ class _OnboardingContractorSignupStepState
     // Validation
     if (!_termsAgreed || !_infoAccurate) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please agree to all terms and conditions')),
+        const SnackBar(
+          content: Text('Please agree to all terms and conditions'),
+        ),
       );
       return;
     }
@@ -98,15 +140,17 @@ class _OnboardingContractorSignupStepState
 
     if (selectedSpecs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one specialization')),
+        const SnackBar(
+          content: Text('Please select at least one specialization'),
+        ),
       );
       return;
     }
 
     if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
       return;
     }
 
@@ -141,6 +185,7 @@ class _OnboardingContractorSignupStepState
 
     if (mounted) {
       final authState = ref.read(authProvider);
+      bool shouldAttemptVerify = false;
       if (authState.hasError) {
         String error = authState.error.toString();
         if (error.contains('Exception:')) {
@@ -148,8 +193,14 @@ class _OnboardingContractorSignupStepState
         }
 
         // Specifically check for "already registered" or "email taken"
-        if (error.toLowerCase().contains('email') && (error.toLowerCase().contains('taken') || error.toLowerCase().contains('registered') || error.toLowerCase().contains('exists'))) {
-           setState(() => _emailBackendError = 'This email is already registered');
+        if (error.toLowerCase().contains('email') &&
+            (error.toLowerCase().contains('taken') ||
+                error.toLowerCase().contains('registered') ||
+                error.toLowerCase().contains('exists'))) {
+          setState(
+            () => _emailBackendError = 'This email is already registered',
+          );
+          shouldAttemptVerify = _looksLikeUnverified(error);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -167,8 +218,78 @@ class _OnboardingContractorSignupStepState
             behavior: SnackBarBehavior.floating,
           ),
         );
+        shouldAttemptVerify = _looksLikeUnverified(
+          authState.value?.message ?? '',
+        );
+      } else {
+        final response = authState.value;
+        if (!mounted) {
+          return;
+        }
+
+        // New accounts always require email verification upon signup
+        context.go(
+          verifyEmailLocation(
+            email: response?.data?.user['email']?.toString() ?? request.email,
+            autoResend: true,
+          ),
+        );
+        return;
       }
-      // Success is handled by AppRouter redirection
+
+      if (shouldAttemptVerify) {
+        await _tryLoginAndNavigateToVerify();
+      }
+    }
+  }
+
+  bool _looksLikeUnverified(String text) {
+    final normalized = text.toLowerCase();
+    return normalized.contains('not verified') ||
+        normalized.contains('verify') ||
+        normalized.contains('unverified');
+  }
+
+  Future<void> _tryLoginAndNavigateToVerify() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      return;
+    }
+
+    await ref.read(authProvider.notifier).login(email, password);
+    if (!mounted) {
+      return;
+    }
+    final loginState = ref.read(authProvider);
+    if (loginState.hasError || loginState.value?.data == null) {
+      return;
+    }
+
+    var status = verificationStatusFromAuthResponse(loginState.value);
+    if (!status.isKnown) {
+      status = await ref.read(emailVerificationStatusProvider.future);
+    }
+    if (!mounted) {
+      return;
+    }
+
+    if (status == EmailVerificationStatus.verified) {
+      context.go('/welcome');
+    } else {
+      context.go(
+        verifyEmailLocation(
+          email: loginState.value?.data?.user['email']?.toString() ?? email,
+          autoResend: true,
+        ),
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Account found but not verified. Check your email to continue.',
+          ),
+        ),
+      );
     }
   }
 
@@ -214,8 +335,11 @@ class _OnboardingContractorSignupStepState
                   : Colors.grey.shade200,
             ),
           ),
-          _buildStepCircle(2, _currentStep >= 2, 
-            onTap: _currentStep > 2 ? () => _goToStep(2) : null),
+          _buildStepCircle(
+            2,
+            _currentStep >= 2,
+            onTap: _currentStep > 2 ? () => _goToStep(2) : null,
+          ),
           Expanded(
             child: Container(
               height: 4,
@@ -243,6 +367,7 @@ class _OnboardingContractorSignupStepState
           selectedCountry: _selectedCountry,
           onCountrySelected: (c) => setState(() => _selectedCountry = c),
           emailBackendError: _emailBackendError,
+          isCheckingEmail: _isCheckingEmail,
           onEmailChanged: () {
             if (_emailBackendError != null) {
               setState(() => _emailBackendError = null);
@@ -283,6 +408,7 @@ class _OnboardingContractorSignupStepState
           selectedCountry: _selectedCountry,
           onCountrySelected: (c) => setState(() => _selectedCountry = c),
           emailBackendError: _emailBackendError,
+          isCheckingEmail: _isCheckingEmail,
           onEmailChanged: () {
             if (_emailBackendError != null) {
               setState(() => _emailBackendError = null);
@@ -301,7 +427,7 @@ class _OnboardingContractorSignupStepState
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           stops: [0.0, 0.45],
-          colors: [Color(0xFF276572), Colors.white],
+          colors: [AppColors.authShellTop, Colors.white],
         ),
       ),
       child: Column(
@@ -316,7 +442,9 @@ class _OnboardingContractorSignupStepState
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: _currentStep < 3
                       ? ConstrainedBox(
-                          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                          ),
                           child: IntrinsicHeight(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,

@@ -4,12 +4,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_profile_screen.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/marketplace_screen.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_account_settings_screen.dart';
-import 'package:converf/screens/contractor/projects/widgets/tools/contractor_invoice_screen.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_bidding_preferences_screen.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_notifications_screen.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_project_settings_screen.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_help_support_screen.dart';
-import 'package:converf/screens/contractor/projects/schedule/schedule_library_import_screen.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/features/auth/providers/auth_provider.dart';
@@ -21,32 +19,44 @@ class ToolsScreen extends ConsumerWidget {
   void _navigate(BuildContext context, String title) {
     switch (title) {
       case 'Account Setting':
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const ContractorAccountSettingsScreen()));
-        break;
-      case 'Invoice':
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const ContractorInvoiceScreen()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ContractorAccountSettingsScreen(),
+          ),
+        );
         break;
       case 'Bidding Preferences':
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const ContractorBiddingPreferencesScreen()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ContractorBiddingPreferencesScreen(),
+          ),
+        );
         break;
       case 'Notifications':
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const ContractorNotificationsScreen()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ContractorNotificationsScreen(),
+          ),
+        );
         break;
       case 'Privacy & Visibility':
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const ContractorProjectSettingsScreen()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ContractorProjectSettingsScreen(),
+          ),
+        );
         break;
       case 'Help & Support':
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const ContractorHelpSupportScreen()));
-        break;
-      case 'Schedule Library':
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const ScheduleLibraryImportScreen(projectId: 'library_preview')));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ContractorHelpSupportScreen(),
+          ),
+        );
         break;
       default:
         break;
@@ -57,11 +67,9 @@ class ToolsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final List<Map<String, String>> menuItems = [
       {'title': 'Account Setting', 'icon': 'assets/images/more.svg'},
-      {'title': 'Invoice', 'icon': 'assets/images/Invoice.svg'},
       {'title': 'Bidding Preferences', 'icon': 'assets/images/Shield.svg'},
       {'title': 'Notifications', 'icon': 'assets/images/Bell.svg'},
       {'title': 'Privacy & Visibility', 'icon': 'assets/images/Shield.svg'},
-      {'title': 'Schedule Library', 'icon': 'assets/images/Calendar.svg'},
       {'title': 'Help & Support', 'icon': 'assets/images/headset.svg'},
     ];
 
@@ -92,14 +100,19 @@ class ToolsScreen extends ConsumerWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ContractorProfileScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const ContractorProfileScreen(),
+                      ),
                     );
                   },
                   child: Container(
                     decoration: BoxDecoration(
                       color: const Color(0xFFF9FAFB),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFF0F2F5), width: 1),
+                      border: Border.all(
+                        color: const Color(0xFFF0F2F5),
+                        width: 1,
+                      ),
                     ),
                     child: Column(
                       children: [
@@ -111,16 +124,16 @@ class ToolsScreen extends ConsumerWidget {
                             // Top Image
                             ClipRRect(
                               borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(16)),
+                                top: Radius.circular(16),
+                              ),
                               child: SizedBox(
                                 height: 140,
                                 width: double.infinity,
                                 child: Image.asset(
                                   'assets/images/lekki-complex.png',
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => Container(
-                                    color: const Color(0xFF309DAA),
-                                  ),
+                                  errorBuilder: (_, _, _) =>
+                                      Container(color: const Color(0xFF309DAA)),
                                 ),
                               ),
                             ),
@@ -133,8 +146,10 @@ class ToolsScreen extends ConsumerWidget {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: const Color(0xFFF3C08B),
-                                  border:
-                                      Border.all(color: Colors.white, width: 3),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 3,
+                                  ),
                                 ),
                                 child: Center(
                                   child: SvgPicture.asset(
@@ -142,10 +157,13 @@ class ToolsScreen extends ConsumerWidget {
                                     width: 24,
                                     height: 24,
                                     colorFilter: const ColorFilter.mode(
-                                        Colors.white, BlendMode.srcIn),
+                                      Colors.white,
+                                      BlendMode.srcIn,
+                                    ),
                                     errorBuilder: (_, _, _) => const Icon(
-                                        Icons.camera_alt,
-                                        color: Colors.white),
+                                      Icons.camera_alt,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -170,8 +188,11 @@ class ToolsScreen extends ConsumerWidget {
                                     ),
                                   ),
                                   const SizedBox(width: 6),
-                                  const Icon(Icons.verified,
-                                      color: Color(0xFF309DAA), size: 20),
+                                  const Icon(
+                                    Icons.verified,
+                                    color: Color(0xFF309DAA),
+                                    size: 20,
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 8),
@@ -183,13 +204,17 @@ class ToolsScreen extends ConsumerWidget {
                                     width: 14,
                                     height: 14,
                                     colorFilter: const ColorFilter.mode(
-                                        Color(0xFF6B7280), BlendMode.srcIn),
+                                      Color(0xFF6B7280),
+                                      BlendMode.srcIn,
+                                    ),
                                   ),
                                   const SizedBox(width: 4),
                                   const Text(
                                     'Lagos, Nigeria',
                                     style: TextStyle(
-                                        fontSize: 13, color: Color(0xFF6B7280)),
+                                      fontSize: 13,
+                                      color: Color(0xFF6B7280),
+                                    ),
                                   ),
                                   const SizedBox(width: 16),
                                   SvgPicture.asset(
@@ -197,13 +222,17 @@ class ToolsScreen extends ConsumerWidget {
                                     width: 14,
                                     height: 14,
                                     colorFilter: const ColorFilter.mode(
-                                        Color(0xFF6B7280), BlendMode.srcIn),
+                                      Color(0xFF6B7280),
+                                      BlendMode.srcIn,
+                                    ),
                                   ),
                                   const SizedBox(width: 4),
                                   const Text(
                                     'Member since Jan 2021',
                                     style: TextStyle(
-                                        fontSize: 13, color: Color(0xFF6B7280)),
+                                      fontSize: 13,
+                                      color: Color(0xFF6B7280),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -226,76 +255,79 @@ class ToolsScreen extends ConsumerWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const MarketplaceScreen()),
+                        builder: (_) => const MarketplaceScreen(),
+                      ),
                     );
                   },
                   child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    width: double.infinity,
-                    height: 88,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF309DAA), Color(0xFF2A8090)],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      width: double.infinity,
+                      height: 88,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF309DAA), Color(0xFF2A8090)],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
                       ),
-                    ),
-                    child: Stack(
-                      children: [
-                        // Cross pattern background
-                        Positioned.fill(
-                          child: CustomPaint(painter: _CrossPatternPainter()),
-                        ),
-                        // Decorative vector
-                        Positioned(
-                          bottom: -20,
-                          right: -20,
-                          child: Image.asset(
-                            'assets/images/vector-2.png',
-                            width: 260,
-                            height: 140,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => const SizedBox(),
+                      child: Stack(
+                        children: [
+                          // Cross pattern background
+                          Positioned.fill(
+                            child: CustomPaint(painter: _CrossPatternPainter()),
                           ),
-                        ),
-                        Center(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SvgPicture.asset(
-                                'assets/images/store.svg',
-                                width: 60,
-                                height: 60,
-                                colorFilter: const ColorFilter.mode(
-                                    Colors.white, BlendMode.srcIn),
-                                errorBuilder: (_, _, _) => const Icon(
-                                  Icons.storefront,
-                                  color: Colors.white,
-                                  size: 60,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Market Place',
-                                style: TextStyle(
-                                  color: Color(0xFFFFFFFF),
-                                  fontSize: 24,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.48,
-                                  height: 1.2,
-                                ),
-                              ),
-                            ],
+                          // Decorative vector
+                          Positioned(
+                            bottom: -20,
+                            right: -20,
+                            child: Image.asset(
+                              'assets/images/vector-2.png',
+                              width: 260,
+                              height: 140,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => const SizedBox(),
+                            ),
                           ),
-                        ),
-                      ],
+                          Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SvgPicture.asset(
+                                  'assets/images/store.svg',
+                                  width: 60,
+                                  height: 60,
+                                  colorFilter: const ColorFilter.mode(
+                                    Colors.white,
+                                    BlendMode.srcIn,
+                                  ),
+                                  errorBuilder: (_, _, _) => const Icon(
+                                    Icons.storefront,
+                                    color: Colors.white,
+                                    size: 60,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Text(
+                                  'Market Place',
+                                  style: TextStyle(
+                                    color: Color(0xFFFFFFFF),
+                                    fontSize: 24,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.48,
+                                    height: 1.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
 
               const SizedBox(height: 24),
 
@@ -317,8 +349,7 @@ class ToolsScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
-                    ...menuItems
-                        .map((item) => _buildMenuItem(context, item)),
+                    ...menuItems.map((item) => _buildMenuItem(context, item)),
                     const SizedBox(height: 16),
 
                     // Logout button
@@ -359,7 +390,9 @@ class ToolsScreen extends ConsumerWidget {
                               width: 22,
                               height: 22,
                               colorFilter: const ColorFilter.mode(
-                                  Colors.white, BlendMode.srcIn),
+                                Colors.white,
+                                BlendMode.srcIn,
+                              ),
                               errorBuilder: (_, _, _) => const Icon(
                                 Icons.logout,
                                 color: Colors.white,
@@ -389,8 +422,7 @@ class ToolsScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Container(
           width: 44,
           height: 44,
@@ -448,9 +480,15 @@ class _CrossPatternPainter extends CustomPainter {
     for (double x = 0; x < size.width + spacing; x += spacing) {
       for (double y = 0; y < size.height + spacing; y += spacing) {
         canvas.drawLine(
-            Offset(x - crossSize, y), Offset(x + crossSize, y), paint);
+          Offset(x - crossSize, y),
+          Offset(x + crossSize, y),
+          paint,
+        );
         canvas.drawLine(
-            Offset(x, y - crossSize), Offset(x, y + crossSize), paint);
+          Offset(x, y - crossSize),
+          Offset(x, y + crossSize),
+          paint,
+        );
       }
     }
   }

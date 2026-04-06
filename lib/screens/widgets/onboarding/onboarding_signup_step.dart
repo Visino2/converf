@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:converf/core/ui/app_colors.dart';
+
 import '../../../features/auth/providers/auth_provider.dart';
+import '../../../features/auth/providers/email_verification_provider.dart';
+import '../../../features/auth/models/email_verification_status.dart';
 import '../../../features/auth/models/product_owner_register_request.dart';
+import '../../../features/auth/utils/auth_flow.dart';
 
 class OnboardingSignupStep extends ConsumerStatefulWidget {
   final VoidCallback onSignupSubmit;
@@ -17,7 +23,8 @@ class OnboardingSignupStep extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<OnboardingSignupStep> createState() => _OnboardingSignupStepState();
+  ConsumerState<OnboardingSignupStep> createState() =>
+      _OnboardingSignupStepState();
 }
 
 class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
@@ -31,7 +38,7 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
   bool _isEmailValid = false;
   bool _isPasswordValid = false;
 
-  String? _selectedCountry;
+  String? _selectedCountry = 'Nigeria';
   bool _agreedToTerms = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -46,9 +53,10 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
     _confirmPasswordController.dispose();
     super.dispose();
   }
+
   Future<void> _handleSignup() async {
     setState(() => _emailBackendError = null);
-    
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -73,15 +81,22 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
 
     if (mounted) {
       final authState = ref.read(authProvider);
+      bool shouldAttemptVerify = false;
       if (authState.hasError) {
         String error = authState.error.toString();
         if (error.contains('Exception:')) {
           error = error.replaceAll('Exception: ', '');
         }
-        
+
         // Specifically check for "already registered" or "email taken"
-        if (error.toLowerCase().contains('email') && (error.toLowerCase().contains('taken') || error.toLowerCase().contains('registered') || error.toLowerCase().contains('exists'))) {
-           setState(() => _emailBackendError = 'This email is already registered');
+        if (error.toLowerCase().contains('email') &&
+            (error.toLowerCase().contains('taken') ||
+                error.toLowerCase().contains('registered') ||
+                error.toLowerCase().contains('exists'))) {
+          setState(
+            () => _emailBackendError = 'This email is already registered',
+          );
+          shouldAttemptVerify = _looksLikeUnverified(error);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -99,8 +114,83 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
             behavior: SnackBarBehavior.floating,
           ),
         );
+        shouldAttemptVerify = _looksLikeUnverified(
+          authState.value?.message ?? '',
+        );
+      } else {
+        setState(() {
+          _isEmailValid = true;
+          _isPasswordValid = true;
+        });
+
+        final response = authState.value;
+        if (!mounted) {
+          return;
+        }
+
+        // New accounts always require email verification upon signup
+        context.go(
+          verifyEmailLocation(
+            email: response?.data?.user['email']?.toString() ?? request.email,
+            autoResend: true,
+          ),
+        );
+        return;
       }
-      // Success is handled by AppRouter redirection
+
+      if (shouldAttemptVerify) {
+        await _tryLoginAndNavigateToVerify();
+      }
+    }
+  }
+
+  bool _looksLikeUnverified(String text) {
+    final normalized = text.toLowerCase();
+    return normalized.contains('not verified') ||
+        normalized.contains('verify') ||
+        normalized.contains('unverified');
+  }
+
+  Future<void> _tryLoginAndNavigateToVerify() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      return;
+    }
+
+    await ref.read(authProvider.notifier).login(email, password);
+    if (!mounted) {
+      return;
+    }
+    final loginState = ref.read(authProvider);
+    if (loginState.hasError || loginState.value?.data == null) {
+      return;
+    }
+
+    var status = verificationStatusFromAuthResponse(loginState.value);
+    if (!status.isKnown) {
+      status = await ref.read(emailVerificationStatusProvider.future);
+    }
+    if (!mounted) {
+      return;
+    }
+
+    if (status == EmailVerificationStatus.verified) {
+      context.go('/welcome');
+    } else {
+      context.go(
+        verifyEmailLocation(
+          email: loginState.value?.data?.user['email']?.toString() ?? email,
+          autoResend: true,
+        ),
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Your account exists but needs verification. Check your email.',
+          ),
+        ),
+      );
     }
   }
 
@@ -174,15 +264,24 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                if (isValid && (label.contains('Email') ? _emailBackendError == null : true))
+                if (isValid &&
+                    (label.contains('Email')
+                        ? _emailBackendError == null
+                        : true))
                   const Padding(
                     padding: EdgeInsets.only(right: 8.0),
-                    child: Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    child: Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 20,
+                    ),
                   ),
                 if (isPassword)
                   IconButton(
                     icon: Icon(
-                      obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      obscureText
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       color: Colors.grey,
                       size: 20,
                     ),
@@ -204,7 +303,10 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF276572), width: 1.5),
+              borderSide: const BorderSide(
+                color: Color(0xFF276572),
+                width: 1.5,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -225,16 +327,6 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
   void _showCountryPicker() {
     final countries = [
       'Nigeria',
-      'Ghana',
-      'Kenya',
-      'South Africa',
-      'Egypt',
-      'Ethiopia',
-      'Tanzania',
-      'Uganda',
-      'Rwanda',
-      'Senegal',
-      'Other African Country',
     ];
     showModalBottomSheet(
       context: context,
@@ -316,228 +408,252 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           stops: [0.0, 0.3],
-          colors: [Color(0xFF276572), Colors.white],
+          colors: [AppColors.authShellTop, Colors.white],
         ),
       ),
       child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: widget.onLogin,
-                    child: const Text(
-                      'Login',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: MediaQuery.of(context).size.height * 0.12),
-              const Text(
-                'Get started with\nConverf',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  height: 1.1,
-                  letterSpacing: -1.0,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Build world-class infrastructure across Africa',
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      'First Name',
-                      'David',
-                      controller: _firstNameController,
-                      validator: (v) {
-                        if (v == null || v.length < 2) return 'Enter first name';
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildTextField(
-                      'Last Name',
-                      'Fayemi',
-                      controller: _lastNameController,
-                      validator: (v) {
-                        if (v == null || v.length < 2) return 'Enter last name';
-                        return null;
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                'Email Address',
-                'you@example.com',
-                controller: _emailController,
-                isValid: _isEmailValid,
-                validator: (v) {
-                  if (v == null || !v.contains('@') || !v.contains('.')) return 'Enter valid email';
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (!_isEmailValid) setState(() => _isEmailValid = true);
-                  });
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                'Country',
-                _selectedCountry ?? 'Select Country',
-                controller: TextEditingController(text: _selectedCountry ?? ''),
-                readOnly: true,
-                onTap: _showCountryPicker,
-                validator: (v) {
-                  if (_selectedCountry == null) return 'Select country';
-                  return null;
-                },
-                onToggleVisibility: null,
-                isPassword: false,
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                'Password',
-                'Password',
-                controller: _passwordController,
-                isPassword: true,
-                obscureText: _obscurePassword,
-                onToggleVisibility: () => setState(() => _obscurePassword = !_obscurePassword),
-                isValid: _isPasswordValid,
-                validator: (v) {
-                  if (v == null || v.length < 8) return 'Min 8 characters';
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (!_isPasswordValid) setState(() => _isPasswordValid = true);
-                  });
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                'Confirm Password',
-                'Password',
-                controller: _confirmPasswordController,
-                isPassword: true,
-                obscureText: _obscureConfirmPassword,
-                onToggleVisibility: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                validator: (v) {
-                  if (v != _passwordController.text) return 'Passwords do not match';
-                  if (v == null || v.isEmpty) return 'Confirm password';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF276572),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    elevation: 0,
-                  ),
-                  onPressed: authState.isLoading ? null : _handleSignup,
-                  child: authState.isLoading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'Signup',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: Checkbox(
-                      value: _agreedToTerms,
-                      onChanged: (value) {
-                        setState(() => _agreedToTerms = value ?? false);
-                      },
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      side: BorderSide(color: Colors.grey.shade400),
-                      activeColor: const Color(0xFF276572),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: RichText(
-                      text: TextSpan(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: widget.onLogin,
+                      child: const Text(
+                        'Login',
                         style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 13,
-                          height: 1.4,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
-                        children: [
-                          const TextSpan(
-                            text:
-                                'Yes, I understand and agree to the Converf\n',
-                          ),
-                          TextSpan(
-                            text: 'Terms of Service',
-                            style: const TextStyle(
-                              color: Color(0xFF276572),
-                              fontWeight: FontWeight.w500,
-                            ),
-                            recognizer: TapGestureRecognizer()
-                              ..onTap = _showTermsModal,
-                          ),
-                          const TextSpan(text: ', including the '),
-                          TextSpan(
-                            text: 'Privacy Policy',
-                            style: const TextStyle(
-                              color: Color(0xFF276572),
-                              fontWeight: FontWeight.w500,
-                            ),
-                            recognizer: TapGestureRecognizer()
-                              ..onTap = _showPrivacyModal,
-                          ),
-                          const TextSpan(text: '.'),
-                        ],
                       ),
                     ),
+                  ],
+                ),
+                SizedBox(height: MediaQuery.of(context).size.height * 0.12),
+                const Text(
+                  'Get started with\nConverf',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
+                    letterSpacing: -1.0,
+                    color: Colors.black87,
                   ),
-                ],
-              ),
-              const SizedBox(height: 32),
-            ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Build world-class infrastructure across Africa',
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        'First Name',
+                        'David',
+                        controller: _firstNameController,
+                        validator: (v) {
+                          if (v == null || v.length < 2) {
+                            return 'Enter first name';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildTextField(
+                        'Last Name',
+                        'Fayemi',
+                        controller: _lastNameController,
+                        validator: (v) {
+                          if (v == null || v.length < 2) {
+                            return 'Enter last name';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  'Email Address',
+                  'you@example.com',
+                  controller: _emailController,
+                  isValid: _isEmailValid,
+                  validator: (v) {
+                    if (v == null || !v.contains('@') || !v.contains('.')) {
+                      return 'Enter valid email';
+                    }
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!_isEmailValid) {
+                        setState(() => _isEmailValid = true);
+                      }
+                    });
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  'Country',
+                  _selectedCountry ?? 'Select Country',
+                  controller: TextEditingController(
+                    text: _selectedCountry ?? '',
+                  ),
+                  readOnly: true,
+                  onTap: _showCountryPicker,
+                  validator: (v) {
+                    if (_selectedCountry == null) return 'Select country';
+                    return null;
+                  },
+                  onToggleVisibility: null,
+                  isPassword: false,
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  'Password',
+                  'Password',
+                  controller: _passwordController,
+                  isPassword: true,
+                  obscureText: _obscurePassword,
+                  onToggleVisibility: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                  isValid: _isPasswordValid,
+                  validator: (v) {
+                    if (v == null || v.length < 8) {
+                      return 'Min 8 characters';
+                    }
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!_isPasswordValid) {
+                        setState(() => _isPasswordValid = true);
+                      }
+                    });
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  'Confirm Password',
+                  'Password',
+                  controller: _confirmPasswordController,
+                  isPassword: true,
+                  obscureText: _obscureConfirmPassword,
+                  onToggleVisibility: () => setState(
+                    () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                  ),
+                  validator: (v) {
+                    if (v != _passwordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    if (v == null || v.isEmpty) {
+                      return 'Confirm password';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF276572),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: authState.isLoading ? null : _handleSignup,
+                    child: authState.isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Signup',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: Checkbox(
+                        value: _agreedToTerms,
+                        onChanged: (value) {
+                          setState(() => _agreedToTerms = value ?? false);
+                        },
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        side: BorderSide(color: Colors.grey.shade400),
+                        activeColor: const Color(0xFF276572),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
+                          children: [
+                            const TextSpan(
+                              text:
+                                  'Yes, I understand and agree to the Converf\n',
+                            ),
+                            TextSpan(
+                              text: 'Terms of Service',
+                              style: const TextStyle(
+                                color: Color(0xFF276572),
+                                fontWeight: FontWeight.w500,
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = _showTermsModal,
+                            ),
+                            const TextSpan(text: ', including the '),
+                            TextSpan(
+                              text: 'Privacy Policy',
+                              style: const TextStyle(
+                                color: Color(0xFF276572),
+                                fontWeight: FontWeight.w500,
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = _showPrivacyModal,
+                            ),
+                            const TextSpan(text: '.'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
-        ),
         ),
       ),
     );

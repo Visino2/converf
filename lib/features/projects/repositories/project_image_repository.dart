@@ -27,16 +27,24 @@ class ProjectImageRepository {
   Future<ProjectImage> uploadImage({
     required String projectId,
     required String filePath,
+    required double capturedLatitude,
+    required double capturedLongitude,
+    required double capturedAccuracyM,
+    required DateTime capturedAt,
     String? caption,
     bool isPrimary = false,
   }) async {
     final formData = FormData.fromMap({
-      'image': await MultipartFile.fromFile(
+      'file': await MultipartFile.fromFile(
         filePath,
         filename: filePath.split('/').last,
       ),
-      if (caption != null) 'caption': caption,
-      'is_primary': isPrimary,
+      'captured_latitude': capturedLatitude,
+      'captured_longitude': capturedLongitude,
+      'captured_accuracy_m': capturedAccuracyM,
+      'captured_at': capturedAt.toUtc().toIso8601String(),
+      ...?(caption == null ? null : {'caption': caption}),
+      'is_primary': isPrimary ? 1 : 0,
     });
 
     debugPrint('Uploading image to: /api/v1/projects/$projectId/images');
@@ -64,7 +72,7 @@ class ProjectImageRepository {
       
       return ProjectImage.fromJson(imageData);
 
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('ProjectImageRepository: Error uploading image: $e');
       if (e is DioException) {
          final resData = e.response?.data;

@@ -1,22 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:converf/core/ui/app_colors.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 
 class OnboardingResetPasswordStep extends ConsumerStatefulWidget {
   final VoidCallback onBackToLogin;
+  final String? initialEmail;
+  final String? initialToken;
 
-  const OnboardingResetPasswordStep({super.key, required this.onBackToLogin});
+  const OnboardingResetPasswordStep({
+    super.key,
+    required this.onBackToLogin,
+    this.initialEmail,
+    this.initialToken,
+  });
 
   @override
-  ConsumerState<OnboardingResetPasswordStep> createState() => _OnboardingResetPasswordStepState();
+  ConsumerState<OnboardingResetPasswordStep> createState() =>
+      _OnboardingResetPasswordStepState();
 }
 
-class _OnboardingResetPasswordStepState extends ConsumerState<OnboardingResetPasswordStep> {
-  final _emailController = TextEditingController();
-  final _tokenController = TextEditingController();
+class _OnboardingResetPasswordStepState
+    extends ConsumerState<OnboardingResetPasswordStep> {
+  late final TextEditingController _emailController;
+  late final TextEditingController _tokenController;
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.initialEmail);
+    _tokenController = TextEditingController(text: widget.initialToken);
+  }
 
   bool _isEmailValid = false;
   bool _isTokenValid = false;
@@ -44,7 +61,9 @@ class _OnboardingResetPasswordStepState extends ConsumerState<OnboardingResetPas
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
 
-    await ref.read(authProvider.notifier).resetPassword(
+    await ref
+        .read(authProvider.notifier)
+        .resetPassword(
           email: email,
           token: token,
           password: password,
@@ -54,16 +73,20 @@ class _OnboardingResetPasswordStepState extends ConsumerState<OnboardingResetPas
     if (mounted) {
       final authState = ref.read(authProvider);
       if (authState.hasError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(authState.error.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(authState.error.toString())));
       } else if (authState.value?.status == false) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(authState.value?.message ?? 'Reset failed')),
         );
       } else if (authState.value?.status == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(authState.value?.message ?? 'Password reset successful!')),
+          SnackBar(
+            content: Text(
+              authState.value?.message ?? 'Password reset successful!',
+            ),
+          ),
         );
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) widget.onBackToLogin();
@@ -115,12 +138,18 @@ class _OnboardingResetPasswordStepState extends ConsumerState<OnboardingResetPas
                 if (isValid)
                   const Padding(
                     padding: EdgeInsets.only(right: 8.0),
-                    child: Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    child: Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 20,
+                    ),
                   ),
                 if (isPassword)
                   IconButton(
                     icon: Icon(
-                      obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      obscureText
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       color: Colors.grey,
                       size: 20,
                     ),
@@ -169,7 +198,7 @@ class _OnboardingResetPasswordStepState extends ConsumerState<OnboardingResetPas
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           stops: [0.0, 0.45],
-          colors: [Color(0xFF276572), Colors.white],
+          colors: [AppColors.authShellTop, Colors.white],
         ),
       ),
       child: SafeArea(
@@ -187,7 +216,11 @@ class _OnboardingResetPasswordStepState extends ConsumerState<OnboardingResetPas
                         Align(
                           alignment: Alignment.topLeft,
                           child: IconButton(
-                            icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                            icon: const Icon(
+                              Icons.arrow_back_ios,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                             onPressed: widget.onBackToLogin,
                           ),
                         ),
@@ -204,7 +237,7 @@ class _OnboardingResetPasswordStepState extends ConsumerState<OnboardingResetPas
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Almost there! Enter your email, reset token, and new password.',
+                          'Almost there! Enter your email, 6-digit reset code, and new password.',
                           style: TextStyle(
                             fontSize: 15,
                             color: Colors.grey.shade600,
@@ -222,23 +255,37 @@ class _OnboardingResetPasswordStepState extends ConsumerState<OnboardingResetPas
                                 controller: _emailController,
                                 isValid: _isEmailValid,
                                 validator: (v) {
-                                  if (v == null || !v.contains('@') || !v.contains('.')) return 'Enter valid email';
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    if (!_isEmailValid) setState(() => _isEmailValid = true);
+                                  if (v == null ||
+                                      !v.contains('@') ||
+                                      !v.contains('.')) {
+                                    return 'Enter valid email';
+                                  }
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
+                                    if (!_isEmailValid) {
+                                      setState(() => _isEmailValid = true);
+                                    }
                                   });
                                   return null;
                                 },
                               ),
                               const SizedBox(height: 16),
                               _buildTextField(
-                                'Reset Token',
-                                'Enter token from email',
+                                'Reset Code',
+                                'Enter 6-digit code',
                                 controller: _tokenController,
                                 isValid: _isTokenValid,
                                 validator: (v) {
-                                  if (v == null || v.isEmpty) return 'Enter token';
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    if (!_isTokenValid) setState(() => _isTokenValid = true);
+                                  if (v == null || v.isEmpty) {
+                                    return 'Enter token';
+                                  }
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
+                                    if (!_isTokenValid) {
+                                      setState(() => _isTokenValid = true);
+                                    }
                                   });
                                   return null;
                                 },
@@ -250,12 +297,20 @@ class _OnboardingResetPasswordStepState extends ConsumerState<OnboardingResetPas
                                 controller: _passwordController,
                                 isPassword: true,
                                 obscureText: _obscurePassword,
-                                onToggleVisibility: () => setState(() => _obscurePassword = !_obscurePassword),
+                                onToggleVisibility: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
                                 isValid: _isPasswordValid,
                                 validator: (v) {
-                                  if (v == null || v.length < 8) return 'Min 8 characters';
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    if (!_isPasswordValid) setState(() => _isPasswordValid = true);
+                                  if (v == null || v.length < 8) {
+                                    return 'Min 8 characters';
+                                  }
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
+                                    if (!_isPasswordValid) {
+                                      setState(() => _isPasswordValid = true);
+                                    }
                                   });
                                   return null;
                                 },
@@ -267,13 +322,26 @@ class _OnboardingResetPasswordStepState extends ConsumerState<OnboardingResetPas
                                 controller: _confirmPasswordController,
                                 isPassword: true,
                                 obscureText: _obscureConfirmPassword,
-                                onToggleVisibility: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                                onToggleVisibility: () => setState(
+                                  () => _obscureConfirmPassword =
+                                      !_obscureConfirmPassword,
+                                ),
                                 isValid: _isConfirmPasswordValid,
                                 validator: (v) {
-                                  if (v != _passwordController.text) return 'Passwords do not match';
-                                  if (v == null || v.isEmpty) return 'Confirm password';
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    if (!_isConfirmPasswordValid) setState(() => _isConfirmPasswordValid = true);
+                                  if (v != _passwordController.text) {
+                                    return 'Passwords do not match';
+                                  }
+                                  if (v == null || v.isEmpty) {
+                                    return 'Confirm password';
+                                  }
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
+                                    if (!_isConfirmPasswordValid) {
+                                      setState(
+                                        () => _isConfirmPasswordValid = true,
+                                      );
+                                    }
                                   });
                                   return null;
                                 },
@@ -294,7 +362,9 @@ class _OnboardingResetPasswordStepState extends ConsumerState<OnboardingResetPas
                               ),
                               elevation: 0,
                             ),
-                            onPressed: authState.isLoading ? null : _handleReset,
+                            onPressed: authState.isLoading
+                                ? null
+                                : _handleReset,
                             child: authState.isLoading
                                 ? const SizedBox(
                                     width: 24,

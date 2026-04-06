@@ -34,6 +34,7 @@ class NewProjectState {
   // Step 5
   final bool confirmInfo;
   final bool agreeTerms;
+  final bool isLoading;
   final bool isSuccess;
 
   const NewProjectState({
@@ -59,6 +60,7 @@ class NewProjectState {
     this.specialisations = const [],
     this.confirmInfo = false,
     this.agreeTerms = false,
+    this.isLoading = false,
     this.isSuccess = false,
   });
 
@@ -87,6 +89,7 @@ class NewProjectState {
     List<String>? specialisations,
     bool? confirmInfo,
     bool? agreeTerms,
+    bool? isLoading,
     bool? isSuccess,
   }) {
     return NewProjectState(
@@ -112,6 +115,7 @@ class NewProjectState {
       specialisations: specialisations ?? this.specialisations,
       confirmInfo: confirmInfo ?? this.confirmInfo,
       agreeTerms: agreeTerms ?? this.agreeTerms,
+      isLoading: isLoading ?? this.isLoading,
       isSuccess: isSuccess ?? this.isSuccess,
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:converf/core/ui/app_colors.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class OnboardingRoleStep extends StatefulWidget {
@@ -128,7 +129,7 @@ class _OnboardingRoleStepState extends State<OnboardingRoleStep>
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           stops: [0.0, 0.45],
-          colors: [Color(0xFF276572), Colors.white],
+          colors: [AppColors.authShellTop, Colors.white],
         ),
       ),
       child: SafeArea(

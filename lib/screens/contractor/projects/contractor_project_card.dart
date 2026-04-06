@@ -21,7 +21,8 @@ class ContractorProjectCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ContractorProjectDetailsScreen(projectId: project.id),
+            builder: (context) =>
+                ContractorProjectDetailsScreen(projectId: project.id),
           ),
         );
       },
@@ -44,117 +45,151 @@ class ContractorProjectCard extends StatelessWidget {
               ),
             ),
             child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Top Section
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                project.title,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF101828),
-                                  fontFamily: 'Inter',
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Top Section
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              project.title,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF101828),
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                SvgPicture.asset(
+                                  'assets/images/map.svg',
+                                  width: 16,
+                                  height: 16,
+                                  colorFilter: const ColorFilter.mode(
+                                    Color(0xFF475467),
+                                    BlendMode.srcIn,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  SvgPicture.asset('assets/images/map.svg',
-                                    width: 16,
-                                    height: 16,
-                                    colorFilter: const ColorFilter.mode(Color(0xFF475467), BlendMode.srcIn),
+                                const SizedBox(width: 4),
+                                Text(
+                                  project.formattedLocation,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF475467),
                                   ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    project.formattedLocation,
-                                    style: const TextStyle(fontSize: 14, color: Color(0xFF475467)),
-                                  ),
-                                ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              project.status.label,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: project.status.color,
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                project.status.label,
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: project.status.color),
-                              ),
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF12B76A),
+                              shape: BoxShape.circle,
                             ),
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF12B76A),
-                                shape: BoxShape.circle,
-                              ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  const Spacer(),
+
+                  // Bottom Section
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          SvgPicture.asset(
+                            'assets/images/map.svg',
+                            colorFilter: const ColorFilter.mode(
+                              Color(0xFF0F973D),
+                              BlendMode.srcIn,
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
-
-                    const Spacer(),
-
-                    // Bottom Section
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            SvgPicture.asset('assets/images/map.svg', colorFilter: const ColorFilter.mode(Color(0xFF0F973D), BlendMode.srcIn), width: 14, height: 14),
-                            const SizedBox(width: 4),
-                            const Text('Current Phase', style: TextStyle(color: Colors.white, fontSize: 13)),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: const LinearProgressIndicator(
-                                  value: 0.15,
-                                  minHeight: 8,
-                                  backgroundColor: Colors.white,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF276572)),
+                            width: 14,
+                            height: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            'Current Phase',
+                            style: TextStyle(color: Colors.white, fontSize: 13),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: const LinearProgressIndicator(
+                                value: 0.15,
+                                minHeight: 8,
+                                backgroundColor: Colors.white,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF276572),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildBottomChip('assets/images/bill-list.svg', project.formattedBudget, flex: 2),
-                            const SizedBox(width: 8),
-                            _buildBottomChip('assets/images/routing.svg', 'Phase 1', flex: 2), // Hardcoded phase name until endpoint
-
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildBottomChip(
+                            'assets/images/bill-list.svg',
+                            project.formattedBudget,
+                            flex: 2,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildBottomChip(
+                            'assets/images/routing.svg',
+                            'Phase 1',
+                            flex: 2,
+                          ), // Hardcoded phase name until endpoint
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
         ),
+      ),
     );
   }
 
@@ -163,16 +198,31 @@ class ContractorProjectCard extends StatelessWidget {
       flex: flex,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SvgPicture.asset(iconPath, width: 16, height: 16, colorFilter: const ColorFilter.mode(Color(0xFF475467), BlendMode.srcIn)),
+            SvgPicture.asset(
+              iconPath,
+              width: 16,
+              height: 16,
+              colorFilter: const ColorFilter.mode(
+                Color(0xFF475467),
+                BlendMode.srcIn,
+              ),
+            ),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
                 label,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF101828)),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF101828),
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),

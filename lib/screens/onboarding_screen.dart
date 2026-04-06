@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'widgets/onboarding/onboarding_splash_step.dart';
 import 'widgets/onboarding/onboarding_role_step.dart';
@@ -12,28 +13,43 @@ import 'widgets/onboarding/onboarding_forgot_password_step.dart';
 import 'widgets/onboarding/onboarding_reset_password_step.dart';
 import 'widgets/onboarding/onboarding_accept_invitation_step.dart';
 
-enum OnboardingStep { splash, role, auth, login, signup, welcome, forgotPassword, resetPassword, acceptInvitation }
+enum OnboardingStep {
+  splash,
+  role,
+  auth,
+  login,
+  signup,
+  welcome,
+  forgotPassword,
+  resetPassword,
+  acceptInvitation,
+}
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  const OnboardingScreen({super.key, this.initialStep = OnboardingStep.splash});
+
+  final OnboardingStep initialStep;
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  OnboardingStep _step = OnboardingStep.splash;
+  late OnboardingStep _step;
   String? _selectedRole;
 
   @override
   void initState() {
     super.initState();
-    // 3000ms delay before transitioning to Role Selection
-    Future.delayed(const Duration(milliseconds: 3000), () {
-      if (mounted) {
-        setState(() => _step = OnboardingStep.role);
-      }
-    });
+    _step = widget.initialStep;
+
+    if (_step == OnboardingStep.splash) {
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted) {
+          setState(() => _step = OnboardingStep.role);
+        }
+      });
+    }
   }
 
   @override
@@ -66,6 +82,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         );
       case OnboardingStep.auth:
         return OnboardingAuthStep(
+          selectedRole: _selectedRole,
           onSignupManually: () {
             setState(() => _step = OnboardingStep.signup);
           },
@@ -73,8 +90,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         );
       case OnboardingStep.login:
         return OnboardingLoginStep(
+          selectedRole: _selectedRole,
           onSignup: () => setState(() => _step = OnboardingStep.auth),
-          onForgotPassword: () => setState(() => _step = OnboardingStep.forgotPassword),
+          onForgotPassword: () =>
+              setState(() => _step = OnboardingStep.forgotPassword),
           onBack: () => setState(() => _step = OnboardingStep.auth),
         );
       case OnboardingStep.signup:
@@ -99,14 +118,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         );
       case OnboardingStep.welcome:
         if (_selectedRole == 'project_owner') {
-          return const OnboardingWelcomeProjectOwnerStep();
+          return OnboardingWelcomeProjectOwnerStep(
+            onCompleted: () => context.go('/owner-dashboard'),
+          );
         } else {
-          return const OnboardingWelcomeContractorStep();
+          return OnboardingWelcomeContractorStep(
+            onCompleted: () => context.go('/contractor-dashboard'),
+          );
         }
       case OnboardingStep.forgotPassword:
         return OnboardingForgotPasswordStep(
           onBack: () => setState(() => _step = OnboardingStep.login),
-          onResetPassword: () => setState(() => _step = OnboardingStep.resetPassword),
+          onResetPassword: () =>
+              setState(() => _step = OnboardingStep.resetPassword),
         );
       case OnboardingStep.resetPassword:
         return OnboardingResetPasswordStep(
@@ -114,7 +138,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         );
       case OnboardingStep.acceptInvitation:
         return OnboardingAcceptInvitationStep(
-          token: '', 
+          token: '',
           onAccepted: () => setState(() => _step = OnboardingStep.login),
           onBackToLogin: () => setState(() => _step = OnboardingStep.login),
         );

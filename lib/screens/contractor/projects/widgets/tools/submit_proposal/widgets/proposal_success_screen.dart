@@ -18,11 +18,7 @@ class ProposalSuccessScreen extends StatelessWidget {
               color: Color(0xFF10973D),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.check,
-              size: 60,
-              color: Colors.white,
-            ),
+            child: const Icon(Icons.check, size: 60, color: Colors.white),
           ),
           const SizedBox(height: 32),
           const Text(

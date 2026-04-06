@@ -4,6 +4,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import '../../../../../features/marketplace/providers/marketplace_providers.dart';
 import '../../../../../features/marketplace/models/bid.dart';
+import '../../../../../features/projects/models/project.dart';
+import '../../../../../features/projects/providers/project_providers.dart';
 import '../../../../contractor/projects/widgets/tools/bid_detail_screen.dart';
 import '../../../../contractor/projects/widgets/tools/contractor_profile_screen.dart';
 
@@ -74,6 +76,7 @@ class BidsModal extends ConsumerWidget {
               error: (error, _) => Center(child: Text('Error loading bids: $error')),
               data: (response) {
                 final bids = response.data;
+
                 if (bids.isEmpty) {
                   return Center(
                     child: Column(
@@ -117,6 +120,15 @@ class _BidCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currencyFormat = NumberFormat.currency(symbol: '₦', decimalDigits: 0);
     final isLoading = ref.watch(marketplaceActionProvider).isLoading;
+    final projectAsync = ref.watch(projectDetailsProvider(projectId));
+    
+    // Check if project is already assigned
+    final isProjectAssigned = projectAsync.maybeWhen(
+      data: (p) => p.data?.contractorId != null || p.data?.status != ProjectStatus.pendingTender,
+      orElse: () => false,
+    );
+    
+    final isAccepted = bid.status.toLowerCase() == 'accepted';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -162,16 +174,34 @@ class _BidCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    currencyFormat.format(bid.amount),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF276572)),
+              if (isAccepted)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFABEFC6)),
                   ),
-                  const Text('Proposed Budget', style: TextStyle(fontSize: 11, color: Color(0xFF667085))),
-                ],
-              ),
+                  child: const Text(
+                    'ACCEPTED',
+                    style: TextStyle(
+                      color: Color(0xFF067647),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                )
+              else
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      currencyFormat.format(bid.amount),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF276572)),
+                    ),
+                    const Text('Proposed Budget', style: TextStyle(fontSize: 11, color: Color(0xFF667085))),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -263,19 +293,51 @@ class _BidCard extends ConsumerWidget {
               child: const Text('View Full Proposal', style: TextStyle(color: Color(0xFF344054), fontWeight: FontWeight.w600)),
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
+          if (!isProjectAssigned) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: isLoading ? null : () async {
+                      try {
+                        await ref.read(marketplaceActionProvider.notifier).acceptBid(bid.id, projectId: projectId);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Bid accepted successfully! Contractor assigned.')),
+                          );
+                          // Invalidate project details to reflect the change immediately
+                          ref.invalidate(projectDetailsProvider(projectId));
+                          Navigator.pop(context); // Close modal
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF276572),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: isLoading 
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('Accept & Assign', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton(
                   onPressed: isLoading ? null : () async {
                     try {
-                      await ref.read(marketplaceActionProvider.notifier).acceptBid(bid.id, projectId: projectId);
+                      await ref.read(marketplaceActionProvider.notifier).rejectBid(bid.id, projectId: projectId);
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Bid accepted successfully! Contractor assigned.')),
+                          const SnackBar(content: Text('Bid declined successfully.')),
                         );
-                        Navigator.pop(context); // Close modal
+                        Navigator.pop(context);
                       }
                     } catch (e) {
                       if (context.mounted) {
@@ -285,43 +347,40 @@ class _BidCard extends ConsumerWidget {
                       }
                     }
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF276572),
-                    elevation: 0,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFD0D5DD)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: isLoading 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Accept & Assign', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: const Text('Decline', style: TextStyle(color: Color(0xFF344054))),
                 ),
+              ],
+            ),
+          ] else if (isAccepted) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFABEFC6)),
               ),
-              const SizedBox(width: 12),
-              OutlinedButton(
-                onPressed: isLoading ? null : () async {
-                  try {
-                    await ref.read(marketplaceActionProvider.notifier).rejectBid(bid.id, projectId: projectId);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Bid declined successfully.')),
-                      );
-                      Navigator.pop(context);
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                      );
-                    }
-                  }
-                },
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFFD0D5DD)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Decline', style: TextStyle(color: Color(0xFF344054))),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle, color: Color(0xFF067647), size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'This contractor has been assigned',
+                    style: TextStyle(
+                      color: Color(0xFF067647),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );

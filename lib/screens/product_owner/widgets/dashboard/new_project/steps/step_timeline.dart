@@ -6,6 +6,8 @@ import 'package:converf/screens/product_owner/widgets/dashboard/new_project/mode
 import 'package:converf/screens/product_owner/widgets/dashboard/new_project/widgets/shared_widgets.dart';
 import 'package:converf/features/contractors/providers/contractor_providers.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/team/add_team_modal.dart';
+import 'package:converf/core/utils/currency_formatter.dart';
+import 'package:intl/intl.dart';
 
 class StepTimeline extends ConsumerStatefulWidget {
   const StepTimeline({super.key});
@@ -23,7 +25,18 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
   void initState() {
     super.initState();
     final state = ref.read(wizardStateProvider);
-    _budgetController = TextEditingController(text: state.budget);
+    
+    // Format initial budget with commas
+    String initialBudget = state.budget;
+    if (initialBudget.isNotEmpty) {
+      final formatter = NumberFormat('#,###');
+      try {
+        final double val = double.parse(initialBudget.replaceAll(RegExp(r'[^0-9]'), ''));
+        initialBudget = formatter.format(val);
+      } catch (_) {}
+    }
+    
+    _budgetController = TextEditingController(text: initialBudget);
     _searchController = TextEditingController();
   }
 
@@ -107,7 +120,19 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
             label: 'Total Budget Amount*',
             controller: _budgetController,
             hint: 'e.g., 450,000,000',
-            onChanged: (val) => notifier.updateTimelineBudget(budget: val),
+            keyboardType: TextInputType.number,
+            inputFormatters: [CurrencyInputFormatter()],
+            prefix: Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Text(
+                state.currency == 'USD' ? '\$' : '\u20A6',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+            onChanged: (val) {
+              final cleanVal = val.replaceAll(',', '');
+              notifier.updateTimelineBudget(budget: cleanVal);
+            },
           ),
         ),
       ],
@@ -183,7 +208,7 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
               );
               // Automatically set a sensible bidding deadline if none exists
               if (state.biddingDeadline == null && state.startDate != null) {
-                 notifier.updateTimelineBudget(biddingDeadline: state.startDate!.subtract(const Duration(days: 1)));
+                 notifier.updateTimelineBudget(biddingDeadline: state.startDate?.subtract(const Duration(days: 1)));
               }
             },
           ),
@@ -191,12 +216,12 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
         const SizedBox(width: 16),
         Expanded(
           child: AssignmentOption(
-            type: 'later',
+            type: 'decide_later',
             title: 'Decide\nLater',
             imagePath: 'assets/images/Calendar-1.svg',
-            isSelected: state.assignmentMethod == 'later',
+            isSelected: state.assignmentMethod == 'decide_later',
             onTap: () => notifier.updateTimelineBudget(
-              assignmentMethod: 'later',
+              assignmentMethod: 'decide_later',
               selectedContractorId: null,
             ),
           ),
@@ -274,14 +299,22 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
 
               return Column(
                 children: contractors.map((contractor) {
+                    final rating = contractor.profile.rating ?? 0;
+                    final projects = contractor.profile.totalProjectsCount ?? 0;
+                    final specialisation = (contractor.profile.specialisations?.isNotEmpty ?? false)
+                        ? contractor.profile.specialisations!.first.toUpperCase()
+                        : 'CONTRACTOR';
+                    final name = contractor.companyName.isNotEmpty
+                        ? contractor.companyName
+                        : contractor.displayName;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _buildContractorCard(
-                        contractor.companyName.isNotEmpty ? contractor.companyName : contractor.displayName,
+                        name,
                         contractor.avatarUrl ?? 'assets/images/africa.png',
-                        contractor.profile.rating,
-                        contractor.profile.totalProjectsCount,
-                        contractor.profile.specialisations.isNotEmpty ? contractor.profile.specialisations.first.toUpperCase() : 'CONTRACTOR',
+                        rating,
+                        projects,
+                        specialisation,
                         state,
                         notifier,
                         contractor.id,

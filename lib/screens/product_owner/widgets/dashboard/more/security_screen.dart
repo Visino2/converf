@@ -48,8 +48,8 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
 
     final payload = ChangePasswordPayload(
       currentPassword: current,
-      newPassword: newPassword,
-      newPasswordConfirmation: confirm,
+      password: newPassword,
+      passwordConfirmation: confirm,
     );
 
     try {

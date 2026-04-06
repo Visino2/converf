@@ -22,7 +22,9 @@ class FieldInspectionsModal extends ConsumerWidget {
 
     if (isEmbedded) {
       return inspectionsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+        loading: () => inspectionsAsync.hasValue 
+            ? _buildContent(context, inspectionsAsync.value!.data, ScrollController())
+            : const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
         error: (err, _) => Center(child: Text('Error: $err')),
         data: (response) => _buildContent(context, response.data, ScrollController()),
       );
@@ -55,7 +57,9 @@ class FieldInspectionsModal extends ConsumerWidget {
               ),
               Expanded(
                 child: inspectionsAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+                  loading: () => inspectionsAsync.hasValue 
+                      ? _buildContent(context, inspectionsAsync.value!.data, scrollController)
+                      : const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
                   error: (err, _) => Center(child: Text('Error: $err')),
                   data: (response) => _buildContent(context, response.data, scrollController),
                 ),

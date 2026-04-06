@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../../features/notifications/providers/notification_providers.dart';
 import '../../../../../features/projects/providers/project_providers.dart';
 import '../../../../../features/projects/models/project.dart';
 import 'message_details_screen.dart';
@@ -19,9 +22,35 @@ class _ProjectInboxScreenState extends ConsumerState<ProjectInboxScreen> {
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoRefresh();
+    Future<void>(() async {
+      try {
+        await ref
+            .read(notificationActionProvider.notifier)
+            .markMessageNotificationsRead();
+      } catch (_) {}
+    });
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (mounted) {
+        debugPrint('[Inbox] Auto-refreshing projects and notifications...');
+        ref.invalidate(projectsListProvider(1));
+        ref.invalidate(unreadMessageNotificationsCountProvider);
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -78,10 +107,14 @@ class _ProjectInboxScreenState extends ConsumerState<ProjectInboxScreen> {
             )
           else
             IconButton(
-              icon: SvgPicture.asset('assets/images/search.svg',
+              icon: SvgPicture.asset(
+                'assets/images/search.svg',
                 width: 24,
                 height: 24,
-                colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn),
+                colorFilter: const ColorFilter.mode(
+                  Colors.black,
+                  BlendMode.srcIn,
+                ),
               ),
               onPressed: () {
                 setState(() {
@@ -90,10 +123,14 @@ class _ProjectInboxScreenState extends ConsumerState<ProjectInboxScreen> {
               },
             ),
           IconButton(
-            icon: SvgPicture.asset('assets/images/message.svg',
+            icon: SvgPicture.asset(
+              'assets/images/message.svg',
               width: 24,
               height: 24,
-              colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn),
+              colorFilter: const ColorFilter.mode(
+                Color(0xFF276572),
+                BlendMode.srcIn,
+              ),
             ),
             onPressed: () {},
           ),
@@ -104,7 +141,10 @@ class _ProjectInboxScreenState extends ConsumerState<ProjectInboxScreen> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
                 child: Row(
                   children: [
                     _buildFilterButton('All'),
@@ -123,25 +163,28 @@ class _ProjectInboxScreenState extends ConsumerState<ProjectInboxScreen> {
       body: projectsAsync.when(
         data: (projectsResponse) {
           final projects = projectsResponse.data;
-          
+
           List<Project> displayedProjects = projects.where((proj) {
             bool matchesFilter = true;
             // Fake filter logic since API doesn't expose unread right now
-            if (_selectedFilter == 'Unread') matchesFilter = false; 
-            
+            if (_selectedFilter == 'Unread') matchesFilter = false;
+
             if (!matchesFilter) return false;
 
             if (_searchQuery.isNotEmpty) {
               return proj.title.toLowerCase().contains(_searchQuery) ||
-                     (proj.latestMessage?.body.toLowerCase().contains(_searchQuery) ?? false);
+                  (proj.latestMessage?.body.toLowerCase().contains(
+                        _searchQuery,
+                      ) ??
+                      false);
             }
             return true;
           }).toList();
 
           // Sort by latest message date descending
           displayedProjects.sort((a, b) {
-            final dateA = (a.latestMessage?.created_at ?? a.createdAt);
-            final dateB = (b.latestMessage?.created_at ?? b.createdAt);
+            final dateA = a.latestMessage?.createdAt ?? a.createdAt;
+            final dateB = b.latestMessage?.createdAt ?? b.createdAt;
             return DateTime.parse(dateB).compareTo(DateTime.parse(dateA));
           });
 
@@ -162,9 +205,14 @@ class _ProjectInboxScreenState extends ConsumerState<ProjectInboxScreen> {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: Color(0xFF276572)),
+        ),
         error: (error, stack) => Center(
-          child: Text('Error loading inbox: \${error.toString()}', style: const TextStyle(color: Colors.red)),
+          child: Text(
+            'Error loading inbox: \${error.toString()}',
+            style: const TextStyle(color: Colors.red),
+          ),
         ),
       ),
     );
@@ -187,7 +235,7 @@ class _ProjectInboxScreenState extends ConsumerState<ProjectInboxScreen> {
         child: Text(
           title,
           style: TextStyle(
-             fontSize: 14,
+            fontSize: 14,
             fontWeight: FontWeight.w500,
             color: isSelected ? Colors.white : const Color(0xFF667085),
           ),
@@ -199,11 +247,11 @@ class _ProjectInboxScreenState extends ConsumerState<ProjectInboxScreen> {
   Widget _buildMessageItem({required Project proj}) {
     String messageBody = proj.latestMessage?.body ?? 'No messages yet';
     String timeStr = '';
-    
+
     try {
-      final dateToFormat = proj.latestMessage?.created_at ?? proj.createdAt;
+      final dateToFormat = proj.latestMessage?.createdAt ?? proj.createdAt;
       final date = DateTime.parse(dateToFormat);
-      
+
       // Simple relative format, e.g. "Just now", "2m ago"
       final diff = DateTime.now().difference(date);
       if (diff.inDays > 1) {
@@ -253,7 +301,10 @@ class _ProjectInboxScreenState extends ConsumerState<ProjectInboxScreen> {
                       children: [
                         Text(
                           timeStr,
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF475467)),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF475467),
+                          ),
                         ),
                       ],
                     ),
@@ -264,7 +315,11 @@ class _ProjectInboxScreenState extends ConsumerState<ProjectInboxScreen> {
                   messageBody,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF475467), height: 1.5),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF475467),
+                    height: 1.5,
+                  ),
                 ),
               ],
             ),

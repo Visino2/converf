@@ -4,11 +4,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../projects/models/project_responses.dart';
 import '../../projects/providers/project_providers.dart';
 import '../models/marketplace_responses.dart';
+import '../models/marketplace_filters.dart';
 import '../repositories/marketplace_repository.dart';
 
-final marketplaceProjectsProvider = FutureProvider.family<PaginatedProjectsResponse, int>((ref, page) async {
+class MarketplaceFiltersNotifier extends Notifier<MarketplaceFilters> {
+  @override
+  MarketplaceFilters build() => MarketplaceFilters();
+
+  void update(MarketplaceFilters Function(MarketplaceFilters) cb) {
+    state = cb(state);
+  }
+
+  set state(MarketplaceFilters value) => super.state = value;
+}
+
+final marketplaceFiltersProvider = NotifierProvider<MarketplaceFiltersNotifier, MarketplaceFilters>(MarketplaceFiltersNotifier.new);
+
+typedef MarketplaceArgs = ({int page, MarketplaceFilters filters});
+
+final marketplaceProjectsProvider = FutureProvider.family<PaginatedProjectsResponse, MarketplaceArgs>((ref, args) async {
   final repository = ref.read(marketplaceRepositoryProvider);
-  return repository.fetchMarketplaceProjects(page: page);
+  return repository.fetchMarketplaceProjects(page: args.page, filters: args.filters);
 });
 
 final myBidsProvider = FutureProvider.family<PaginatedBidsResponse, int>((ref, page) async {
@@ -22,6 +38,20 @@ typedef ProjectBidsArgs = ({String projectId, int page});
 final projectBidsProvider = FutureProvider.family<PaginatedBidsResponse, ProjectBidsArgs>((ref, args) async {
   final repository = ref.read(marketplaceRepositoryProvider);
   return repository.fetchProjectBids(args.projectId, page: args.page);
+});
+
+bool _isOpenBidStatus(String status) {
+  final normalized = status.trim().toLowerCase();
+  return normalized != 'accepted' &&
+      normalized != 'rejected' &&
+      normalized != 'declined';
+}
+
+final projectOpenBidsCountProvider = FutureProvider.family<int, String>((ref, projectId) async {
+  final response = await ref.watch(
+    projectBidsProvider((projectId: projectId, page: 1)).future,
+  );
+  return response.data.where((bid) => _isOpenBidStatus(bid.status)).length;
 });
 
 class MarketplaceActionNotifier extends AsyncNotifier<void> {
@@ -60,6 +90,8 @@ class MarketplaceActionNotifier extends AsyncNotifier<void> {
       ref.invalidate(myBidsProvider);
       if (projectId != null) {
         ref.invalidate(projectBidsProvider);
+        ref.invalidate(projectOpenBidsCountProvider(projectId));
+        ref.invalidate(projectDetailsProvider(projectId));
       }
       return response;
     } catch (e, st) {
@@ -78,6 +110,8 @@ class MarketplaceActionNotifier extends AsyncNotifier<void> {
       ref.invalidate(myBidsProvider);
       if (projectId != null) {
         ref.invalidate(projectBidsProvider);
+        ref.invalidate(projectOpenBidsCountProvider(projectId));
+        ref.invalidate(projectDetailsProvider(projectId));
       }
       return response;
     } catch (e, st) {

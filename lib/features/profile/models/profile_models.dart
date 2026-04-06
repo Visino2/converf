@@ -91,6 +91,10 @@ class UserProfile {
 
   // Contractor specific fields
   final String? companyName;
+  final String? businessRegistrationNumber;
+  final String? licenseNumber;
+  final String? taxIdentificationNumber;
+  final String? businessAddress;
   final int? completedProjectsCount;
   final String? successRate;
   final String? averageQualityScore;
@@ -116,6 +120,10 @@ class UserProfile {
     required this.createdAt,
     required this.updatedAt,
     this.companyName,
+    this.businessRegistrationNumber,
+    this.licenseNumber,
+    this.taxIdentificationNumber,
+    this.businessAddress,
     this.completedProjectsCount,
     this.successRate,
     this.averageQualityScore,
@@ -131,28 +139,32 @@ class UserProfile {
       firstName: json['first_name']?.toString() ?? '',
       lastName: json['last_name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
-      phoneNumber: json['phone_number']?.toString(),
-      country: json['country']?.toString(),
-      city: json['city']?.toString(),
-      state: json['state']?.toString(),
-      bio: json['bio']?.toString(),
-      profilePicture: json['profile_picture']?.toString(),
-      avatarUrl: json['avatar_url']?.toString(),
+      phoneNumber: (json['phone_number'] ?? json['profile']?['phone_number'])?.toString(),
+      country: (json['country'] ?? json['profile']?['country'])?.toString(),
+      city: (json['city'] ?? json['profile']?['city'])?.toString(),
+      state: (json['state'] ?? json['profile']?['state'])?.toString(),
+      bio: (json['bio'] ?? json['profile']?['bio'])?.toString(),
+      profilePicture: (json['profile_picture'] ?? json['profile']?['profile_picture'])?.toString(),
+      avatarUrl: (json['avatar_url'] ?? json['profile']?['avatar_url'])?.toString(),
       role: json['role']?.toString() ?? '',
       notificationSettings: json['notification_settings'] != null
           ? NotificationSettings.fromJson(json['notification_settings'] as Map<String, dynamic>)
           : null,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : DateTime.now(),
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'] as String) : DateTime.now(),
-      companyName: json['company_name']?.toString(),
-      completedProjectsCount: json['completed_projects_count'] as int?,
-      successRate: json['success_rate']?.toString(),
-      averageQualityScore: json['average_quality_score']?.toString(),
-      responseTime: json['response_time']?.toString(),
-      skills: json['skills'] != null ? List<String>.from(json['skills'] as List) : null,
-      serviceAreas: json['service_areas'] != null ? List<String>.from(json['service_areas'] as List) : null,
-      verificationStatuses: json['verification_statuses'] != null 
-          ? Map<String, String>.from(json['verification_statuses'] as Map) 
+      companyName: (json['company_name'] ?? json['profile']?['company_name'])?.toString(),
+      businessRegistrationNumber: (json['business_registration_number'] ?? json['profile']?['business_registration_number'])?.toString(),
+      licenseNumber: (json['license_number'] ?? json['profile']?['license_number'])?.toString(),
+      taxIdentificationNumber: (json['tax_identification_number'] ?? json['profile']?['tax_identification_number'])?.toString(),
+      businessAddress: (json['business_address'] ?? json['profile']?['business_address'])?.toString(),
+      completedProjectsCount: (json['completed_projects_count'] ?? json['profile']?['completed_projects_count']) as int?,
+      successRate: (json['success_rate'] ?? json['profile']?['success_rate'])?.toString(),
+      averageQualityScore: (json['average_quality_score'] ?? json['profile']?['average_quality_score'])?.toString(),
+      responseTime: (json['response_time'] ?? json['profile']?['response_time'])?.toString(),
+      skills: (json['skills'] ?? json['profile']?['skills']) != null ? List<String>.from((json['skills'] ?? json['profile']?['skills']) as List) : null,
+      serviceAreas: (json['service_areas'] ?? json['profile']?['service_areas']) != null ? List<String>.from((json['service_areas'] ?? json['profile']?['service_areas']) as List) : null,
+      verificationStatuses: (json['verification_statuses'] ?? json['profile']?['verification_statuses']) != null 
+          ? Map<String, String>.from((json['verification_statuses'] ?? json['profile']?['verification_statuses']) as Map) 
           : null,
     );
   }
@@ -175,6 +187,10 @@ class UserProfile {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'company_name': companyName,
+      'business_registration_number': businessRegistrationNumber,
+      'license_number': licenseNumber,
+      'tax_identification_number': taxIdentificationNumber,
+      'business_address': businessAddress,
       'completed_projects_count': completedProjectsCount,
       'success_rate': successRate,
       'average_quality_score': averageQualityScore,
@@ -194,6 +210,11 @@ class UpdateProfilePayload {
   final String? city;
   final String? state;
   final String? bio;
+  final String? companyName;
+  final String? businessRegistrationNumber;
+  final String? licenseNumber;
+  final String? taxIdentificationNumber;
+  final String? businessAddress;
 
   UpdateProfilePayload({
     this.firstName,
@@ -203,9 +224,16 @@ class UpdateProfilePayload {
     this.city,
     this.state,
     this.bio,
+    this.companyName,
+    this.businessRegistrationNumber,
+    this.licenseNumber,
+    this.taxIdentificationNumber,
+    this.businessAddress,
   });
 
   Map<String, dynamic> toJson() {
+    // API requires all fields at the top level (NOT nested under 'profile').
+    // first_name + last_name are required by the backend validation.
     final data = <String, dynamic>{};
     if (firstName != null) data['first_name'] = firstName;
     if (lastName != null) data['last_name'] = lastName;
@@ -214,26 +242,35 @@ class UpdateProfilePayload {
     if (city != null) data['city'] = city;
     if (state != null) data['state'] = state;
     if (bio != null) data['bio'] = bio;
+    if (companyName != null) data['company_name'] = companyName;
+    if (businessRegistrationNumber != null) {
+      data['business_registration_number'] = businessRegistrationNumber;
+    }
+    if (licenseNumber != null) data['license_number'] = licenseNumber;
+    if (taxIdentificationNumber != null) {
+      data['tax_identification_number'] = taxIdentificationNumber;
+    }
+    if (businessAddress != null) data['business_address'] = businessAddress;
     return data;
   }
 }
 
 class ChangePasswordPayload {
   final String currentPassword;
-  final String newPassword;
-  final String newPasswordConfirmation;
+  final String password;
+  final String passwordConfirmation;
 
   ChangePasswordPayload({
     required this.currentPassword,
-    required this.newPassword,
-    required this.newPasswordConfirmation,
+    required this.password,
+    required this.passwordConfirmation,
   });
 
   Map<String, dynamic> toJson() {
     return {
       'current_password': currentPassword,
-      'new_password': newPassword,
-      'new_password_confirmation': newPasswordConfirmation,
+      'password': password,
+      'password_confirmation': passwordConfirmation,
     };
   }
 }

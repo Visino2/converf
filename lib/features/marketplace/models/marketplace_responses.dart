@@ -84,17 +84,18 @@ class BookmarkResponse {
 }
 
 class SubmitBidPayload {
-  final num amount;
+  final double amount;
   final String proposal;
   final String? duration;
   final String? paymentPreference;
   final List<Map<String, dynamic>>? milestones;
-  final List<Map<String, dynamic>>? teamMembers;
+  final List<String>? teamMembers;
   final List<String>? equipment;
-  final List<Map<String, dynamic>>? portfolioProjects;
+  final List<String>? portfolioProjects;
   final List<Map<String, dynamic>>? certifications;
+  final List<String>? documentPaths;
 
-  SubmitBidPayload({
+  const SubmitBidPayload({
     required this.amount,
     required this.proposal,
     this.duration,
@@ -104,6 +105,7 @@ class SubmitBidPayload {
     this.equipment,
     this.portfolioProjects,
     this.certifications,
+    this.documentPaths,
   });
 
   Map<String, dynamic> toJson() {

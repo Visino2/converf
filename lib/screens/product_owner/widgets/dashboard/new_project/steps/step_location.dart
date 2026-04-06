@@ -54,25 +54,21 @@ class _StepLocationState extends ConsumerState<StepLocation> {
       'Yobe': ['Bade', 'Bursari', 'Damaturu', 'Fika', 'Fune', 'Geidam', 'Gujba', 'Gulani', 'Jakusko', 'Karasuwa', 'Machina', ' Nangere', 'Nguru', 'Potiskum', 'Tarmuwa', 'Yunusari', 'Yusufari'],
       'Zamfara': ['Anka', 'Bakura', 'Birnin Magaji/Kiyaw', 'Bukkuyum', 'Bungudu', 'Gummi', 'Gusau', 'Kaura Namoda', 'Maradun', 'Maru', 'Shinkafi', 'Talata Mafara', 'Chafe', 'Zurmi'],
     },
-    'Kenya': {
-      'Nairobi': ['Westlands', 'Kilimani', 'Karen'],
-      'Mombasa': ['Nyali', 'Mtwapa', 'Diani'],
-    },
-    'Ghana': {
-      'Greater Accra': ['Accra', 'Tema', 'Cantonments'],
-      'Ashanti': ['Kumasi', 'Obuasi'],
-    },
-    'South Africa': {
-      'Gauteng': ['Johannesburg', 'Pretoria', 'Sandton'],
-      'Western Cape': ['Cape Town', 'Stellenbosch'],
-    },
   };
+
 
   @override
   void initState() {
     super.initState();
     final state = ref.read(wizardStateProvider);
     _addressController = TextEditingController(text: state.address);
+    
+    // Auto-select Nigeria if not selected
+    if (state.country != 'Nigeria') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(wizardStateProvider.notifier).updateLocation(country: 'Nigeria');
+      });
+    }
   }
 
   @override
@@ -112,16 +108,9 @@ class _StepLocationState extends ConsumerState<StepLocation> {
             Expanded(
               child: WizardDropdown(
                 label: 'Country*',
-                value: state.country,
-                items: _locationData.keys.toList(),
-                onChanged: (val) {
-                  // Explicitly clear dependent fields since country changed
-                  notifier.updateState(state.copyWith(
-                    country: val,
-                    state: null,
-                    city: null,
-                  ));
-                },
+                value: state.country ?? 'Nigeria',
+                items: const ['Nigeria'],
+                onChanged: (val) => notifier.updateLocation(country: val),
               ),
             ),
             const SizedBox(width: 16),
@@ -129,7 +118,7 @@ class _StepLocationState extends ConsumerState<StepLocation> {
               child: WizardDropdown(
                 label: 'State/Province*',
                 value: state.state,
-                items: state.country != null ? _locationData[state.country]!.keys.toList() : [],
+                items: _locationData['Nigeria']!.keys.toList(),
                 onChanged: (val) {
                   // Explicitly clear city since state changed
                   notifier.updateState(state.copyWith(
@@ -139,7 +128,6 @@ class _StepLocationState extends ConsumerState<StepLocation> {
                 },
               ),
             ),
-
           ],
         ),
         const SizedBox(height: 16),

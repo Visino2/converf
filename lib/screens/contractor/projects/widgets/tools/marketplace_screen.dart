@@ -1,17 +1,22 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/features/projects/models/project.dart';
 import 'package:converf/features/marketplace/models/bid.dart';
+import 'package:converf/features/marketplace/models/marketplace_filters.dart';
 import 'package:converf/features/marketplace/providers/marketplace_providers.dart';
 import 'marketplace_project_details_screen.dart';
+import 'marketplace_filter_sheet.dart';
 
 class MarketplaceScreen extends ConsumerStatefulWidget {
   final bool initialShowMyBids;
-  
+  final bool showBackButton;
+
   const MarketplaceScreen({
     super.key,
     this.initialShowMyBids = false,
+    this.showBackButton = true,
   });
 
   @override
@@ -21,70 +26,58 @@ class MarketplaceScreen extends ConsumerStatefulWidget {
 class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   late bool _browseSelected;
   final _searchController = TextEditingController();
-  
-  // Filter states
-  String _selectedType = 'All Types';
-  String _selectedCity = 'All Cities';
-  String _selectedBudget = 'Any Budget';
-
-  final List<String> _budgetRanges = [
-    'Any Budget',
-    'Under \$10k',
-    '\$10k - \$50k',
-    '\$50k - \$100k',
-    'Over \$100k'
-  ];
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _browseSelected = !widget.initialShowMyBids;
     _searchController.addListener(_onSearch);
+    _startAutoRefresh();
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        debugPrint('[Marketplace] Auto-refreshing projects and bids...');
+        ref.invalidate(marketplaceProjectsProvider);
+        ref.invalidate(myBidsProvider);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
   void _onSearch() {
-    setState(() {});
+    ref.read(marketplaceFiltersProvider.notifier).update(
+      (state) => state.copyWith(searchQuery: _searchController.text),
+    );
   }
 
-  bool _matchesFilter(Project p) {
-    if (_selectedType != 'All Types' && p.constructionType.toLowerCase() != _selectedType.toLowerCase()) {
-      return false;
-    }
-    if (_selectedCity != 'All Cities' && !p.formattedLocation.toLowerCase().contains(_selectedCity.toLowerCase())) {
-      return false;
-    }
-    if (_selectedBudget != 'Any Budget') {
-      final budget = num.tryParse(p.budget) ?? 0;
-      switch (_selectedBudget) {
-        case 'Under \$10k': if (budget >= 10000) return false; break;
-        case '\$10k - \$50k': if (budget < 10000 || budget > 50000) return false; break;
-        case '\$50k - \$100k': if (budget < 50000 || budget > 100000) return false; break;
-        case 'Over \$100k': if (budget < 100000) return false; break;
-      }
-    }
-    return true;
-  }
 
   @override
   Widget build(BuildContext context) {
-    final projectsAsync = ref.watch(marketplaceProjectsProvider(1));
-    final projectsList = projectsAsync.value?.data ?? [];
+    final filters = ref.watch(marketplaceFiltersProvider);
+    final args = (page: 1, filters: filters);
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        automaticallyImplyLeading: false,
+        leading: widget.showBackButton
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
         title: const Text(
           'Market Place',
           style: TextStyle(
@@ -111,22 +104,33 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                     setState(() => _browseSelected = false);
                   }),
                   const Spacer(),
-                  // Funnel icon
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF3F4F6),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE4E7EC)),
-                    ),
-                    child: Center(
-                      child: SvgPicture.asset(
-                        'assets/images/funnel.svg',
-                        width: 20,
-                        height: 20,
-                        colorFilter: const ColorFilter.mode(
-                            Color(0xFF4B5563), BlendMode.srcIn),
+                  GestureDetector(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => const MarketplaceFilterSheet(),
+                      );
+                    },
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE4E7EC)),
+                      ),
+                      child: Center(
+                        child: SvgPicture.asset(
+                          'assets/images/funnel.svg',
+                          width: 20,
+                          height: 20,
+                          colorFilter: const ColorFilter.mode(
+                            Color(0xFF4B5563),
+                            BlendMode.srcIn,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -135,7 +139,6 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
             ),
             const SizedBox(height: 12),
 
-           
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Container(
@@ -147,17 +150,6 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                 ),
                 child: Column(
                   children: [
-                    // Filter dropdowns
-                    Row(
-                      children: [
-                        _buildTypeDropdown(),
-                        const SizedBox(width: 8),
-                        _buildCityDropdown(projectsList),
-                        const SizedBox(width: 8),
-                        _buildBudgetDropdown(),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
                     // Search bar
                     TextField(
                       controller: _searchController,
@@ -170,19 +162,25 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                             width: 16,
                             height: 16,
                             colorFilter: const ColorFilter.mode(
-                                Color(0xFF9CA3AF), BlendMode.srcIn),
+                              Color(0xFF9CA3AF),
+                              BlendMode.srcIn,
+                            ),
                           ),
                         ),
-                        hintText: 'Search here...',
+                        hintText: 'Search projects...',
                         hintStyle: const TextStyle(
-                            fontSize: 14, color: Color(0xFF9CA3AF)),
+                          fontSize: 14,
+                          color: Color(0xFF9CA3AF),
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF9FAFB),
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 12),
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: const Color(0xFFF0F2F5)),
+                          borderSide: const BorderSide(color: Color(0xFFF0F2F5)),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -191,91 +189,119 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: const BorderSide(
-                              color: Color(0xFF276572), width: 1.5),
+                            color: Color(0xFF276572),
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
                     // Dynamic Active filter chips
-                    Row(
-                      children: [
-                        if (_selectedType != 'All Types') _buildFilterChip(_selectedType, () => setState(() => _selectedType = 'All Types')),
-                        if (_selectedCity != 'All Cities') _buildFilterChip(_selectedCity, () => setState(() => _selectedCity = 'All Cities')),
-                        if (_selectedBudget != 'Any Budget') _buildFilterChip(_selectedBudget, () => setState(() => _selectedBudget = 'Any Budget')),
-                        const Spacer(),
-                        if (_selectedType != 'All Types' || _selectedCity != 'All Cities' || _selectedBudget != 'Any Budget')
-                          GestureDetector(
-                            onTap: () => setState(() {
-                              _selectedType = 'All Types';
-                              _selectedCity = 'All Cities';
-                              _selectedBudget = 'Any Budget';
-                            }),
-                            child: Container(
-                              width: 28,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                border:
-                                    Border.all(color: const Color(0xFFE5E7EB)),
-                                shape: BoxShape.circle,
+                    if (!filters.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: [
+                                    if (filters.location != null && filters.location!.isNotEmpty)
+                                      _buildFilterChip(
+                                        filters.location!,
+                                        () => ref.read(marketplaceFiltersProvider.notifier).update(
+                                          (s) => s.copyWith(location: ''),
+                                        ),
+                                      ),
+                                    if (filters.constructionType != null && filters.constructionType != 'all')
+                                      _buildFilterChip(
+                                        filters.constructionType!,
+                                        () => ref.read(marketplaceFiltersProvider.notifier).update(
+                                          (s) => s.copyWith(constructionType: 'all'),
+                                        ),
+                                      ),
+                                    if (filters.minBudget != null)
+                                      _buildFilterChip(
+                                        '₦${(filters.minBudget! / 1000000).toStringAsFixed(1)}M+',
+                                        () => ref.read(marketplaceFiltersProvider.notifier).update(
+                                          (s) => s.copyWith(minBudget: null, maxBudget: null),
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
-                              child: const Icon(Icons.close,
-                                  size: 15, color: Color(0xFF6B7280)),
                             ),
-                          ),
-                      ],
-                    ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => ref.read(marketplaceFiltersProvider.notifier).state = MarketplaceFilters(),
+                              child: Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  size: 15,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            
+
             Expanded(
               child: _browseSelected
-                  ? ref.watch(marketplaceProjectsProvider(1)).when(
-                      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
-                      error: (err, _) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
-                      data: (response) {
-                        final q = _searchController.text.toLowerCase();
-                        final projects = response.data.where((p) {
-                          final matchesSearch = p.title.toLowerCase().contains(q) ||
-                              p.formattedLocation.toLowerCase().contains(q);
-                          return matchesSearch && _matchesFilter(p);
-                        }).toList();
-
-                        if (projects.isEmpty) {
-                          return const Center(child: Text('No projects match your filters', style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF))));
-                        }
-
-                        return ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: projects.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 16),
-                          itemBuilder: (context, i) => _buildProjectCard(context, projects[i]),
-                        );
-                      },
-                    )
-                  : ref.watch(myBidsProvider(1)).when(
-                      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
-                      error: (err, _) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
-                      data: (response) {
-                        final bids = response.data;
-                        if (bids.isEmpty) {
-                          return const Center(child: Text('You have not placed any bids yet', style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF))));
-                        }
-
-                        return ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: bids.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 16),
-                          itemBuilder: (context, i) {
-                            final project = bids[i].project;
-                            if (project == null) return const SizedBox.shrink();
-                            return _buildProjectCard(context, project, bid: bids[i]);
-                          },
-                        );
-                      },
-                    ),
+                  ? ref
+                        .watch(marketplaceProjectsProvider(args))
+                        .when(
+                          loading: () =>
+                              ref.watch(marketplaceProjectsProvider(args)).hasValue
+                              ? _buildBrowseBody(
+                                  ref
+                                      .watch(marketplaceProjectsProvider(args))
+                                      .value!,
+                                )
+                              : const Center(
+                                  child: CircularProgressIndicator(
+                                    color: Color(0xFF276572),
+                                  ),
+                                ),
+                          error: (err, _) => Center(
+                            child: Text(
+                              'Error: $err',
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          ),
+                          data: (response) => _buildBrowseBody(response),
+                        )
+                  : ref
+                        .watch(myBidsProvider(1))
+                        .when(
+                          loading: () => ref.watch(myBidsProvider(1)).hasValue
+                              ? _buildMyBidsBody(
+                                  ref.watch(myBidsProvider(1)).value!,
+                                )
+                              : const Center(
+                                  child: CircularProgressIndicator(
+                                    color: Color(0xFF276572),
+                                  ),
+                                ),
+                          error: (err, _) => Center(
+                            child: Text(
+                              'Error: $err',
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          ),
+                          data: (response) => _buildMyBidsBody(response),
+                        ),
             ),
             const SizedBox(height: 16),
           ],
@@ -284,82 +310,58 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
     );
   }
 
-  Widget _buildTypeDropdown() {
-    final types = ['All Types', 'Residential', 'Commercial', 'Roadway', 'Infrastructure'];
-    return _filterDropdown(
-      value: _selectedType,
-      options: types,
-      onChanged: (val) => setState(() => _selectedType = val!),
-    );
-  }
+  Widget _buildBrowseBody(dynamic response) {
+    final projects = response.data;
 
-  Widget _buildCityDropdown(List<Project> projects) {
-    final cities = {'All Cities'};
-    for (var p in projects) {
-      if (p.location.contains(',')) {
-        cities.add(p.location.split(',').first.trim());
-      } else {
-        cities.add(p.location.trim());
-      }
+    if (projects.isEmpty) {
+      return const Center(
+        child: Text(
+          'No projects match your filters',
+          style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+        ),
+      );
     }
-    return _filterDropdown(
-      value: _selectedCity,
-      options: cities.toList(),
-      onChanged: (val) => setState(() => _selectedCity = val!),
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: projects.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 16),
+      itemBuilder: (context, i) => _buildProjectCard(context, projects[i]),
     );
   }
 
-  Widget _buildBudgetDropdown() {
-    return _filterDropdown(
-      value: _selectedBudget,
-      options: _budgetRanges,
-      onChanged: (val) => setState(() => _selectedBudget = val!),
-    );
-  }
-
-  Widget _filterDropdown({
-    required String value,
-    required List<String> options,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFE4E7EC)),
-          borderRadius: BorderRadius.circular(8),
+  Widget _buildMyBidsBody(dynamic response) {
+    final bids = response.data;
+    if (bids.isEmpty) {
+      return const Center(
+        child: Text(
+          'You have not placed any bids yet',
+          style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
         ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            value: options.contains(value) ? value : options.first,
-            isExpanded: true,
-            icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFF9CA3AF)),
-            style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
-            onChanged: onChanged,
-            items: options.map((String opt) {
-              return DropdownMenuItem<String>(
-                value: opt,
-                child: Text(opt, overflow: TextOverflow.ellipsis),
-              );
-            }).toList(),
-          ),
-        ),
-      ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: bids.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 16),
+      itemBuilder: (context, i) {
+        final project = bids[i].project;
+        if (project == null) return const SizedBox.shrink();
+        return _buildProjectCard(context, project, bid: bids[i]);
+      },
     );
   }
 
-  Widget _buildToggleBtn(
-      String label, bool selected, VoidCallback onTap) {
+
+  Widget _buildToggleBtn(String label, bool selected, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFF276572)
-              : const Color(0xFFF3F4F6),
+          color: selected ? const Color(0xFF276572) : const Color(0xFFF3F4F6),
           borderRadius: BorderRadius.circular(30),
         ),
         child: Text(
@@ -373,7 +375,6 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
       ),
     );
   }
-
 
   Widget _buildFilterChip(String label, VoidCallback onRemove) {
     return Container(
@@ -417,7 +418,6 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          
           Row(
             children: [
               Expanded(
@@ -435,12 +435,11 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
               if (bid != null)
                 _buildBidStatusBadge(bid.status)
               else
-                const Icon(Icons.verified,
-                  color: Color(0xFF4ADE80), size: 18),
+                const Icon(Icons.verified, color: Color(0xFF4ADE80), size: 18),
             ],
           ),
           const SizedBox(height: 4),
-     
+
           Row(
             children: [
               SvgPicture.asset(
@@ -448,14 +447,18 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                 width: 13,
                 height: 13,
                 colorFilter: const ColorFilter.mode(
-                    Color(0xFF6B7280), BlendMode.srcIn),
+                  Color(0xFF6B7280),
+                  BlendMode.srcIn,
+                ),
               ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   p.formattedLocation,
                   style: const TextStyle(
-                      fontSize: 12, color: Color(0xFF6B7280)),
+                    fontSize: 12,
+                    color: Color(0xFF6B7280),
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -467,19 +470,25 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
             child: SizedBox(
               height: 200,
               width: double.infinity,
-              child: Image.asset(
-                'assets/images/lekki-complex.png', // Temporary placeholder
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) =>
-                    Container(color: const Color(0xFF309DAA)),
-              ),
+              child: p.coverImage != null && p.coverImage!.isNotEmpty
+                  ? Image.network(
+                      p.coverImage!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Container(color: const Color(0xFF309DAA)),
+                    )
+                  : Image.asset(
+                      'assets/images/lekki-complex.png',
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Container(color: const Color(0xFF309DAA)),
+                    ),
             ),
           ),
           const SizedBox(height: 10),
 
           Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -489,18 +498,24 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                   color: Color(0x0A000000),
                   blurRadius: 4,
                   offset: Offset(0, 1),
-                )
+                ),
               ],
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _buildStatChip(
-                    'assets/images/bill-list.svg', p.formattedBudget),
+                  'assets/images/bill-list.svg',
+                  p.formattedBudget,
+                ),
                 _buildStatChip(
-                    'assets/images/Calendar.svg', p.formattedDates.split(' - ').first),
+                  'assets/images/Calendar.svg',
+                  p.formattedDates.split(' - ').first,
+                ),
                 _buildStatChip(
-                    'assets/images/clock-circle.svg', p.status.label),
+                  'assets/images/clock-circle.svg',
+                  p.status.label,
+                ),
               ],
             ),
           ),
@@ -543,11 +558,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: fg,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
+        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -559,8 +570,10 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
           iconPath,
           width: 14,
           height: 14,
-          colorFilter:
-              const ColorFilter.mode(Color(0xFF6B7280), BlendMode.srcIn),
+          colorFilter: const ColorFilter.mode(
+            Color(0xFF6B7280),
+            BlendMode.srcIn,
+          ),
         ),
         const SizedBox(width: 5),
         Text(

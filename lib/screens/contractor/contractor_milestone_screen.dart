@@ -1,69 +1,164 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'widgets/reinspection_modals.dart';
-import 'widgets/qaqc_audit_modal.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
+import '../../../features/dashboard/providers/dashboard_providers.dart';
+import '../../../features/projects/providers/milestone_providers.dart';
+import '../../../features/projects/models/milestone.dart';
+import 'package:intl/intl.dart';
 
-class ContractorMilestoneScreen extends StatefulWidget {
+class ContractorMilestoneScreen extends ConsumerStatefulWidget {
   const ContractorMilestoneScreen({super.key});
 
   @override
-  State<ContractorMilestoneScreen> createState() => _ContractorMilestoneScreenState();
+  ConsumerState<ContractorMilestoneScreen> createState() =>
+      _ContractorMilestoneScreenState();
 }
 
-class _ContractorMilestoneScreenState extends State<ContractorMilestoneScreen> {
+class _ContractorMilestoneScreenState
+    extends ConsumerState<ContractorMilestoneScreen> {
   String _selectedFilter = 'All';
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoRefresh();
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        debugPrint('[ContractorMilestones] Auto-refreshing data...');
+        ref.invalidate(allContractorMilestonesProvider);
+        ref.invalidate(dashboardStatsProvider);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    // ignore: unused_local_variable
+    final milestonesAsync = ref.watch(allContractorMilestonesProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 24),
-              _buildStatsGrid(),
-              const SizedBox(height: 24),
-              _buildFilterChips(),
-              const SizedBox(height: 24),
-              _buildMilestoneCard(
-                title: 'Lekki Residential Complex',
-                location: 'Lekki Phase 1, Lagos',
-                status: 'AT RISK',
-                statusColor: const Color(0xFFF79009),
-                imagePath: 'assets/images/bg-1.png',
-                progress: 0.65,
-                inspectionRequired: true,
-                qualityScore: '94%',
-                isQualityGood: true,
-                actionText: 'Complete Milestone',
-                actionIcon: Icons.chevron_right,
-                onActionTap: () => showQualityVerificationFailedModal(context),
-              ),
-              const SizedBox(height: 24),
-              _buildMilestoneCard(
-                title: 'Lekki Residential Complex',
-                location: 'Lekki Phase 1, Lagos',
-                status: 'AT RISK',
-                statusColor: const Color(0xFFF79009),
-                imagePath: 'assets/images/bg-1.png',
-                progress: 0.65,
-                inspectionRequired: true,
-                qualityScore: '64%',
-                isQualityGood: false,
-                actionText: 'Request Re-inspect (N50,000)',
-                isErrorAction: true,
-                onActionTap: () => showQualityVerificationFailedModal(context),
-              ),
-              const SizedBox(height: 24),
-            ],
+        child: RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(allContractorMilestonesProvider);
+            return ref.read(allContractorMilestonesProvider.future);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 24),
+                /* milestonesAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (err, _) => Center(child: Text('Error loading milestones: $err')),
+                  data: (milestones) => _buildStatsGrid(milestones),
+                ),
+                const SizedBox(height: 24),
+                _buildFilterChips(),
+                const SizedBox(height: 24),
+                milestonesAsync.when(
+                  loading: () => const SizedBox(),
+                  error: (err, _) => const SizedBox(),
+                  data: (milestones) {
+                    final filtered = _applyFilter(milestones);
+                    
+                    if (filtered.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 40),
+                          child: Column(
+                            children: [
+                              Icon(Icons.assignment_turned_in_outlined, size: 48, color: Colors.grey[300]),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No ${_selectedFilter.toLowerCase()} milestones found',
+                                style: const TextStyle(color: Colors.grey, fontSize: 16),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Column(
+                      children: filtered.map((m) => Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: _buildMilestoneCardFromData(m),
+                      )).toList(),
+                    );
+                  },
+                ), */
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.storefront_outlined,
+                          size: 48,
+                          color: Colors.black26,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Marketplace Features Coming Soon',
+                          style: TextStyle(color: Colors.black54, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  // ignore: unused_element
+  List<MilestoneWithProject> _applyFilter(
+    List<MilestoneWithProject> milestones,
+  ) {
+    switch (_selectedFilter) {
+      case 'Overdue':
+        return milestones
+            .where(
+              (m) =>
+                  m.milestone.dueDate != null &&
+                  m.milestone.dueDate!.isBefore(DateTime.now()) &&
+                  !m.milestone.isApproved,
+            )
+            .toList();
+      case 'This Week':
+        final now = DateTime.now();
+        final nextWeek = now.add(const Duration(days: 7));
+        return milestones
+            .where(
+              (m) =>
+                  m.milestone.dueDate != null &&
+                  m.milestone.dueDate!.isAfter(now) &&
+                  m.milestone.dueDate!.isBefore(nextWeek),
+            )
+            .toList();
+      default:
+        return milestones;
+    }
   }
 
   Widget _buildHeader() {
@@ -71,7 +166,7 @@ class _ContractorMilestoneScreenState extends State<ContractorMilestoneScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         const Text(
-          'Milestones & Tasks',
+          'Marketplace',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -86,7 +181,24 @@ class _ContractorMilestoneScreenState extends State<ContractorMilestoneScreen> {
     );
   }
 
-  Widget _buildStatsGrid() {
+  // ignore: unused_element
+  Widget _buildStatsGrid(List<MilestoneWithProject> milestones) {
+    final pending = milestones.where((m) => m.milestone.isPending).length;
+    final overdue = milestones
+        .where(
+          (m) =>
+              m.milestone.dueDate != null &&
+              m.milestone.dueDate!.isBefore(DateTime.now()) &&
+              !m.milestone.isApproved,
+        )
+        .length;
+    final thisWeek = milestones.where((m) {
+      if (m.milestone.dueDate == null) return false;
+      final now = DateTime.now();
+      return m.milestone.dueDate!.isAfter(now) &&
+          m.milestone.dueDate!.isBefore(now.add(const Duration(days: 7)));
+    }).length;
+
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -95,10 +207,34 @@ class _ContractorMilestoneScreenState extends State<ContractorMilestoneScreen> {
       crossAxisSpacing: 16,
       childAspectRatio: 1.3,
       children: [
-        _buildStatCard('Pending Tasks', '2', 'assets/images/Construction-2.svg', const Color(0xFFF0FBFB), const Color(0xFF41B4CA)),
-        _buildStatCard('Overdue', '8', 'assets/images/clock.svg', const Color(0xFFFFF6ED), const Color(0xFFF79009)),
-        _buildStatCard('QA Scheduled', '8', 'assets/images/check-circle.svg', const Color(0xFFFFF6ED), const Color(0xFFF79009)),
-        _buildStatCard('Due this week', '₦1.3B', 'assets/images/Case.svg', const Color(0xFFF0FBFB), const Color(0xFF41B4CA)),
+        _buildStatCard(
+          'Pending',
+          pending.toString(),
+          'assets/images/Construction-2.svg',
+          const Color(0xFFF0FBFB),
+          const Color(0xFF41B4CA),
+        ),
+        _buildStatCard(
+          'Overdue',
+          overdue.toString(),
+          'assets/images/clock.svg',
+          const Color(0xFFFFF6ED),
+          const Color(0xFFF79009),
+        ),
+        _buildStatCard(
+          'Due this week',
+          thisWeek.toString(),
+          'assets/images/Case.svg',
+          const Color(0xFFF0FBFB),
+          const Color(0xFF41B4CA),
+        ),
+        _buildStatCard(
+          'Completed',
+          milestones.where((m) => m.milestone.isApproved).length.toString(),
+          'assets/images/check-circle.svg',
+          const Color(0xFFFFF6ED),
+          const Color(0xFFF79009),
+        ),
       ],
     );
   }
@@ -119,11 +255,7 @@ class _ContractorMilestoneScreenState extends State<ContractorMilestoneScreen> {
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _DottedGridPainter(),
-            ),
-          ),
+          Positioned.fill(child: CustomPaint(painter: _DottedGridPainter())),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -150,7 +282,7 @@ class _ContractorMilestoneScreenState extends State<ContractorMilestoneScreen> {
                         imagePath,
                         fit: BoxFit.contain,
                         colorFilter: ColorFilter.mode(
-                          iconColor, 
+                          iconColor,
                           BlendMode.srcIn,
                         ),
                       ),
@@ -184,6 +316,7 @@ class _ContractorMilestoneScreenState extends State<ContractorMilestoneScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildFilterChips() {
     final filters = ['All', 'Overdue', 'This Week'];
     return SingleChildScrollView(
@@ -196,9 +329,14 @@ class _ContractorMilestoneScreenState extends State<ContractorMilestoneScreen> {
             child: GestureDetector(
               onTap: () => setState(() => _selectedFilter = filter),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF276572) : const Color(0xFFF2F4F7),
+                  color: isSelected
+                      ? const Color(0xFF276572)
+                      : const Color(0xFFF2F4F7),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Text(
@@ -216,21 +354,56 @@ class _ContractorMilestoneScreenState extends State<ContractorMilestoneScreen> {
     );
   }
 
+  // ignore: unused_element
+  Widget _buildMilestoneCardFromData(MilestoneWithProject data) {
+    final m = data.milestone;
+    final currencyFormat = NumberFormat.currency(symbol: '₦', decimalDigits: 0);
+
+    // Status color mapping
+    Color statusColor = const Color(0xFFF79009);
+    String statusLabel = m.status.toUpperCase();
+    if (m.isApproved) {
+      statusColor = const Color(0xFF12B76A);
+    } else if (m.isDeclined) {
+      statusColor = const Color(0xFFD92D20);
+    }
+
+    return _buildMilestoneCard(
+      title: m.title,
+      projectName: data.projectName,
+      location: data.projectLocation ?? 'No location set',
+      status: statusLabel,
+      statusColor: statusColor,
+      imagePath: data.projectImage ?? 'assets/images/bg-1.png',
+      amount: currencyFormat.format(m.amount),
+      dueDate: m.dueDate != null
+          ? DateFormat('MMM dd, yyyy').format(m.dueDate!)
+          : 'No due date',
+      progress: m.isApproved ? 1.0 : (m.isDeclined ? 0.0 : 0.5),
+      actionText: m.isPending ? 'View Project Details' : 'Details',
+      onActionTap: () {
+        // Navigation or Modal logic here
+      },
+    );
+  }
+
   Widget _buildMilestoneCard({
     required String title,
+    required String projectName,
     required String location,
     required String status,
     required Color statusColor,
     required String imagePath,
+    required String amount,
+    required String dueDate,
     required double progress,
-    required bool inspectionRequired,
-    required String qualityScore,
-    required bool isQualityGood,
     required String actionText,
     IconData? actionIcon,
-    bool isErrorAction = false,
     VoidCallback? onActionTap,
   }) {
+    // Check if imagePath is a URL or asset
+    final bool isNetworkImage = imagePath.startsWith('http');
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
@@ -246,13 +419,20 @@ class _ContractorMilestoneScreenState extends State<ContractorMilestoneScreen> {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           decoration: BoxDecoration(
+            color: Colors.white,
             image: DecorationImage(
-              image: AssetImage(imagePath),
+              image: isNetworkImage
+                  ? NetworkImage(imagePath) as ImageProvider
+                  : AssetImage(imagePath),
               fit: BoxFit.cover,
+              colorFilter: ColorFilter.mode(
+                Colors.black.withValues(alpha: 0.3),
+                BlendMode.darken,
+              ),
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -267,177 +447,152 @@ class _ContractorMilestoneScreenState extends State<ContractorMilestoneScreen> {
                           Text(
                             title,
                             style: const TextStyle(
-                              color: Color(0xFF101828),
+                              color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(height: 4),
+                          Text(
+                            projectName,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
                           Row(
                             children: [
-                              const Icon(Icons.location_on, color: Color(0xFF475467), size: 14),
+                              const Icon(
+                                Icons.location_on,
+                                color: Colors.white60,
+                                size: 14,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 location,
-                                style: const TextStyle(color: Color(0xFF475467), fontSize: 12),
+                                style: const TextStyle(
+                                  color: Colors.white60,
+                                  fontSize: 12,
+                                ),
                               ),
                             ],
                           ),
                         ],
                       ),
                     ),
-                    Row(
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        status,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 40),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFFAEB),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            status,
-                            style: TextStyle(
-                              color: statusColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        const Text(
+                          'Amount',
+                          style: TextStyle(color: Colors.white70, fontSize: 11),
+                        ),
+                        Text(
+                          amount,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.circle, color: Color(0xFF12B76A), size: 12),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text(
+                          'Due Date',
+                          style: TextStyle(color: Colors.white70, fontSize: 11),
+                        ),
+                        Text(
+                          dueDate,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
                   ],
                 ),
-                
-                const SizedBox(height: 60),
-                
+                const SizedBox(height: 16),
+
                 Container(
-                  height: 8,
+                  height: 6,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(3),
                   ),
                   child: FractionallySizedBox(
                     alignment: Alignment.centerLeft,
                     widthFactor: progress,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF276572),
-                        borderRadius: BorderRadius.circular(4),
+                        color: const Color(0xFF41B4CA),
+                        borderRadius: BorderRadius.circular(3),
                       ),
                     ),
                   ),
                 ),
-                
-                const SizedBox(height: 16),
-                
-                GestureDetector(
-                  onTap: () => showQaQcAuditModal(context),
-                  child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFEAECF0)),
-                  ),
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: CustomPaint(
-                          painter: _DottedGridPainter(),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('QA/QC Inspection Required', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF276572),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Text('Completed', style: TextStyle(color: Colors.white, fontSize: 10)),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: const Color(0xFFEAECF0)),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(isQualityGood ? 'Quality Score: ' : 'Fail Score : ', 
-                                          style: const TextStyle(fontSize: 12, color: Color(0xFF667085))),
-                                        Text(qualityScore, 
-                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, 
-                                            color: isQualityGood ? const Color(0xFF12B76A) : const Color(0xFFD92D20))),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFFFFAEB),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: const Color(0xFFFEDF89)),
-                                    ),
-                                    child: const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.info_outline, size: 16, color: Color(0xFFB4543E)),
-                                        SizedBox(width: 4),
-                                        Text('1 Issue to rectify', style: TextStyle(fontSize: 10, color: Color(0xFFB4543E))),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                ),
-                
-                const SizedBox(height: 16),
-                
+
+                const SizedBox(height: 20),
+
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: onActionTap,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isErrorAction ? const Color(0xFFD92D20) : const Color(0xFF276572),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF276572),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           actionText,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         if (actionIcon != null) ...[
                           const SizedBox(width: 8),
-                          Icon(actionIcon, color: Colors.white),
+                          Icon(actionIcon, size: 18),
+                        ],
+                        if (actionIcon == null) ...[
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward, size: 18),
                         ],
                       ],
                     ),

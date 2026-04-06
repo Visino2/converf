@@ -1,5 +1,13 @@
 import 'project.dart';
 
+// Helper for safely parsing numbers from dynamic API responses
+num? _parseNum(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value;
+  if (value is String) return num.tryParse(value);
+  return null;
+}
+
 class PaginationMeta {
   final int currentPage;
   final int lastPage;
@@ -119,7 +127,7 @@ class WizardResponse {
       status: json['status'] as bool? ?? false,
       message: json['message'] as String? ?? '',
       id: id,
-      currentStep: (data?['current_step'] ?? json['current_step'] ?? 1) as int,
+      currentStep: _parseNum(data?['current_step'] ?? json['current_step'])?.toInt() ?? 1,
       project: data?['project'] != null ? Project.fromJson(data!['project'] as Map<String, dynamic>) : null,
     );
   }

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +7,7 @@ import '../../../core/api/api_client.dart';
 import '../models/project_payloads.dart';
 import '../models/project_responses.dart';
 import '../models/project.dart';
+import '../models/project_advisory.dart';
 
 final projectRepositoryProvider = Provider<ProjectRepository>((ref) {
   final dio = ref.watch(dioProvider);
@@ -63,12 +65,14 @@ class ProjectRepository {
   }
 
   Future<WizardResponse> startWizard(StartWizardPayload payload) async {
+    debugPrint('--- [REQ] POST /api/v1/projects/wizard ---');
+    debugPrint('Payload: ${payload.toJson()}');
     final response = await _apiClient.post(
       '/api/v1/projects/wizard',
       data: payload.toJson(),
     );
-    debugPrint('*** Wizard Response ***');
-    debugPrint(response.data.toString());
+    debugPrint('--- [RES] 200 OK ---');
+    debugPrint('Body: ${response.data}');
     if (response.data is! Map<String, dynamic>) {
         throw Exception("Invalid response format from server");
     }
@@ -76,10 +80,14 @@ class ProjectRepository {
   }
 
   Future<WizardResponse> updateBasicInfo(String projectId, UpdateBasicInfoPayload payload) async {
+    debugPrint('--- [REQ] PATCH /api/v1/projects/wizard/$projectId ---');
+    debugPrint('Payload: ${payload.toJson()}');
     final response = await _apiClient.patch(
       '/api/v1/projects/wizard/$projectId',
       data: payload.toJson(),
     );
+    debugPrint('--- [RES] 200 OK ---');
+    debugPrint('Body: ${response.data}');
     if (response.data is! Map<String, dynamic>) {
         throw Exception("Invalid response format from server");
     }
@@ -87,10 +95,14 @@ class ProjectRepository {
   }
 
   Future<WizardResponse> updateLocation(String projectId, UpdateLocationPayload payload) async {
+    debugPrint('--- [REQ] PATCH /api/v1/projects/wizard/$projectId (Location) ---');
+    debugPrint('Payload: ${payload.toJson()}');
     final response = await _apiClient.patch(
       '/api/v1/projects/wizard/$projectId',
       data: payload.toJson(),
     );
+    debugPrint('--- [RES] 200 OK ---');
+    debugPrint('Body: ${response.data}');
     if (response.data is! Map<String, dynamic>) {
         throw Exception("Invalid response format from server");
     }
@@ -98,10 +110,14 @@ class ProjectRepository {
   }
 
   Future<WizardResponse> updateTimelineBudget(String projectId, UpdateTimelineBudgetPayload payload) async {
+    debugPrint('--- [REQ] PATCH /api/v1/projects/wizard/$projectId (Timeline) ---');
+    debugPrint('Payload: ${payload.toJson()}');
     final response = await _apiClient.patch(
       '/api/v1/projects/wizard/$projectId',
       data: payload.toJson(),
     );
+    debugPrint('--- [RES] 200 OK ---');
+    debugPrint('Body: ${response.data}');
     if (response.data is! Map<String, dynamic>) {
         throw Exception("Invalid response format from server");
     }
@@ -109,10 +125,14 @@ class ProjectRepository {
   }
 
   Future<WizardResponse> updateSpecialisations(String projectId, UpdateSpecialisationsPayload payload) async {
+    debugPrint('--- [REQ] PATCH /api/v1/projects/wizard/$projectId (Specs) ---');
+    debugPrint('Payload: ${payload.toJson()}');
     final response = await _apiClient.patch(
       '/api/v1/projects/wizard/$projectId',
       data: payload.toJson(),
     );
+    debugPrint('--- [RES] 200 OK ---');
+    debugPrint('Body: ${response.data}');
     if (response.data is! Map<String, dynamic>) {
         throw Exception("Invalid response format from server");
     }
@@ -120,10 +140,14 @@ class ProjectRepository {
   }
 
   Future<WizardResponse> confirmProject(String projectId, ConfirmProjectPayload payload) async {
+    debugPrint('--- [REQ] PATCH /api/v1/projects/wizard/$projectId (Confirm) ---');
+    debugPrint('Payload: ${payload.toJson()}');
     final response = await _apiClient.patch(
       '/api/v1/projects/wizard/$projectId',
       data: payload.toJson(),
     );
+    debugPrint('--- [RES] 200 OK ---');
+    debugPrint('Body: ${response.data}');
     if (response.data is! Map<String, dynamic>) {
         throw Exception("Invalid response format from server");
     }
@@ -151,4 +175,74 @@ class ProjectRepository {
     }
     return PaginatedProjectsResponse.fromJson(response.data);
   }
+
+  Future<ProjectResponse> uploadProjectThumbnail(String projectId, String filePath) async {
+    final formData = FormData.fromMap({
+      'thumbnail': await MultipartFile.fromFile(
+        filePath,
+        filename: filePath.split('/').last,
+      ),
+    });
+
+    final response = await _apiClient.post(
+      '/api/v1/projects/$projectId/thumbnail',
+      data: formData,
+    );
+
+    if (response.data is! Map<String, dynamic>) {
+        throw Exception("Invalid response format from server");
+    }
+    return ProjectResponse.fromJson(response.data);
+  }
+
+  Future<ProjectResponse> deleteProjectThumbnail(String projectId, String coverImageId) async {
+    final response = await _apiClient.delete(
+      '/api/v1/projects/$projectId/thumbnail/$coverImageId',
+    );
+
+    if (response.data is! Map<String, dynamic>) {
+        throw Exception("Invalid response format from server");
+    }
+    return ProjectResponse.fromJson(response.data);
+  }
+
+  Future<ProjectResponse> updateSiteCoordinates(
+    String projectId, {
+    required double latitude,
+    required double longitude,
+    required int geofenceRadiusM,
+  }) async {
+    final response = await _apiClient.patch(
+      '/api/v1/projects/$projectId/site-coordinates',
+      data: {
+        'site_latitude': latitude,
+        'site_longitude': longitude,
+        'site_geofence_radius_m': geofenceRadiusM,
+      },
+    );
+
+    if (response.data is! Map<String, dynamic>) {
+      throw Exception("Invalid response format from server");
+    }
+    return ProjectResponse.fromJson(response.data);
+  }
+
+  Future<ProjectAdvisoryResponse> fetchProjectAdvisory(String projectId) async {
+    final response = await _apiClient.get('/api/v1/projects/$projectId/advisory');
+    if (response.data is! Map<String, dynamic>) {
+      throw Exception("Invalid response format from server");
+    }
+    return ProjectAdvisoryResponse.fromJson(response.data);
+  }
+
+  Future<ProjectAdvisoryResponse> fetchProjectHealthScore(String projectId) async {
+    // Note: On backend these are often the same endpoint or very similar responses
+    final response = await _apiClient.get('/api/v1/projects/$projectId/health-score');
+    if (response.data is! Map<String, dynamic>) {
+      throw Exception("Invalid response format from server");
+    }
+    return ProjectAdvisoryResponse.fromJson(response.data);
+  }
 }
+
+

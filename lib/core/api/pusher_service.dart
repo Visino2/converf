@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:dart_pusher_channels/dart_pusher_channels.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/session_manager.dart';
+import '../config/config.dart';
 
 final pusherServiceProvider = Provider<PusherService>((ref) {
   return PusherService(ref);
@@ -10,6 +13,7 @@ class PusherService {
   final Ref _ref;
   PusherChannelsClient? _client;
   bool _isInitialized = false;
+  final Map<String, Channel> _channels = {};
 
   PusherService(this._ref);
 
@@ -17,31 +21,31 @@ class PusherService {
     if (_isInitialized) return;
 
     try {
-      print("[PusherService] Initializing (pure Dart)...");
+      debugPrint("[PusherService] Initializing (pure Dart)...");
       
       final options = PusherChannelsOptions.fromHost(
         scheme: 'wss',
-        host: 'ws-dev.converf.com',
-        key: 'puagxyxv2ddo6kiznzzy',
-        port: 443,
+        host: AppConfig.pusherHost,
+        key: AppConfig.pusherKey,
+        port: AppConfig.pusherPort,
       );
 
       _client = PusherChannelsClient.websocket(
         options: options,
         connectionErrorHandler: (exception, trace, stream) {
-          print("[PusherService] Connection error: $exception");
+          debugPrint("[PusherService] Connection error: $exception");
         },
       );
 
       _client!.lifecycleStream.listen((event) {
-        print("[PusherService] Lifecycle state: $event");
+        debugPrint("[PusherService] Lifecycle state: $event");
       });
 
       _client!.connect();
       _isInitialized = true;
-      print("[PusherService] Client initialized and connecting...");
+      debugPrint("[PusherService] Client initialized and connecting...");
     } catch (e) {
-      print("[PusherService] Failed to initialize/connect: $e");
+      debugPrint("[PusherService] Failed to initialize/connect: $e");
     }
   }
 
@@ -56,12 +60,16 @@ class PusherService {
     }
 
     final channelName = 'private-project.$projectId';
-    print("[PusherService] Subscribing to $channelName");
+    debugPrint("[PusherService] Subscribing to $channelName");
+
+    if (_channels.containsKey(channelName)) {
+      return _channels[channelName] as PrivateChannel;
+    }
 
     final channel = _client!.privateChannel(
       channelName,
       authorizationDelegate: EndpointAuthorizableChannelTokenAuthorizationDelegate.forPrivateChannel(
-        authorizationEndpoint: Uri.parse('https://api-dev.converf.com/broadcasting/auth'),
+        authorizationEndpoint: Uri.parse(AppConfig.pusherAuthEndpoint),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
@@ -70,16 +78,24 @@ class PusherService {
     );
 
     channel.subscribe();
+    _channels[channelName] = channel;
     return channel;
   }
 
   void unsubscribe(String channelName) {
-    print("[PusherService] Unsubscribing from $channelName");
-    // In dart_pusher_channels, you usually shut down the channel or it's handled by dispose
+    debugPrint("[PusherService] Unsubscribing from $channelName");
+    final channel = _channels.remove(channelName);
+    if (channel != null) {
+      channel.unsubscribe();
+    }
   }
 
   void disconnect() {
-    print("[PusherService] Disconnecting...");
+    debugPrint("[PusherService] Disconnecting...");
+    _channels.forEach((name, channel) {
+      channel.unsubscribe();
+    });
+    _channels.clear();
     _client?.disconnect();
     _isInitialized = false;
   }

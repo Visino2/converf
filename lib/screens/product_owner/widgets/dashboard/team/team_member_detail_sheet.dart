@@ -237,9 +237,11 @@ class TeamMemberDetailSheet extends ConsumerWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: _buildDetailColumn(
+                        child: _buildDetailColumn(
                         'Member Since',
-                        member.joinedAt ?? 'N/A',
+                        member.joinedAt != null 
+                          ? member.joinedAt!.split('T').first 
+                          : 'N/A',
                       ),
                     ),
                     Expanded(
@@ -268,51 +270,7 @@ class TeamMemberDetailSheet extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Assigned Team',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF111827),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.location_on, color: Color(0xFF276572), size: 18),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Lekki Residential Complex',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF111827),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Lekki Phase 1, Lagos',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(

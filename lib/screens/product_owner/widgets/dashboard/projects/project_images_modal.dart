@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:converf/core/media/app_image_picker.dart';
 
 import 'package:converf/features/projects/models/project_image.dart';
 import 'package:converf/features/projects/providers/project_image_providers.dart';
@@ -43,10 +44,13 @@ class ProjectImagesModal extends ConsumerWidget {
         Expanded(
           child: imagesAsync.when(
             loading: () => const Center(
-                child: CircularProgressIndicator(color: Color(0xFF276572))),
+              child: CircularProgressIndicator(color: Color(0xFF276572)),
+            ),
             error: (e, _) => Center(
-              child: Text('Error loading images: $e',
-                  style: const TextStyle(color: Colors.red)),
+              child: Text(
+                'Error loading images: $e',
+                style: const TextStyle(color: Colors.red),
+              ),
             ),
             data: (images) {
               if (images.isEmpty) return _buildEmpty(context, false);
@@ -70,18 +74,18 @@ class ProjectImagesModal extends ConsumerWidget {
   }
 
   Widget _buildHandle() => Padding(
-        padding: const EdgeInsets.only(top: 12, bottom: 4),
-        child: Center(
-          child: Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFFD0D5DD),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+    padding: const EdgeInsets.only(top: 12, bottom: 4),
+    child: Center(
+      child: Container(
+        width: 40,
+        height: 4,
+        decoration: BoxDecoration(
+          color: const Color(0xFFD0D5DD),
+          borderRadius: BorderRadius.circular(2),
         ),
-      );
+      ),
+    ),
+  );
 
   Widget _buildHeader(BuildContext context, List<ProjectImage> images) {
     return Padding(
@@ -92,11 +96,14 @@ class ProjectImagesModal extends ConsumerWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Project Images',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF111827))),
+              const Text(
+                'Project Images',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF111827),
+                ),
+              ),
               const SizedBox(height: 2),
               Text(
                 '${images.length} photo${images.length != 1 ? 's' : ''} uploaded',
@@ -107,15 +114,26 @@ class ProjectImagesModal extends ConsumerWidget {
           Row(
             children: [
               ElevatedButton.icon(
-                onPressed: () => _showUploadSheet(
-                    context, images.any((i) => i.isPrimary)),
-                icon: const Icon(Icons.upload_rounded, size: 18, color: Colors.white),
-                label: const Text('Upload', style: TextStyle(color: Colors.white)),
+                onPressed: () =>
+                    _showUploadSheet(context, images.any((i) => i.isPrimary)),
+                icon: const Icon(
+                  Icons.upload_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
+                label: const Text(
+                  'Upload',
+                  style: TextStyle(color: Colors.white),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF276572),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   elevation: 0,
                 ),
               ),
@@ -125,8 +143,14 @@ class ProjectImagesModal extends ConsumerWidget {
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: const BoxDecoration(
-                      color: Color(0xFFF2F4F7), shape: BoxShape.circle),
-                  child: const Icon(Icons.close, size: 18, color: Color(0xFF667085)),
+                    color: Color(0xFFF2F4F7),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    size: 18,
+                    color: Color(0xFF667085),
+                  ),
                 ),
               ),
             ],
@@ -146,34 +170,54 @@ class ProjectImagesModal extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                  color: const Color(0xFFF0F2F5),
-                  borderRadius: BorderRadius.circular(20)),
-              child: const Icon(Icons.photo_library_outlined,
-                  size: 52, color: Color(0xFF667085)),
+                color: const Color(0xFFF0F2F5),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.photo_library_outlined,
+                size: 52,
+                color: Color(0xFF667085),
+              ),
             ),
             const SizedBox(height: 20),
-            const Text('No images yet.',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF101828))),
+            const Text(
+              'No images yet.',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF101828),
+              ),
+            ),
             const SizedBox(height: 8),
-            const Text('Upload project photos to document progress.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Color(0xFF667085))),
+            const Text(
+              'Upload project photos to document progress.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+            ),
             const SizedBox(height: 24),
             OutlinedButton.icon(
               onPressed: () => _showUploadSheet(context, hasExistingPrimary),
-              icon: const Icon(Icons.add_photo_alternate_outlined,
-                  size: 18, color: Color(0xFF276572)),
-              label: const Text('Upload Images',
-                  style: TextStyle(
-                      color: Color(0xFF276572), fontWeight: FontWeight.w600)),
+              icon: const Icon(
+                Icons.add_photo_alternate_outlined,
+                size: 18,
+                color: Color(0xFF276572),
+              ),
+              label: const Text(
+                'Upload Images',
+                style: TextStyle(
+                  color: Color(0xFF276572),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 side: const BorderSide(color: Color(0xFF276572)),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ),
           ],
@@ -183,7 +227,10 @@ class ProjectImagesModal extends ConsumerWidget {
   }
 
   Widget _buildGrid(
-      BuildContext context, WidgetRef ref, List<ProjectImage> images) {
+    BuildContext context,
+    WidgetRef ref,
+    List<ProjectImage> images,
+  ) {
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -193,10 +240,8 @@ class ProjectImagesModal extends ConsumerWidget {
         childAspectRatio: 0.78, // portrait-ish card to show caption
       ),
       itemCount: images.length,
-      itemBuilder: (ctx, i) => _ImageCard(
-        image: images[i],
-        projectId: projectId,
-      ),
+      itemBuilder: (ctx, i) =>
+          _ImageCard(image: images[i], projectId: projectId),
     );
   }
 }
@@ -244,32 +289,42 @@ class _ImageCard extends ConsumerWidget {
               fit: StackFit.expand,
               children: [
                 ClipRRect(
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(11)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(11),
+                  ),
                   child: image.fileUrl.isNotEmpty
                       ? Image.network(
                           image.fileUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: const Color(0xFFE4E7EC),
-                            child: const Icon(Icons.broken_image_outlined,
-                                color: Color(0xFF9E9E9E), size: 36),
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                                color: const Color(0xFFE4E7EC),
+                                child: const Icon(
+                                  Icons.broken_image_outlined,
+                                  color: Color(0xFF9E9E9E),
+                                  size: 36,
+                                ),
+                              ),
                           loadingBuilder: (_, child, progress) {
                             if (progress == null) return child;
                             return Container(
                               color: const Color(0xFFE4E7EC),
                               child: const Center(
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Color(0xFF276572)),
+                                  strokeWidth: 2,
+                                  color: Color(0xFF276572),
+                                ),
                               ),
                             );
                           },
                         )
                       : Container(
                           color: const Color(0xFFE4E7EC),
-                          child: const Icon(Icons.image_outlined,
-                              color: Color(0xFF9E9E9E), size: 36),
+                          child: const Icon(
+                            Icons.image_outlined,
+                            color: Color(0xFF9E9E9E),
+                            size: 36,
+                          ),
                         ),
                 ),
 
@@ -280,7 +335,9 @@ class _ImageCard extends ConsumerWidget {
                     left: 8,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF0FBFB),
                         borderRadius: BorderRadius.circular(999),
@@ -309,17 +366,20 @@ class _ImageCard extends ConsumerWidget {
                               builder: (ctx) => AlertDialog(
                                 title: const Text('Delete Image'),
                                 content: const Text(
-                                    'Are you sure you want to delete this image?'),
+                                  'Are you sure you want to delete this image?',
+                                ),
                                 actions: [
                                   TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(ctx, false),
-                                      child: const Text('Cancel')),
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('Cancel'),
+                                  ),
                                   TextButton(
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      child: const Text('Delete',
-                                          style:
-                                              TextStyle(color: Colors.red))),
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text(
+                                      'Delete',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
                                 ],
                               ),
                             );
@@ -332,8 +392,9 @@ class _ImageCard extends ConsumerWidget {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                        content:
-                                            Text('Failed to delete: $e')));
+                                      content: Text('Failed to delete: $e'),
+                                    ),
+                                  );
                                 }
                               }
                             }
@@ -344,8 +405,11 @@ class _ImageCard extends ConsumerWidget {
                         color: Colors.black.withValues(alpha: 0.55),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.delete_outline,
-                          size: 14, color: Colors.white),
+                      child: const Icon(
+                        Icons.delete_outline,
+                        size: 14,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -375,7 +439,9 @@ class _ImageCard extends ConsumerWidget {
                 Text(
                   '${_formatFileSize(image.fileSize)} • ${image.mimeType}',
                   style: const TextStyle(
-                      fontSize: 11, color: Color(0xFF667185)),
+                    fontSize: 11,
+                    color: Color(0xFF667185),
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -392,8 +458,10 @@ class _ImageCard extends ConsumerWidget {
 class _UploadImageSheet extends ConsumerStatefulWidget {
   final String projectId;
   final bool hasExistingPrimary;
-  const _UploadImageSheet(
-      {required this.projectId, required this.hasExistingPrimary});
+  const _UploadImageSheet({
+    required this.projectId,
+    required this.hasExistingPrimary,
+  });
 
   @override
   ConsumerState<_UploadImageSheet> createState() => _UploadImageSheetState();
@@ -411,11 +479,9 @@ class _UploadImageSheetState extends ConsumerState<_UploadImageSheet> {
   }
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-    );
+    final picked = await ref
+        .read(appImagePickerProvider)
+        .pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (picked != null) {
       setState(() => _selectedFile = File(picked.path));
     }
@@ -424,7 +490,9 @@ class _UploadImageSheetState extends ConsumerState<_UploadImageSheet> {
   Future<void> _submit() async {
     if (_selectedFile == null) return;
     try {
-      await ref.read(projectImageNotifierProvider.notifier).uploadImage(
+      await ref
+          .read(projectImageNotifierProvider.notifier)
+          .uploadImage(
             projectId: widget.projectId,
             filePath: _selectedFile!.path,
             caption: _captionController.text.trim().isEmpty
@@ -436,8 +504,9 @@ class _UploadImageSheetState extends ConsumerState<_UploadImageSheet> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Upload failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
       }
     }
   }
@@ -449,8 +518,9 @@ class _UploadImageSheetState extends ConsumerState<_UploadImageSheet> {
     final canShowPrimaryToggle = !widget.hasExistingPrimary;
 
     return Container(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -468,14 +538,19 @@ class _UploadImageSheetState extends ConsumerState<_UploadImageSheet> {
                 const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Upload Photo',
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF171717))),
+                    Text(
+                      'Upload Photo',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF171717),
+                      ),
+                    ),
                     SizedBox(height: 2),
-                    Text('Upload a project image (max 5MB)',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF737373))),
+                    Text(
+                      'Upload a project image (max 5MB)',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF737373)),
+                    ),
                   ],
                 ),
                 GestureDetector(
@@ -483,8 +558,14 @@ class _UploadImageSheetState extends ConsumerState<_UploadImageSheet> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: const BoxDecoration(
-                        color: Color(0xFFF2F4F7), shape: BoxShape.circle),
-                    child: const Icon(Icons.close, size: 16, color: Color(0xFF667085)),
+                      color: Color(0xFFF2F4F7),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      size: 16,
+                      color: Color(0xFF667085),
+                    ),
                   ),
                 ),
               ],
@@ -516,9 +597,14 @@ class _UploadImageSheetState extends ConsumerState<_UploadImageSheet> {
                       width: 44,
                       height: 44,
                       decoration: const BoxDecoration(
-                          color: Color(0xFFF0F2F5), shape: BoxShape.circle),
-                      child: const Icon(Icons.upload_rounded,
-                          size: 22, color: Color(0xFF667185)),
+                        color: Color(0xFFF0F2F5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.upload_rounded,
+                        size: 22,
+                        color: Color(0xFF667185),
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Text(
@@ -526,21 +612,29 @@ class _UploadImageSheetState extends ConsumerState<_UploadImageSheet> {
                           ? _selectedFile!.path.split('/').last
                           : 'Tap to select an image',
                       style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF101928)),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF101928),
+                      ),
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     if (_selectedFile == null)
-                      const Text('Images only. Max file size: 5MB',
-                          style: TextStyle(fontSize: 12, color: Color(0xFF667185))),
+                      const Text(
+                        'Images only. Max file size: 5MB',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF667185),
+                        ),
+                      ),
                     if (_selectedFile != null)
                       TextButton(
                         onPressed: isLoading ? null : _pickImage,
-                        child: const Text('Change file',
-                            style: TextStyle(color: Color(0xFF276572))),
+                        child: const Text(
+                          'Change file',
+                          style: TextStyle(color: Color(0xFF276572)),
+                        ),
                       ),
                   ],
                 ),
@@ -549,11 +643,14 @@ class _UploadImageSheetState extends ConsumerState<_UploadImageSheet> {
             const SizedBox(height: 16),
 
             // Caption
-            const Text('Caption (Optional)',
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF344054))),
+            const Text(
+              'Caption (Optional)',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF344054),
+              ),
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _captionController,
@@ -565,8 +662,10 @@ class _UploadImageSheetState extends ConsumerState<_UploadImageSheet> {
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: Color(0xFFD0D5DD)),
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -586,11 +685,13 @@ class _UploadImageSheetState extends ConsumerState<_UploadImageSheet> {
                           : (v) => setState(() => _setAsPrimary = v ?? false),
                       activeColor: const Color(0xFF276572),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4)),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
-                    const Text('Set as primary',
-                        style: TextStyle(
-                            fontSize: 14, color: Color(0xFF475467))),
+                    const Text(
+                      'Set as primary',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF475467)),
+                    ),
                   ],
                 ),
               ),
@@ -606,12 +707,16 @@ class _UploadImageSheetState extends ConsumerState<_UploadImageSheet> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       side: const BorderSide(color: Color(0xFFD0D5DD)),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    child: const Text('Cancel',
-                        style: TextStyle(
-                            color: Color(0xFF344054),
-                            fontWeight: FontWeight.w600)),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: Color(0xFF344054),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -623,20 +728,29 @@ class _UploadImageSheetState extends ConsumerState<_UploadImageSheet> {
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.upload_rounded,
-                            size: 18, color: Colors.white),
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.upload_rounded,
+                            size: 18,
+                            color: Colors.white,
+                          ),
                     label: Text(
                       isLoading ? 'Uploading...' : 'Upload',
                       style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.w600),
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF276572),
                       disabledBackgroundColor: const Color(0xFFEAECF0),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       elevation: 0,
                     ),
                   ),

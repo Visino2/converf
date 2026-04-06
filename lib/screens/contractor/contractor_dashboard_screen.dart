@@ -2,18 +2,23 @@ import 'package:flutter/material.dart';
 
 import 'contractor_dashboard_content.dart';
 import 'projects/contractor_projects_screen.dart';
-import 'contractor_milestone_screen.dart';
+import 'projects/widgets/tools/marketplace_screen.dart';
 import 'projects/widgets/tools/tools_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../features/auth/models/email_verification_status.dart';
+import '../../features/auth/providers/email_verification_provider.dart';
 
-class ContractorDashboardScreen extends StatefulWidget {
+class ContractorDashboardScreen extends ConsumerStatefulWidget {
   const ContractorDashboardScreen({super.key});
 
   @override
-  State<ContractorDashboardScreen> createState() => _ContractorDashboardScreenState();
+  ConsumerState<ContractorDashboardScreen> createState() =>
+      _ContractorDashboardScreenState();
 }
 
-class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> {
+class _ContractorDashboardScreenState
+    extends ConsumerState<ContractorDashboardScreen> {
   int _selectedIndex = 0;
 
   late final List<Widget> _pages;
@@ -22,11 +27,9 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> {
   void initState() {
     super.initState();
     _pages = [
-      ContractorDashboardContent(
-        onNavigateToProjects: () => _onItemTapped(1),
-      ),
+      ContractorDashboardContent(onNavigateToProjects: () => _onItemTapped(1)),
       const ContractorProjectsScreen(),
-      const ContractorMilestoneScreen(),
+      const MarketplaceScreen(showBackButton: false),
       const ToolsScreen(),
     ];
   }
@@ -39,14 +42,25 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final verificationState = ref.watch(emailVerificationStatusProvider);
+    final verificationStatus =
+        verificationState.asData?.value ?? EmailVerificationStatus.unknown;
+
+    if (verificationState.isLoading ||
+        verificationStatus == EmailVerificationStatus.unverified) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF9FAFB),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF276572)),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(
         0xFFF9FAFB,
       ), // App background color from design
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
@@ -74,54 +88,86 @@ class _ContractorDashboardScreenState extends State<ContractorDashboardScreen> {
           onTap: _onItemTapped,
           items: [
             BottomNavigationBarItem(
-              icon: SvgPicture.asset('assets/images/home.svg',
+              icon: SvgPicture.asset(
+                'assets/images/home.svg',
                 width: 24,
                 height: 24,
-                colorFilter: const ColorFilter.mode(Colors.black87, BlendMode.srcIn),
+                colorFilter: const ColorFilter.mode(
+                  Colors.black87,
+                  BlendMode.srcIn,
+                ),
               ),
-              activeIcon: SvgPicture.asset('assets/images/home.svg',
+              activeIcon: SvgPicture.asset(
+                'assets/images/home.svg',
                 width: 24,
                 height: 24,
-                colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn),
+                colorFilter: const ColorFilter.mode(
+                  Color(0xFF276572),
+                  BlendMode.srcIn,
+                ),
               ),
               label: 'Dashboard',
             ),
             BottomNavigationBarItem(
-              icon: SvgPicture.asset('assets/images/projects.svg',
+              icon: SvgPicture.asset(
+                'assets/images/projects.svg',
                 width: 24,
                 height: 24,
-                colorFilter: const ColorFilter.mode(Colors.black87, BlendMode.srcIn),
+                colorFilter: const ColorFilter.mode(
+                  Colors.black87,
+                  BlendMode.srcIn,
+                ),
               ),
-              activeIcon: SvgPicture.asset('assets/images/projects.svg',
+              activeIcon: SvgPicture.asset(
+                'assets/images/projects.svg',
                 width: 24,
                 height: 24,
-                colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn),
+                colorFilter: const ColorFilter.mode(
+                  Color(0xFF276572),
+                  BlendMode.srcIn,
+                ),
               ),
               label: 'Projects',
             ),
             BottomNavigationBarItem(
-              icon: SvgPicture.asset('assets/images/target-1.svg',
+              icon: SvgPicture.asset(
+                'assets/images/store.svg',
                 width: 24,
                 height: 24,
-                colorFilter: const ColorFilter.mode(Colors.black87, BlendMode.srcIn),
+                colorFilter: const ColorFilter.mode(
+                  Colors.black87,
+                  BlendMode.srcIn,
+                ),
               ),
-              activeIcon: SvgPicture.asset('assets/images/target-1.svg',
+              activeIcon: SvgPicture.asset(
+                'assets/images/store.svg',
                 width: 24,
                 height: 24,
-                colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn),
+                colorFilter: const ColorFilter.mode(
+                  Color(0xFF276572),
+                  BlendMode.srcIn,
+                ),
               ),
-              label: 'Milestone',
+              label: 'Marketplace',
             ),
             BottomNavigationBarItem(
-              icon: SvgPicture.asset('assets/images/case-1.svg',
+              icon: SvgPicture.asset(
+                'assets/images/case-1.svg',
                 width: 24,
                 height: 24,
-                colorFilter: const ColorFilter.mode(Colors.black87, BlendMode.srcIn),
+                colorFilter: const ColorFilter.mode(
+                  Colors.black87,
+                  BlendMode.srcIn,
+                ),
               ),
-              activeIcon: SvgPicture.asset('assets/images/case-1.svg',
+              activeIcon: SvgPicture.asset(
+                'assets/images/case-1.svg',
                 width: 24,
                 height: 24,
-                colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn),
+                colorFilter: const ColorFilter.mode(
+                  Color(0xFF276572),
+                  BlendMode.srcIn,
+                ),
               ),
               label: 'Tools',
             ),

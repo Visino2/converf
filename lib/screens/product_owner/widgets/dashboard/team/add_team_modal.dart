@@ -29,7 +29,8 @@ class _AddTeamModalState extends ConsumerState<AddTeamModal> {
   String? _selectedRole;
   String? _assignedProject;
   String? _assignedProjectTitle;
-  String? _selectedCountry;
+  String? _selectedCountry = 'Nigeria';
+  bool _isEmailDirty = false;
   final List<Map<String, String>> _roles = [
     {'label': 'Member', 'value': 'member'},
     {'label': 'Manager', 'value': 'manager'},
@@ -341,6 +342,13 @@ class _AddTeamModalState extends ConsumerState<AddTeamModal> {
           'Recipient\'s Email Address',
           _emailController,
           hint: 'Enter Recipient\'s Email Address',
+          errorText: _isEmailDirty && !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(_emailController.text.trim())
+              ? 'Please enter a valid email address'
+              : null,
+          onChanged: (val) {
+            if (!_isEmailDirty) setState(() => _isEmailDirty = true);
+            setState(() {});
+          },
         ),
         const SizedBox(height: 24),
         Row(
@@ -387,7 +395,7 @@ class _AddTeamModalState extends ConsumerState<AddTeamModal> {
                 style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
               ),
               icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-              items: ['Nigeria', 'Kenya', 'Ghana', 'South Africa'].map((String country) {
+              items: ['Nigeria'].map((String country) {
                 return DropdownMenuItem<String>(
                   value: country,
                   child: Text(
@@ -692,6 +700,8 @@ class _AddTeamModalState extends ConsumerState<AddTeamModal> {
     String label,
     TextEditingController controller, {
     String? hint,
+    String? errorText,
+    void Function(String)? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -707,9 +717,10 @@ class _AddTeamModalState extends ConsumerState<AddTeamModal> {
         const SizedBox(height: 8),
         TextField(
           controller: controller,
-          onChanged: (_) => setState(() {}),
+          onChanged: onChanged ?? (_) => setState(() {}),
           decoration: InputDecoration(
             hintText: hint,
+            errorText: errorText,
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,

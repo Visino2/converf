@@ -5,42 +5,107 @@ import '../screens/splash_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/product_owner/product_owner_dashboard_screen.dart';
 import '../screens/contractor/contractor_dashboard_screen.dart';
+import '../screens/widgets/onboarding/onboarding_reset_password_step.dart';
 import '../features/auth/providers/auth_provider.dart';
+import '../features/auth/providers/email_verification_provider.dart';
 import '../features/auth/models/auth_response.dart';
+import '../features/auth/models/email_verification_status.dart';
+import '../features/auth/utils/auth_flow.dart';
+import '../screens/widgets/onboarding/onboarding_verify_email_step.dart';
+import '../screens/welcome_screen.dart';
 
 final routerRefreshProvider = Provider((ref) => RouterRefreshNotifier(ref));
 
 class RouterRefreshNotifier extends ChangeNotifier {
   RouterRefreshNotifier(Ref ref) {
     ref.listen(authProvider, (_, _) => notifyListeners());
+    ref.listen(emailVerificationStatusProvider, (_, _) => notifyListeners());
+    ref.listen(welcomeSeenRefreshProvider, (_, _) => notifyListeners());
   }
 }
-
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = ref.watch(routerRefreshProvider);
-  
+
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: onboardingRoute,
     refreshListenable: refreshNotifier,
     redirect: (context, state) {
       final authState = ref.read(authProvider);
-      
-      // If we are loading, don't redirect yet
-      if (authState.isLoading) return null;
+      final verificationState = ref.read(emailVerificationStatusProvider);
+      final locationPath = state.uri.path;
 
       final user = authState.value;
-      final isAuthenticated = user != null && user.status == true;
-      final isLoggingIn = state.matchedLocation == '/onboarding' || state.matchedLocation == '/';
+      final isAuthenticated = isAuthenticatedResponse(user);
+      final isAuthRoute = isRootAuthPath(locationPath);
+      final isPasswordReset = locationPath == '/auth/reset-password';
+      final isVerifyEmailRoute = isVerifyEmailPath(locationPath);
+      final dashboardRoute = dashboardRouteForRole(
+        user?.role ?? UserRole.unknown,
+      );
 
       if (!isAuthenticated) {
-        // If not authenticated and not on splash or onboarding, go to onboarding
-        if (!isLoggingIn) return '/onboarding';
+        // While loading initial auth state, don't force redirects
+        if (authState.isLoading && authState.value == null) {
+          return null;
+        }
+
+        if (locationPath == splashRoute) {
+          return onboardingRoute;
+        }
+        if (isVerifyEmailRoute) {
+          return onboardingLocation(login: true);
+        }
+        if (!isAuthRoute && !isPasswordReset) {
+          return onboardingLocation(login: true);
+        }
         return null;
       }
 
-      // If authenticated and on onboarding/splash, go to dashboard
-      if (isLoggingIn) {
-        return authState.value?.role == UserRole.projectOwner ? '/owner-dashboard' : '/contractor-dashboard';
+      if (dashboardRoute == null) {
+        return onboardingLocation(login: true);
+      }
+
+      if (verificationState.isLoading) {
+        // Stay on current route while checking verification status to prevent flickering
+        return null; 
+      }
+
+      final verificationStatus =
+          verificationState.asData?.value ?? EmailVerificationStatus.unknown;
+      
+      // Verification Gate: only force verification if EXPLICITLY unverified.
+      // We allow 'unknown' to proceed to the dashboard, relying on the dashboard
+      // API calls to fail if the user is truly blocked by the backend.
+      if (verificationStatus == EmailVerificationStatus.unverified) {
+        return isVerifyEmailRoute
+            ? null
+            : verifyEmailLocation(email: user?.user['email']?.toString());
+      }
+
+      // New-user welcome gate: after verification, show welcome once per user.
+      final rawUserId = user?.data?.user['id'];
+      final userId = rawUserId == null ? '' : rawUserId.toString();
+      if (userId.isNotEmpty) {
+        final welcomeSeen = ref.read(welcomeSeenProvider(userId));
+        if (welcomeSeen.isLoading) return null;
+
+        final hasSeen = welcomeSeen.value ?? false;
+        if (!hasSeen && locationPath != '/welcome') return '/welcome';
+        if (hasSeen && locationPath == '/welcome') return dashboardRoute;
+      }
+
+      if (isOwnerDashboardPath(locationPath) &&
+          user?.role != UserRole.projectOwner) {
+        return dashboardRoute;
+      }
+
+      if (isContractorDashboardPath(locationPath) &&
+          user?.role != UserRole.contractor) {
+        return dashboardRoute;
+      }
+
+      if (isAuthRoute || isVerifyEmailRoute) {
+        return dashboardRoute;
       }
 
       return null;
@@ -65,19 +130,76 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/onboarding',
         name: 'onboarding',
         pageBuilder: (context, state) {
+          final mode = state.uri.queryParameters['mode'];
+          final initialStep = switch (mode) {
+            'login' => OnboardingStep.login,
+            _ => OnboardingStep.splash,
+          };
           return CustomTransitionPage(
-            key: state.pageKey,
-            child: const OnboardingScreen(),
+            key: const ValueKey('onboarding_page'),
+            child: OnboardingScreen(initialStep: initialStep),
             transitionDuration: const Duration(milliseconds: 500),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(
-                opacity: CurveTween(curve: Curves.easeOut).animate(animation),
-                child: child,
-              );
-            },
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(
+                    opacity: CurveTween(
+                      curve: Curves.easeOut,
+                    ).animate(animation),
+                    child: child,
+                  );
+                },
           );
         },
+      ),
+      GoRoute(
+        path: '/auth/reset-password',
+        name: 'reset-password',
+        builder: (context, state) {
+          final token = state.uri.queryParameters['token'];
+          final email = state.uri.queryParameters['email'];
+          return Scaffold(
+            body: OnboardingResetPasswordStep(
+              initialEmail: email,
+              initialToken: token,
+              onBackToLogin: () => context.go(onboardingLocation(login: true)),
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/auth/verify-email',
+        name: 'verify-email',
+        builder: (context, state) {
+          return OnboardingVerifyEmailStep(
+            email: state.uri.queryParameters['email'],
+            autoResend: state.uri.queryParameters['auto_resend'] == '1',
+            verifyUrl: state.uri.queryParameters['verify_url'],
+            verificationId: state.uri.queryParameters['id'],
+            verificationHash: state.uri.queryParameters['hash'],
+            verificationQueryParameters: state.uri.queryParameters,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/auth/email/verify/:id/:hash',
+        name: 'verify-email-link',
+        builder: (context, state) {
+          return OnboardingVerifyEmailStep(
+            email: state.uri.queryParameters['email'],
+            autoResend: state.uri.queryParameters['auto_resend'] == '1',
+            verifyUrl: state.uri.queryParameters['verify_url'],
+            verificationId: state.pathParameters['id'],
+            verificationHash: state.pathParameters['hash'],
+            verificationQueryParameters: state.uri.queryParameters,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/welcome',
+        name: 'welcome',
+        builder: (context, state) => const WelcomeScreen(),
       ),
     ],
   );
 });
+

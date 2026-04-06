@@ -1,23 +1,64 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../../../../../features/profile/providers/profile_providers.dart';
+import '../../../../../features/profile/models/profile_models.dart';
+import '../../../../product_owner/widgets/dashboard/more/security_screen.dart';
 
-class ContractorAccountSettingsScreen extends StatefulWidget {
+class ContractorAccountSettingsScreen extends ConsumerStatefulWidget {
   const ContractorAccountSettingsScreen({super.key});
 
   @override
-  State<ContractorAccountSettingsScreen> createState() => _ContractorAccountSettingsScreenState();
+  ConsumerState<ContractorAccountSettingsScreen> createState() =>
+      _ContractorAccountSettingsScreenState();
 }
 
-class _ContractorAccountSettingsScreenState extends State<ContractorAccountSettingsScreen> {
+class _ContractorAccountSettingsScreenState
+    extends ConsumerState<ContractorAccountSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
-  
-  final _companyNameController = TextEditingController(text: 'COnverg Construction');
-  final _registrationNumberController = TextEditingController(text: 'RC-123455');
-  final _emailController = TextEditingController(text: 'admin@converfconstruct.com');
-  final _phoneController = TextEditingController(text: '+234 80485 38849');
+
+  late final TextEditingController _firstNameController;
+  late final TextEditingController _lastNameController;
+  late final TextEditingController _companyNameController;
+  late final TextEditingController _registrationNumberController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
+
+  bool _isInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _firstNameController = TextEditingController();
+    _lastNameController = TextEditingController();
+    _companyNameController = TextEditingController();
+    _registrationNumberController = TextEditingController();
+    _emailController = TextEditingController();
+    _phoneController = TextEditingController();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isInitialized) {
+      final profileState = ref.watch(profileProvider);
+      profileState.whenData((profile) {
+        _firstNameController.text = profile.firstName;
+        _lastNameController.text = profile.lastName;
+        _companyNameController.text = profile.companyName ?? '';
+        _registrationNumberController.text =
+            profile.businessRegistrationNumber ?? '';
+        _emailController.text = profile.email;
+        _phoneController.text = profile.phoneNumber ?? '';
+        _isInitialized = true;
+      });
+    }
+  }
 
   @override
   void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _companyNameController.dispose();
     _registrationNumberController.dispose();
     _emailController.dispose();
@@ -25,15 +66,59 @@ class _ContractorAccountSettingsScreenState extends State<ContractorAccountSetti
     super.dispose();
   }
 
+  Future<void> _saveChanges() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final payload = UpdateProfilePayload(
+      firstName: _firstNameController.text.trim().isNotEmpty
+          ? _firstNameController.text.trim()
+          : null,
+      lastName: _lastNameController.text.trim().isNotEmpty
+          ? _lastNameController.text.trim()
+          : null,
+      companyName: _companyNameController.text.trim(),
+      businessRegistrationNumber: _registrationNumberController.text.trim(),
+      phoneNumber: _phoneController.text.trim(),
+    );
+
+    final success = await ref
+        .read(profileNotifierProvider.notifier)
+        .updateProfile(payload);
+
+    if (mounted && success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Account settings saved successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to save account settings. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final profileNotifier = ref.watch(profileNotifierProvider);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.black,
+            size: 20,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
@@ -95,6 +180,7 @@ class _ContractorAccountSettingsScreenState extends State<ContractorAccountSetti
                         label: 'Email Address',
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
+                        readOnly: true,
                       ),
                       const SizedBox(height: 20),
                       _buildTextField(
@@ -106,9 +192,9 @@ class _ContractorAccountSettingsScreenState extends State<ContractorAccountSetti
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {
-                            // Save logic
-                          },
+                          onPressed: profileNotifier.isLoading
+                              ? null
+                              : _saveChanges,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF276572),
                             padding: const EdgeInsets.symmetric(vertical: 18),
@@ -117,14 +203,23 @@ class _ContractorAccountSettingsScreenState extends State<ContractorAccountSetti
                             ),
                             elevation: 0,
                           ),
-                          child: const Text(
-                            'Save Changes',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child: profileNotifier.isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Save Changes',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
@@ -135,7 +230,12 @@ class _ContractorAccountSettingsScreenState extends State<ContractorAccountSetti
                   width: double.infinity,
                   child: OutlinedButton(
                     onPressed: () {
-                      // Change password logic
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SecurityScreen(),
+                        ),
+                      );
                     },
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Color(0xFF276572)),
@@ -151,7 +251,10 @@ class _ContractorAccountSettingsScreenState extends State<ContractorAccountSetti
                           'assets/images/edit-profile.svg',
                           width: 24,
                           height: 24,
-                          colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn),
+                          colorFilter: const ColorFilter.mode(
+                            Color(0xFF276572),
+                            BlendMode.srcIn,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         const Text(
@@ -178,6 +281,7 @@ class _ContractorAccountSettingsScreenState extends State<ContractorAccountSetti
     required String label,
     required TextEditingController controller,
     TextInputType? keyboardType,
+    bool readOnly = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,10 +298,14 @@ class _ContractorAccountSettingsScreenState extends State<ContractorAccountSetti
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
+          readOnly: readOnly,
           decoration: InputDecoration(
             filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            fillColor: readOnly ? Colors.grey.shade100 : Colors.white,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
@@ -208,12 +316,15 @@ class _ContractorAccountSettingsScreenState extends State<ContractorAccountSetti
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF276572), width: 1.5),
+              borderSide: const BorderSide(
+                color: Color(0xFF276572),
+                width: 1.5,
+              ),
             ),
           ),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
-            color: Color(0xFF111827),
+            color: readOnly ? Colors.grey.shade600 : const Color(0xFF111827),
             fontWeight: FontWeight.w500,
           ),
         ),

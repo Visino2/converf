@@ -1,21 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:converf/core/ui/app_colors.dart';
+import '../../../features/auth/models/auth_response.dart';
+import '../../../features/auth/models/social_auth_method.dart';
 import '../../../features/auth/providers/auth_provider.dart';
+import '../../../features/auth/providers/social_auth_provider.dart';
+import '../../../features/auth/screens/social_auth_webview.dart';
 
 class OnboardingLoginStep extends ConsumerStatefulWidget {
   final VoidCallback onSignup;
   final VoidCallback onForgotPassword;
   final VoidCallback onBack;
+  final String? selectedRole;
 
   const OnboardingLoginStep({
     super.key,
     required this.onSignup,
     required this.onForgotPassword,
     required this.onBack,
+    this.selectedRole,
   });
 
   @override
-  ConsumerState<OnboardingLoginStep> createState() => _OnboardingLoginStepState();
+  ConsumerState<OnboardingLoginStep> createState() =>
+      _OnboardingLoginStepState();
 }
 
 class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
@@ -26,6 +35,25 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
   bool _isEmailValid = false;
   bool _isPasswordValid = false;
   String? _loginError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedEmail();
+  }
+
+  Future<void> _loadSavedEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedEmail = prefs.getString('last_login_email');
+    if (savedEmail != null && mounted) {
+      _emailController.text = savedEmail;
+    }
+  }
+
+  Future<void> _saveEmail(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('last_login_email', email);
+  }
 
   @override
   void dispose() {
@@ -40,7 +68,7 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
       _isEmailValid = false;
       _isPasswordValid = false;
     });
-    
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -56,9 +84,13 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
         if (error.contains('Exception:')) {
           error = error.replaceAll('Exception: ', '');
         }
-        
+
         // Show as inline error if it seems identity-related
-        if (error.toLowerCase().contains('invalid') || error.toLowerCase().contains('email') || error.toLowerCase().contains('password') || error.toLowerCase().contains('found') || error.toLowerCase().contains('credentials')) {
+        if (error.toLowerCase().contains('invalid') ||
+            error.toLowerCase().contains('email') ||
+            error.toLowerCase().contains('password') ||
+            error.toLowerCase().contains('found') ||
+            error.toLowerCase().contains('credentials')) {
           setState(() => _loginError = 'Invalid email or password');
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -69,16 +101,117 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
             ),
           );
         }
-      } else if (authState.value?.status == false) {
-        setState(() => _loginError = authState.value?.message ?? 'Login failed');
-      } else {
+      } else if (authState.value?.status == true) {
         // Login succeeded — show checkmarks!
+        _saveEmail(email);
         setState(() {
           _isEmailValid = true;
           _isPasswordValid = true;
         });
+
+        // We no longer call context.go() here. 
+        // AppRouter will see the authProvider state change and redirect automatically.
+      } else if (authState.value?.status == false) {
+        setState(
+          () => _loginError = authState.value?.message ?? 'Login failed',
+        );
       }
-      // Success is handled by AppRouter redirection
+    }
+  }
+
+  Future<UserRole?> _resolveSocialRole() async {
+    final initialRole = userRoleFromOnboardingSelection(widget.selectedRole);
+    if (initialRole != null) {
+      return initialRole;
+    }
+
+    return showModalBottomSheet<UserRole>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Continue as',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Choose the account type you want to use for this sign-in.',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+                ),
+                const SizedBox(height: 20),
+                _buildRoleOptionTile(
+                  title: 'Project Owner',
+                  onTap: () => Navigator.of(context).pop(UserRole.projectOwner),
+                ),
+                const SizedBox(height: 12),
+                _buildRoleOptionTile(
+                  title: 'Contractor',
+                  onTap: () => Navigator.of(context).pop(UserRole.contractor),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _handleSocialAuth(SocialAuthMethod method) async {
+    final role = await _resolveSocialRole();
+    if (role == null || !mounted) {
+      return;
+    }
+
+    try {
+      final authUrl = await ref
+          .read(socialAuthActionProvider.notifier)
+          .getSignInUrl(method: method, role: role);
+
+      if (!mounted) return;
+
+      // Open the OAuth flow in the in-app WebView so we can intercept
+      // the converf-fe.netlify.app callback before it opens in the browser.
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SocialAuthWebView(
+            authUrl: authUrl,
+            onCancel: () {},
+            onCallback: (callbackUri) async {
+              try {
+                await ref
+                    .read(socialAuthActionProvider.notifier)
+                    .completeFromCallback(callbackUri);
+                // The authProvider state change will trigger the router automatically.
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(e.toString())),
+                  );
+                }
+              }
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 
@@ -128,10 +261,15 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                if (isValid && (label.contains('Email') ? _loginError == null : true))
+                if (isValid &&
+                    (label.contains('Email') ? _loginError == null : true))
                   const Padding(
                     padding: EdgeInsets.only(right: 8.0),
-                    child: Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    child: Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 20,
+                    ),
                   ),
                 if (isPassword)
                   IconButton(
@@ -179,30 +317,70 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
   Widget _buildSocialButton({
     required String title,
     required Widget iconWidget,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(30),
-      child: Container(
-        height: 56,
+      child: Opacity(
+        opacity: onTap == null ? 0.6 : 1,
+        child: Container(
+          height: 56,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              iconWidget,
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF333333),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleOptionTile({
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.grey.shade300),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            iconWidget,
-            const SizedBox(width: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF333333),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
               ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: Color(0xFF667085),
             ),
           ],
         ),
@@ -213,6 +391,7 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    final socialAuthState = ref.watch(socialAuthActionProvider);
 
     return Container(
       key: const ValueKey('login'),
@@ -221,7 +400,7 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           stops: [0.0, 0.45],
-          colors: [Color(0xFF276572), Colors.white],
+          colors: [AppColors.authShellTop, Colors.white],
         ),
       ),
       child: SafeArea(
@@ -282,7 +461,11 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
                                 controller: _emailController,
                                 isValid: _isEmailValid,
                                 validator: (v) {
-                                  if (v == null || !v.contains('@') || !v.contains('.')) return 'Enter valid email';
+                                  if (v == null ||
+                                      !v.contains('@') ||
+                                      !v.contains('.')) {
+                                    return 'Enter valid email';
+                                  }
                                   return null;
                                 },
                               ),
@@ -293,10 +476,14 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
                                 controller: _passwordController,
                                 isPassword: true,
                                 obscureText: _obscurePassword,
-                                onToggleVisibility: () => setState(() => _obscurePassword = !_obscurePassword),
+                                onToggleVisibility: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
                                 isValid: _isPasswordValid,
                                 validator: (v) {
-                                  if (v == null || v.isEmpty) return 'Enter password';
+                                  if (v == null || v.isEmpty) {
+                                    return 'Enter password';
+                                  }
                                   return null;
                                 },
                               ),
@@ -316,7 +503,9 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
                               ),
                               elevation: 0,
                             ),
-                            onPressed: authState.isLoading ? null : _handleLogin,
+                            onPressed: authState.isLoading
+                                ? null
+                                : _handleLogin,
                             child: authState.isLoading
                                 ? const SizedBox(
                                     width: 24,
@@ -380,7 +569,10 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
                             width: 24,
                             height: 24,
                           ),
-                          onTap: () {},
+                          onTap: socialAuthState.isLoading
+                              ? null
+                              : () =>
+                                    _handleSocialAuth(SocialAuthMethod.google),
                         ),
                         const SizedBox(height: 16),
                         _buildSocialButton(
@@ -390,7 +582,9 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
                             size: 28,
                             color: Colors.black,
                           ),
-                          onTap: () {},
+                          onTap: socialAuthState.isLoading
+                              ? null
+                              : () => _handleSocialAuth(SocialAuthMethod.apple),
                         ),
                         const SizedBox(height: 32),
                       ],

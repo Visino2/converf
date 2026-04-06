@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:converf/features/projects/models/project.dart';
 import 'package:converf/features/projects/providers/project_providers.dart';
 import 'package:converf/features/projects/models/project_payloads.dart';
@@ -34,6 +35,12 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
           debugPrint('NewProjectWizard: Initializing state from project...');
           ref.read(wizardStateProvider.notifier).initFromProject(widget.initialProject);
         }
+      });
+    } else {
+      // Starting a brand new project — reset any stale state from previous sessions
+      debugPrint('NewProjectWizard: New project — resetting wizard state');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(wizardStateProvider.notifier).reset();
       });
     }
   }
@@ -176,7 +183,7 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
                     if (state.currentStep > 0)
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => notifier.updateStep(state.currentStep - 1),
+                        onPressed: state.isLoading ? null : () => notifier.updateStep(state.currentStep - 1),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
@@ -190,17 +197,23 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
                   if (state.currentStep > 0) const SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _isStepValid(state) ? () => _handleNext(context, ref) : null,
+                      onPressed: (_isStepValid(state) && !state.isLoading) ? () => _handleNext(context, ref) : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF276572),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                         elevation: 0,
                       ),
-                      child: Text(
-                        state.currentStep == 5 ? 'Confirm & Create' : 'Continue',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
+                      child: state.isLoading 
+                        ? const SizedBox(
+                            height: 20, 
+                            width: 20, 
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : Text(
+                            state.currentStep == 5 ? 'Confirm & Create' : 'Continue',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
                     ),
                   ),
                 ],
@@ -227,25 +240,98 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
   }
 
   bool _isStepValid(NewProjectState state) {
+    bool isValid = false;
     switch (state.currentStep) {
       case 0:
-        return state.selectedIndex != null && (state.selectedType != 'commercial' || state.selectedSubType != null);
+        isValid = state.selectedIndex != null && (state.selectedType != 'commercial' || state.selectedSubType != null);
+        break;
       case 1:
-        return state.title.isNotEmpty && state.description.isNotEmpty;
+        isValid = state.title.trim().isNotEmpty && state.description.trim().isNotEmpty;
+        break;
       case 2:
-        return state.country != null && state.state != null && state.city != null;
+        // Country is now auto-set to Nigeria in StepLocation, but we check for state and city
+        isValid = (state.country != null && state.country!.isNotEmpty) && 
+                  (state.state != null && state.state!.isNotEmpty) && 
+                  (state.city != null && state.city!.isNotEmpty);
+        break;
       case 3:
-        if (state.startDate == null || state.endDate == null || state.budget.isEmpty || state.assignmentMethod == null) return false;
-        if (state.assignmentMethod == 'direct' && state.selectedContractorId == null) return false;
-        if (state.assignmentMethod == 'tender' && state.biddingDeadline == null) return false;
-        return true;
+        if (state.startDate == null || state.endDate == null || state.budget.isEmpty || state.assignmentMethod == null) {
+          isValid = false;
+        } else if (state.assignmentMethod == 'direct' && state.selectedContractorId == null) {
+          isValid = false;
+        } else if (state.assignmentMethod == 'tender' && state.biddingDeadline == null) {
+          isValid = false;
+        } else {
+          isValid = true;
+        }
+        break;
       case 4:
-        return state.specialisations.isNotEmpty;
+        isValid = state.specialisations.isNotEmpty;
+        break;
       case 5:
-        return state.confirmInfo && state.agreeTerms;
+        isValid = state.confirmInfo && state.agreeTerms;
+        break;
       default:
-        return false;
+        isValid = false;
     }
+
+    if (!isValid) {
+      debugPrint('NewProjectWizard: Step ${state.currentStep} is INVALID');
+    }
+    return isValid;
+  }
+
+  /// Builds a complete payload map with ALL fields the backend might need.
+  /// Fields the user hasn't filled yet get safe defaults.
+  Map<String, dynamic> _buildFullPayload(NewProjectState state, int wizardStep) {
+    String cleanBudget = state.budget.replaceAll(',', '').replaceAll(' ', '');
+    String cleanCurrency = state.currency;
+    if (cleanCurrency == '₦') cleanCurrency = 'NGN';
+    if (cleanCurrency == '\$') cleanCurrency = 'USD';
+    if (cleanCurrency.isEmpty) cleanCurrency = 'NGN';
+
+    final payload = <String, dynamic>{
+      'wizard_step': wizardStep,
+      'title': state.title.isNotEmpty ? state.title : 'Untitled Project',
+      'description': state.description.isNotEmpty ? state.description : 'No description',
+      'construction_type': state.selectedType ?? 'residential',
+      if (state.selectedSubType != null) 'construction_sub_type': state.selectedSubType,
+      'location': state.address.isNotEmpty ? state.address : 'TBD',
+      'city': (state.city != null && state.city!.isNotEmpty) ? state.city : 'TBD',
+      'state': (state.state != null && state.state!.isNotEmpty) ? state.state : 'TBD',
+      'country': (state.country != null && state.country!.isNotEmpty) ? state.country : 'Nigeria',
+      'start_date': state.startDate != null
+          ? DateFormat('yyyy-MM-dd').format(state.startDate!)
+          : DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      'end_date': state.endDate != null
+          ? DateFormat('yyyy-MM-dd').format(state.endDate!)
+          : DateFormat('yyyy-MM-dd').format(DateTime.now().add(const Duration(days: 30))),
+      'budget': cleanBudget.isNotEmpty ? cleanBudget : '0',
+      'currency': cleanCurrency,
+      'urgency_level': state.urgencyLevel.isNotEmpty ? state.urgencyLevel : 'low',
+      'assignment_method': state.assignmentMethod ?? 'tender',
+      'confirm': state.confirmInfo,
+      'agree_terms': state.agreeTerms,
+    };
+
+    if (state.selectedContractorId != null) {
+      payload['contractor_id'] = state.selectedContractorId;
+    }
+    // Backend requires bidding_deadline when assignment_method is 'tender'
+    // AND it must be BEFORE start_date
+    final effectiveStartDate = state.startDate ?? DateTime.now();
+    if (state.biddingDeadline != null) {
+      payload['bidding_deadline'] = DateFormat('yyyy-MM-dd').format(state.biddingDeadline!);
+    } else if (payload['assignment_method'] == 'tender') {
+      payload['bidding_deadline'] = DateFormat('yyyy-MM-dd').format(
+        effectiveStartDate.subtract(const Duration(days: 7)),
+      );
+    }
+    payload['specialisations'] = state.specialisations.isNotEmpty
+        ? state.specialisations
+        : ['residential'];
+
+    return payload;
   }
 
   Future<void> _handleNext(BuildContext context, WidgetRef ref) async {
@@ -254,6 +340,7 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
     final apiNotifier = ref.read(projectWizardProvider.notifier);
 
     try {
+      notifier.setLoading(true);
       debugPrint('--- Wizard Next Clicked ---');
       debugPrint('Current Step: ${state.currentStep}');
       debugPrint('Project ID: ${state.projectId}');
@@ -262,7 +349,6 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
         debugPrint('Step 0 -> Step 1 (Local only)');
         notifier.updateStep(1);
       } else if (state.currentStep == 1) {
-        // Step 1: Start Wizard (POST) or Update (PATCH)
         if (state.projectId == null || state.projectId!.isEmpty) {
           debugPrint('Step 1: Calling StartWizard (POST)...');
           final res = await apiNotifier.startWizard(StartWizardPayload(
@@ -281,15 +367,32 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
           
           notifier.setProjectId(res.id);
         } else {
-          debugPrint('Step 1: Calling UpdateBasicInfo (PATCH) for "${state.projectId}"...');
+          // PATCH: send ALL fields to satisfy backend validation
+          final payload = _buildFullPayload(state, 1);
+          debugPrint('Step 1 PATCH payload: $payload');
           await apiNotifier.updateBasicInfo(
             state.projectId!,
             UpdateBasicInfoPayload(
               wizardStep: 1,
-              title: state.title,
-              description: state.description,
-              constructionType: state.selectedType,
-              constructionSubType: state.selectedSubType,
+              title: payload['title'],
+              description: payload['description'],
+              constructionType: payload['construction_type'],
+              constructionSubType: payload['construction_sub_type'],
+              location: payload['location'],
+              city: payload['city'],
+              state: payload['state'],
+              country: payload['country'],
+              startDate: payload['start_date'],
+              endDate: payload['end_date'],
+              budget: payload['budget'],
+              currency: payload['currency'],
+              urgencyLevel: payload['urgency_level'],
+              assignmentMethod: payload['assignment_method'],
+              contractorId: payload['contractor_id'],
+              biddingDeadline: payload['bidding_deadline'],
+              specialisations: payload['specialisations'] != null ? List<String>.from(payload['specialisations']) : null,
+              confirm: payload['confirm'],
+              agreeTerms: payload['agree_terms'],
             ),
           );
           debugPrint('Step 1: UpdateBasicInfo Success');
@@ -302,67 +405,118 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
           throw Exception("Project session expired. Please restart the wizard.");
         }
 
+        // Build the full payload with ALL fields for every PATCH
+        final payload = _buildFullPayload(state, state.currentStep);
+        debugPrint('Step ${state.currentStep} PATCH payload: $payload');
+
         if (state.currentStep == 2) {
-          // Step 2: Location
-          debugPrint('Step 2: Calling UpdateLocation (PATCH) for ${state.projectId}...');
           await apiNotifier.updateLocation(
             state.projectId!,
             UpdateLocationPayload(
               wizardStep: 2,
-              location: state.address,
-              city: state.city ?? '',
-              state: state.state ?? '',
-              country: state.country ?? '',
+              location: payload['location'],
+              city: payload['city'],
+              state: payload['state'],
+              country: payload['country'],
+              title: payload['title'],
+              description: payload['description'],
+              constructionType: payload['construction_type'],
+              constructionSubType: payload['construction_sub_type'],
+              startDate: payload['start_date'],
+              endDate: payload['end_date'],
+              budget: payload['budget'],
+              currency: payload['currency'],
+              urgencyLevel: payload['urgency_level'],
+              assignmentMethod: payload['assignment_method'],
+              contractorId: payload['contractor_id'],
+              biddingDeadline: payload['bidding_deadline'],
+              specialisations: payload['specialisations'] != null ? List<String>.from(payload['specialisations']) : null,
+              confirm: payload['confirm'],
+              agreeTerms: payload['agree_terms'],
             ),
           );
           debugPrint('Step 2: UpdateLocation Success');
           notifier.updateStep(3);
         } else if (state.currentStep == 3) {
-          // Step 3: Timeline & Budget
-          debugPrint('Step 3: Calling UpdateTimelineBudget (PATCH) for ${state.projectId}...');
-          final cleanBudget = state.budget.replaceAll(',', '').replaceAll(' ', '');
-          String cleanCurrency = state.currency;
-          if (cleanCurrency == '₦') cleanCurrency = 'NGN';
-          if (cleanCurrency == '\$') cleanCurrency = 'USD';
-          if (cleanCurrency.isEmpty) cleanCurrency = 'NGN';
-
           await apiNotifier.updateTimelineBudget(
             state.projectId!,
             UpdateTimelineBudgetPayload(
               wizardStep: 3,
-              startDate: state.startDate?.toIso8601String() ?? '',
-              endDate: state.endDate?.toIso8601String() ?? '',
-              budget: double.tryParse(cleanBudget) ?? 0,
-              currency: cleanCurrency,
-              urgencyLevel: state.urgencyLevel,
-              assignmentMethod: state.assignmentMethod ?? 'random',
-              contractorId: state.selectedContractorId,
-              biddingDeadline: state.biddingDeadline?.toIso8601String(),
+              startDate: payload['start_date'],
+              endDate: payload['end_date'],
+              budget: payload['budget'],
+              currency: payload['currency'],
+              urgencyLevel: payload['urgency_level'],
+              assignmentMethod: payload['assignment_method']!,
+              contractorId: payload['contractor_id'],
+              biddingDeadline: payload['bidding_deadline'],
+              title: payload['title'],
+              description: payload['description'],
+              constructionType: payload['construction_type'],
+              constructionSubType: payload['construction_sub_type'],
+              location: payload['location'],
+              city: payload['city'],
+              state: payload['state'],
+              country: payload['country'],
+              specialisations: payload['specialisations'] != null ? List<String>.from(payload['specialisations']) : null,
+              confirm: payload['confirm'],
+              agreeTerms: payload['agree_terms'],
             ),
           );
           debugPrint('Step 3: UpdateTimelineBudget Success');
           notifier.updateStep(4);
         } else if (state.currentStep == 4) {
-          // Step 4: Specialisations
-          debugPrint('Step 4: Calling UpdateSpecialisations (PATCH) for ${state.projectId}...');
           await apiNotifier.updateSpecialisations(
             state.projectId!,
             UpdateSpecialisationsPayload(
               wizardStep: 4,
               specialisations: state.specialisations,
+              title: payload['title'],
+              description: payload['description'],
+              constructionType: payload['construction_type'],
+              constructionSubType: payload['construction_sub_type'],
+              location: payload['location'],
+              city: payload['city'],
+              state: payload['state'],
+              country: payload['country'],
+              startDate: payload['start_date'],
+              endDate: payload['end_date'],
+              budget: payload['budget'],
+              currency: payload['currency'],
+              urgencyLevel: payload['urgency_level'],
+              assignmentMethod: payload['assignment_method'],
+              contractorId: payload['contractor_id'],
+              biddingDeadline: payload['bidding_deadline'],
+              confirm: payload['confirm'],
+              agreeTerms: payload['agree_terms'],
             ),
           );
           debugPrint('Step 4: UpdateSpecialisations Success');
           notifier.updateStep(5);
         } else if (state.currentStep == 5) {
-          // Step 5: Review & Confirm
-          debugPrint('Step 5: Calling ConfirmProject (PATCH) for ${state.projectId}...');
           await apiNotifier.confirmProject(
             state.projectId!,
             ConfirmProjectPayload(
               wizardStep: 5,
               confirm: state.confirmInfo,
               agreeTerms: state.agreeTerms,
+              title: payload['title'],
+              description: payload['description'],
+              constructionType: payload['construction_type'],
+              constructionSubType: payload['construction_sub_type'],
+              location: payload['location'],
+              city: payload['city'],
+              state: payload['state'],
+              country: payload['country'],
+              startDate: payload['start_date'],
+              endDate: payload['end_date'],
+              budget: payload['budget'],
+              currency: payload['currency'],
+              urgencyLevel: payload['urgency_level'],
+              assignmentMethod: payload['assignment_method'],
+              contractorId: payload['contractor_id'],
+              biddingDeadline: payload['bidding_deadline'],
+              specialisations: payload['specialisations'] != null ? List<String>.from(payload['specialisations']) : null,
             ),
           );
           debugPrint('Step 5: ConfirmProject Success');
@@ -374,6 +528,24 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
               FinalAssignPayload(
                 contractorId: state.selectedContractorId!,
                 wizardStep: 6,
+                confirm: state.confirmInfo,
+                agreeTerms: state.agreeTerms,
+                title: payload['title'],
+                description: payload['description'],
+                constructionType: payload['construction_type'],
+                constructionSubType: payload['construction_sub_type'],
+                location: payload['location'],
+                city: payload['city'],
+                state: payload['state'],
+                country: payload['country'],
+                startDate: payload['start_date'],
+                endDate: payload['end_date'],
+                budget: payload['budget'],
+                currency: payload['currency'],
+                urgencyLevel: payload['urgency_level'],
+                assignmentMethod: payload['assignment_method'],
+                biddingDeadline: payload['bidding_deadline'],
+                specialisations: payload['specialisations'] != null ? List<String>.from(payload['specialisations']) : null,
               ),
             );
             debugPrint('Step 6: FinalAssignContractor Success');
@@ -394,6 +566,8 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
           ),
         );
       }
+    } finally {
+      notifier.setLoading(false);
     }
   }
 }

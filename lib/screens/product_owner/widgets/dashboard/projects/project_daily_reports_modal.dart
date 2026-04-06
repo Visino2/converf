@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../features/daily_reports/models/daily_report_models.dart';
 import '../../../../../features/daily_reports/providers/daily_report_providers.dart';
 import 'package:intl/intl.dart';
+import 'daily_report_detail_modal.dart';
 
 class ProjectDailyReportsModal extends ConsumerStatefulWidget {
   final String projectId;
@@ -184,45 +185,59 @@ class _ProjectDailyReportsModalState
         statusBg = const Color(0xFFF2F4F7);
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEAECF0)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F9FF),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.assignment, color: Color(0xFF276572), size: 20),
+    return InkWell(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => DailyReportDetailModal(
+            projectId: widget.projectId,
+            reportId: report.id,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _safeFormatDate(report.reportDate),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF101828)),
-                ),
-              ],
+        );
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFEAECF0)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F9FF),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.assignment, color: Color(0xFF276572), size: 20),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(20)),
-            child: Text(
-              report.status.name.toUpperCase(),
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _safeFormatDate(report.reportDate),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF101828)),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(20)),
+              child: Text(
+                report.status.name.toUpperCase(),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

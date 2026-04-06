@@ -38,45 +38,66 @@ class _SchedulePhaseDialogState extends State<SchedulePhaseDialog> {
         children: [
           TextField(
             controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Phase Name', hintText: 'e.g., Foundation'),
+            decoration: const InputDecoration(
+              labelText: 'Phase Name',
+              hintText: 'e.g., Foundation',
+            ),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _startDateController,
-            decoration: const InputDecoration(labelText: 'Start Date', hintText: 'YYYY-MM-DD'),
+            decoration: const InputDecoration(
+              labelText: 'Start Date',
+              hintText: 'YYYY-MM-DD',
+            ),
             onTap: () => _selectDate(context, _startDateController),
             readOnly: true,
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _endDateController,
-            decoration: const InputDecoration(labelText: 'End Date', hintText: 'YYYY-MM-DD'),
+            decoration: const InputDecoration(
+              labelText: 'End Date',
+              hintText: 'YYYY-MM-DD',
+            ),
             onTap: () => _selectDate(context, _endDateController),
             readOnly: true,
           ),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         ElevatedButton(
           onPressed: () {
             if (_nameController.text.isNotEmpty) {
               widget.onSave({
                 'name': _nameController.text,
-                'start_date': _startDateController.text.isNotEmpty ? _startDateController.text : null,
-                'end_date': _endDateController.text.isNotEmpty ? _endDateController.text : null,
+                'start_date': _startDateController.text.isNotEmpty
+                    ? _startDateController.text
+                    : null,
+                'end_date': _endDateController.text.isNotEmpty
+                    ? _endDateController.text
+                    : null,
               });
               Navigator.pop(context);
             }
           },
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF276572)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF276572),
+          ),
           child: const Text('Save'),
         ),
       ],
     );
   }
 
-  Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
+  Future<void> _selectDate(
+    BuildContext context,
+    TextEditingController controller,
+  ) async {
     final picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -104,10 +125,12 @@ class ScheduleActivityDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ScheduleActivityDialog> createState() => _ScheduleActivityDialogState();
+  ConsumerState<ScheduleActivityDialog> createState() =>
+      _ScheduleActivityDialogState();
 }
 
-class _ScheduleActivityDialogState extends ConsumerState<ScheduleActivityDialog> {
+class _ScheduleActivityDialogState
+    extends ConsumerState<ScheduleActivityDialog> {
   final _titleController = TextEditingController();
   final _deadlineController = TextEditingController();
   final _durationController = TextEditingController();
@@ -122,7 +145,8 @@ class _ScheduleActivityDialogState extends ConsumerState<ScheduleActivityDialog>
     if (widget.activity != null) {
       _titleController.text = widget.activity!.title;
       _deadlineController.text = widget.activity!.deadline ?? '';
-      _durationController.text = widget.activity!.standardDurationDays?.toString() ?? '1';
+      _durationController.text =
+          widget.activity!.standardDurationDays?.toString() ?? '1';
       _roleController.text = widget.activity!.assignedRoleLabel ?? '';
       _selectedAssigneeId = widget.activity!.assignedTo?.id;
       _canRunParallel = widget.activity!.canRunParallel;
@@ -147,7 +171,10 @@ class _ScheduleActivityDialogState extends ConsumerState<ScheduleActivityDialog>
             const SizedBox(height: 16),
             TextField(
               controller: _deadlineController,
-              decoration: const InputDecoration(labelText: 'Deadline', hintText: 'YYYY-MM-DD'),
+              decoration: const InputDecoration(
+                labelText: 'Deadline',
+                hintText: 'YYYY-MM-DD',
+              ),
               onTap: () => _selectDate(context, _deadlineController),
               readOnly: true,
             ),
@@ -160,17 +187,24 @@ class _ScheduleActivityDialogState extends ConsumerState<ScheduleActivityDialog>
             const SizedBox(height: 16),
             TextField(
               controller: _roleController,
-              decoration: const InputDecoration(labelText: 'Required Role', hintText: 'e.g., Plumber'),
+              decoration: const InputDecoration(
+                labelText: 'Required Role',
+                hintText: 'e.g., Plumber',
+              ),
             ),
             const SizedBox(height: 16),
             teamAsync.when(
               data: (team) => DropdownButtonFormField<String>(
                 initialValue: _selectedAssigneeId,
                 decoration: const InputDecoration(labelText: 'Assign To'),
-                items: team.map((member) => DropdownMenuItem(
-                  value: member.id,
-                  child: Text(member.displayName),
-                )).toList(),
+                items: team
+                    .map(
+                      (member) => DropdownMenuItem(
+                        value: member.id,
+                        child: Text(member.displayName),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (val) => setState(() => _selectedAssigneeId = val),
               ),
               loading: () => const LinearProgressIndicator(),
@@ -179,7 +213,8 @@ class _ScheduleActivityDialogState extends ConsumerState<ScheduleActivityDialog>
             CheckboxListTile(
               title: const Text('Can run in parallel'),
               value: _canRunParallel,
-              onChanged: (val) => setState(() => _canRunParallel = val ?? false),
+              onChanged: (val) =>
+                  setState(() => _canRunParallel = val ?? false),
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
             ),
@@ -194,15 +229,23 @@ class _ScheduleActivityDialogState extends ConsumerState<ScheduleActivityDialog>
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         ElevatedButton(
           onPressed: () {
             if (_titleController.text.isNotEmpty) {
               widget.onSave({
                 'title': _titleController.text,
-                'deadline': _deadlineController.text.isNotEmpty ? _deadlineController.text : null,
-                'standard_duration_days': int.tryParse(_durationController.text) ?? 1,
-                'assigned_role_label': _roleController.text.isNotEmpty ? _roleController.text : null,
+                'deadline': _deadlineController.text.isNotEmpty
+                    ? _deadlineController.text
+                    : null,
+                'standard_duration_days':
+                    int.tryParse(_durationController.text) ?? 1,
+                'assigned_role_label': _roleController.text.isNotEmpty
+                    ? _roleController.text
+                    : null,
                 'assigned_to': _selectedAssigneeId,
                 'can_run_parallel': _canRunParallel,
                 'is_milestone': _isMilestone,
@@ -210,14 +253,19 @@ class _ScheduleActivityDialogState extends ConsumerState<ScheduleActivityDialog>
               Navigator.pop(context);
             }
           },
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF276572)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF276572),
+          ),
           child: const Text('Save'),
         ),
       ],
     );
   }
 
-  Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
+  Future<void> _selectDate(
+    BuildContext context,
+    TextEditingController controller,
+  ) async {
     final picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),

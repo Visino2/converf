@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class WizardTextField extends StatelessWidget {
@@ -7,6 +8,10 @@ class WizardTextField extends StatelessWidget {
   final String? hint;
   final int maxLines;
   final ValueChanged<String>? onChanged;
+  final List<TextInputFormatter>? inputFormatters;
+  final Widget? prefix;
+  final TextInputType keyboardType;
+  final bool enabled;
 
   const WizardTextField({
     super.key,
@@ -15,6 +20,10 @@ class WizardTextField extends StatelessWidget {
     this.hint,
     this.maxLines = 1,
     this.onChanged,
+    this.inputFormatters,
+    this.prefix,
+    this.keyboardType = TextInputType.text,
+    this.enabled = true,
   });
 
   @override
@@ -35,7 +44,11 @@ class WizardTextField extends StatelessWidget {
           controller: controller,
           maxLines: maxLines,
           onChanged: onChanged,
+          inputFormatters: inputFormatters,
+          keyboardType: keyboardType,
+          enabled: enabled,
           decoration: InputDecoration(
+            prefix: prefix,
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
             contentPadding: const EdgeInsets.symmetric(
@@ -92,7 +105,7 @@ class WizardDropdown extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: value != null && items.contains(value) ? value : null,
+          initialValue: value != null && items.contains(value) ? value : null,
           items: items
               .map(
                 (e) => DropdownMenuItem(

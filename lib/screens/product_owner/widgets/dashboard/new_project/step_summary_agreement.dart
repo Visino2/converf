@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/gestures.dart';
+import 'package:intl/intl.dart';
 
 class StepSummaryAgreement extends StatelessWidget {
   final Map<String, String> projectType;
@@ -123,23 +124,22 @@ class StepSummaryAgreement extends StatelessWidget {
           children: [
             _buildSummaryCard(
               'Location',
-              '${selectedCity ?? ''}, ${selectedState ?? ''},\n${selectedCountry ?? ''}',
+              _formatLocation(),
               'assets/images/map.svg',
             ),
             _buildSummaryCard(
               'Timeline',
-              '${startDate?.toString().substring(0, 10) ?? ''} to\n${endDate?.toString().substring(0, 10) ?? ''}',
+              _formatDateRange(startDate, endDate),
               'assets/images/Calendar.svg',
             ),
             _buildSummaryCard(
               'Budget',
-              '$selectedCurrency$budgetAmount',
-              'assets/images/Bill Check.svg',
+              _formatBudget(),
+              'assets/images/bill-check.svg',
             ),
             _buildSummaryCard(
               'Urgency',
-              selectedPriority[0].toUpperCase() +
-                  selectedPriority.substring(1).toLowerCase(),
+              _formatPriority(),
               'assets/images/Target.svg',
             ),
           ],
@@ -198,11 +198,7 @@ class StepSummaryAgreement extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            assignmentType == 'tender'
-                                ? 'Public Tender (Deadline: ${biddingDeadline?.toString().substring(0, 10) ?? ''})'
-                                : (assignmentType == 'direct'
-                                      ? 'Assign Directly'
-                                      : 'Decide Later'),
+                            _assignmentTitle(),
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -211,7 +207,7 @@ class StepSummaryAgreement extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Method: ${assignmentType?.toUpperCase() ?? ''}',
+                            'Method: ${_assignmentMethodLabel()}',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey.shade500,
@@ -323,6 +319,50 @@ class StepSummaryAgreement extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _formatLocation() {
+    final parts = [selectedCity, selectedState, selectedCountry]
+        .whereType<String>()
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .toList();
+    return parts.isEmpty ? 'Not specified' : parts.join(', ');
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'TBD';
+    return DateFormat('yyyy-MM-dd').format(date);
+  }
+
+  String _formatDateRange(DateTime? start, DateTime? end) {
+    return '${_formatDate(start)} to\n${_formatDate(end)}';
+  }
+
+  String _formatBudget() {
+    final cleaned = budgetAmount.replaceAll(',', '').replaceAll(' ', '');
+    final value = num.tryParse(cleaned);
+    final formatted = value != null ? NumberFormat('#,##0').format(value) : budgetAmount;
+    return '$selectedCurrency $formatted'.trim();
+  }
+
+  String _formatPriority() {
+    final value = selectedPriority.trim();
+    if (value.isEmpty) return 'Not set';
+    return '${value[0].toUpperCase()}${value.substring(1).toLowerCase()}';
+  }
+
+  String _assignmentTitle() {
+    if (assignmentType == 'tender') {
+      final deadlineText = biddingDeadline != null ? ' (Deadline: ${_formatDate(biddingDeadline)})' : '';
+      return 'Public Tender$deadlineText';
+    }
+    if (assignmentType == 'direct') return 'Assign Directly';
+    return 'Decide Later';
+  }
+
+  String _assignmentMethodLabel() {
+    return (assignmentType ?? 'TBD').toUpperCase();
   }
 
   Widget _buildSummaryCard(String title, String value, String iconPath) {

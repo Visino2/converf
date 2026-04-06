@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:converf/core/media/app_image_picker.dart';
 import '../../../../../features/profile/models/profile_models.dart';
 import '../../../../../features/profile/providers/profile_providers.dart';
 
@@ -13,7 +14,8 @@ class ProfileInformationScreen extends ConsumerStatefulWidget {
       _ProfileInformationScreenState();
 }
 
-class _ProfileInformationScreenState extends ConsumerState<ProfileInformationScreen> {
+class _ProfileInformationScreenState
+    extends ConsumerState<ProfileInformationScreen> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -21,6 +23,8 @@ class _ProfileInformationScreenState extends ConsumerState<ProfileInformationScr
   final _cityController = TextEditingController();
   final _stateController = TextEditingController();
   final _bioController = TextEditingController();
+  final _companyNameController = TextEditingController();
+  final _countryController = TextEditingController();
 
   bool _hasChanges = false;
   bool _initialized = false;
@@ -36,6 +40,8 @@ class _ProfileInformationScreenState extends ConsumerState<ProfileInformationScr
       _cityController,
       _stateController,
       _bioController,
+      _companyNameController,
+      _countryController,
     ]) {
       c.addListener(_onFieldChanged);
     }
@@ -56,6 +62,8 @@ class _ProfileInformationScreenState extends ConsumerState<ProfileInformationScr
       _cityController.text = profile.city ?? '';
       _stateController.text = profile.state ?? '';
       _bioController.text = profile.bio ?? '';
+      _companyNameController.text = profile.companyName ?? '';
+      _countryController.text = profile.country ?? 'Nigeria';
       _initialized = true;
     }
   }
@@ -70,6 +78,8 @@ class _ProfileInformationScreenState extends ConsumerState<ProfileInformationScr
       _cityController,
       _stateController,
       _bioController,
+      _companyNameController,
+      _countryController,
     ]) {
       c.dispose();
     }
@@ -77,23 +87,25 @@ class _ProfileInformationScreenState extends ConsumerState<ProfileInformationScr
   }
 
   Future<void> _pickAndUploadImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    
+    final pickedFile = await ref
+        .read(appImagePickerProvider)
+        .pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 70,
+          maxWidth: 1080,
+          maxHeight: 1080,
+        );
+
     if (pickedFile != null) {
-      try {
-        await ref.read(profileNotifierProvider.notifier).updateProfilePicture(pickedFile.path);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile picture updated successfully')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to update profile picture: $e')),
-          );
-        }
+      final success = await ref
+          .read(profileNotifierProvider.notifier)
+          .updateProfilePicture(pickedFile.path);
+      if (mounted && success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile picture updated successfully'),
+          ),
+        );
       }
     }
   }
@@ -102,26 +114,37 @@ class _ProfileInformationScreenState extends ConsumerState<ProfileInformationScr
     final payload = UpdateProfilePayload(
       firstName: _firstNameController.text.trim(),
       lastName: _lastNameController.text.trim(),
-      phoneNumber: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-      city: _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
-      state: _stateController.text.trim().isEmpty ? null : _stateController.text.trim(),
-      bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
+      phoneNumber: _phoneController.text.trim().isEmpty
+          ? null
+          : _phoneController.text.trim(),
+      city: _cityController.text.trim().isEmpty
+          ? null
+          : _cityController.text.trim(),
+      state: _stateController.text.trim().isEmpty
+          ? null
+          : _stateController.text.trim(),
+      bio: _bioController.text.trim().isEmpty
+          ? null
+          : _bioController.text.trim(),
+      companyName: _companyNameController.text.trim().isEmpty
+          ? null
+          : _companyNameController.text.trim(),
+      country: _countryController.text.trim().isEmpty
+          ? null
+          : _countryController.text.trim(),
     );
 
-    try {
-      await ref.read(profileNotifierProvider.notifier).updateProfile(payload);
+    final success = await ref.read(profileNotifierProvider.notifier).updateProfile(payload);
+    if (mounted && success) {
       setState(() => _hasChanges = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update profile: $e')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully')),
+      );
+      Navigator.pop(context);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update profile')),
+      );
     }
   }
 
@@ -169,15 +192,26 @@ class _ProfileInformationScreenState extends ConsumerState<ProfileInformationScr
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.grey.shade200,
-                          image: profile.avatarUrl != null || profile.profilePicture != null
+                          image:
+                              profile.avatarUrl != null ||
+                                  profile.profilePicture != null
                               ? DecorationImage(
-                                  image: NetworkImage(profile.avatarUrl ?? profile.profilePicture!),
+                                  image: NetworkImage(
+                                    profile.avatarUrl ??
+                                        profile.profilePicture!,
+                                  ),
                                   fit: BoxFit.cover,
                                 )
                               : null,
                         ),
-                        child: profile.avatarUrl == null && profile.profilePicture == null
-                            ? const Icon(Icons.person, size: 64, color: Colors.grey)
+                        child:
+                            profile.avatarUrl == null &&
+                                profile.profilePicture == null
+                            ? const Icon(
+                                Icons.person,
+                                size: 64,
+                                color: Colors.grey,
+                              )
                             : null,
                       ),
                     ),
@@ -185,7 +219,9 @@ class _ProfileInformationScreenState extends ConsumerState<ProfileInformationScr
                       bottom: 2,
                       right: 2,
                       child: GestureDetector(
-                        onTap: actionState.isLoading ? null : _pickAndUploadImage,
+                        onTap: actionState.isLoading
+                            ? null
+                            : _pickAndUploadImage,
                         child: Container(
                           width: 32,
                           height: 32,
@@ -203,10 +239,14 @@ class _ProfileInformationScreenState extends ConsumerState<ProfileInformationScr
                                       color: Colors.white,
                                     ),
                                   )
-                                : SvgPicture.asset('assets/images/camera.svg',
+                                : SvgPicture.asset(
+                                    'assets/images/camera.svg',
                                     width: 18,
                                     height: 18,
-                                    colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                                    colorFilter: const ColorFilter.mode(
+                                      Colors.white,
+                                      BlendMode.srcIn,
+                                    ),
                                     errorBuilder: (_, _, _) => const Icon(
                                       Icons.camera_alt,
                                       color: Colors.white,
@@ -225,13 +265,30 @@ class _ProfileInformationScreenState extends ConsumerState<ProfileInformationScr
                 Row(
                   children: [
                     Expanded(
-                      child: _buildField('First name', _firstNameController, enabled: !actionState.isLoading),
+                      child: _buildField(
+                        'First name',
+                        _firstNameController,
+                        enabled: !actionState.isLoading,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _buildField('Last name', _lastNameController, enabled: !actionState.isLoading),
+                      child: _buildField(
+                        'Last name',
+                        _lastNameController,
+                        enabled: !actionState.isLoading,
+                      ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 16),
+
+                // Company Name
+                _buildField(
+                  'Company Name',
+                  _companyNameController,
+                  hint: 'Enter Company Name',
+                  enabled: !actionState.isLoading,
                 ),
                 const SizedBox(height: 16),
 
@@ -245,34 +302,68 @@ class _ProfileInformationScreenState extends ConsumerState<ProfileInformationScr
                 const SizedBox(height: 16),
 
                 // Phone Number
-                _buildField('Phone Number', _phoneController, hint: 'Enter Phone Number', enabled: !actionState.isLoading),
+                _buildField(
+                  'Phone Number',
+                  _phoneController,
+                  hint: 'Enter Phone Number',
+                  enabled: !actionState.isLoading,
+                ),
+                const SizedBox(height: 16),
+
+                // Country (read-only for now)
+                _buildField(
+                  'Country',
+                  _countryController,
+                  enabled: false,
+                  fillColor: const Color(0xFFF3F4F6),
+                ),
                 const SizedBox(height: 16),
 
                 // City & State
                 Row(
                   children: [
                     Expanded(
-                      child: _buildField('City', _cityController, hint: 'Enter City', enabled: !actionState.isLoading),
+                      child: _buildField(
+                        'City',
+                        _cityController,
+                        hint: 'Enter City',
+                        enabled: !actionState.isLoading,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _buildField('State', _stateController, hint: 'Enter State', enabled: !actionState.isLoading),
+                      child: _buildField(
+                        'State',
+                        _stateController,
+                        hint: 'Enter State',
+                        enabled: !actionState.isLoading,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
 
                 // Bio
-                _buildField('Bio', _bioController, hint: 'Tell us about yourself', maxLines: 3, enabled: !actionState.isLoading),
+                _buildField(
+                  'Bio',
+                  _bioController,
+                  hint: 'Tell us about yourself',
+                  maxLines: 3,
+                  enabled: !actionState.isLoading,
+                ),
                 const SizedBox(height: 32),
 
                 // Save Changes button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _hasChanges && !actionState.isLoading ? _saveChanges : null,
+                    onPressed: _hasChanges && !actionState.isLoading
+                        ? _saveChanges
+                        : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _hasChanges ? const Color(0xFF2A8090) : const Color(0xFFD1D5DB),
+                      backgroundColor: _hasChanges
+                          ? const Color(0xFF2A8090)
+                          : const Color(0xFFD1D5DB),
                       disabledBackgroundColor: const Color(0xFFD1D5DB),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       elevation: 0,
@@ -294,7 +385,9 @@ class _ProfileInformationScreenState extends ConsumerState<ProfileInformationScr
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: _hasChanges ? Colors.white : Colors.white70,
+                              color: _hasChanges
+                                  ? Colors.white
+                                  : Colors.white70,
                             ),
                           ),
                   ),
@@ -338,8 +431,10 @@ class _ProfileInformationScreenState extends ConsumerState<ProfileInformationScr
             hintStyle: TextStyle(color: Colors.grey.shade400),
             filled: true,
             fillColor: fillColor ?? Colors.white,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade300),

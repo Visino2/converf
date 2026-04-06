@@ -93,7 +93,7 @@ class ProjectTeamModal extends ConsumerWidget {
                 return ListView.separated(
                   padding: const EdgeInsets.all(24),
                   itemCount: members.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (context, index) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final member = members[index];
                     return _buildMemberCard(context, ref, member);
@@ -254,7 +254,7 @@ class _AssignMemberSheet extends ConsumerWidget {
                 return ListView.separated(
                   padding: const EdgeInsets.all(24),
                   itemCount: availableMembers.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (context, index) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final member = availableMembers[index];
                     return _buildSelectableCard(context, ref, member);

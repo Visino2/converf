@@ -162,7 +162,8 @@ class ContractorHelpSupportScreen extends StatelessWidget {
                         icon,
                         width: 22,
                         height: 22,
-                        colorFilter: (iconBg == null || iconBg == Colors.transparent)
+                        colorFilter:
+                            (iconBg == null || iconBg == Colors.transparent)
                             ? null
                             : ColorFilter.mode(iconColor, BlendMode.srcIn),
                         errorBuilder: (_, _, _) => Icon(
@@ -175,7 +176,9 @@ class ContractorHelpSupportScreen extends StatelessWidget {
                         icon,
                         width: 22,
                         height: 22,
-                        color: (iconBg == null || iconBg == Colors.transparent) ? null : iconColor,
+                        color: (iconBg == null || iconBg == Colors.transparent)
+                            ? null
+                            : iconColor,
                         errorBuilder: (_, _, _) => Icon(
                           Icons.help_outline,
                           color: iconColor,
@@ -215,7 +218,10 @@ class ContractorHelpSupportScreen extends StatelessWidget {
                     arrowAsset,
                     width: 20,
                     height: 20,
-                    colorFilter: const ColorFilter.mode(Color(0xFF9CA3AF), BlendMode.srcIn),
+                    colorFilter: const ColorFilter.mode(
+                      Color(0xFF9CA3AF),
+                      BlendMode.srcIn,
+                    ),
                     errorBuilder: (_, _, _) => const Icon(
                       Icons.chevron_right,
                       color: Color(0xFF9CA3AF),

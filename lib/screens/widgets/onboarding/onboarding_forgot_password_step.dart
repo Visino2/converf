@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:converf/core/ui/app_colors.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 
 class OnboardingForgotPasswordStep extends ConsumerStatefulWidget {
@@ -13,10 +14,12 @@ class OnboardingForgotPasswordStep extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<OnboardingForgotPasswordStep> createState() => _OnboardingForgotPasswordStepState();
+  ConsumerState<OnboardingForgotPasswordStep> createState() =>
+      _OnboardingForgotPasswordStepState();
 }
 
-class _OnboardingForgotPasswordStepState extends ConsumerState<OnboardingForgotPasswordStep> {
+class _OnboardingForgotPasswordStepState
+    extends ConsumerState<OnboardingForgotPasswordStep> {
   final _emailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isEmailValid = false;
@@ -38,19 +41,21 @@ class _OnboardingForgotPasswordStepState extends ConsumerState<OnboardingForgotP
     if (mounted) {
       final authState = ref.read(authProvider);
       if (authState.hasError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(authState.error.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(authState.error.toString())));
       } else if (authState.value?.status == false) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(authState.value?.message ?? 'Request failed')),
         );
       } else if (authState.value?.status == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(authState.value?.message ?? 'Reset link sent!')),
+          SnackBar(
+            content: Text(authState.value?.message ?? 'Reset code sent!'),
+          ),
         );
         Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) widget.onBack();
+          if (mounted) widget.onResetPassword();
         });
       }
     }
@@ -88,7 +93,7 @@ class _OnboardingForgotPasswordStepState extends ConsumerState<OnboardingForgotP
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-            suffixIcon: isValid 
+            suffixIcon: isValid
                 ? const Icon(Icons.check_circle, color: Colors.green, size: 20)
                 : null,
             contentPadding: const EdgeInsets.symmetric(
@@ -132,7 +137,7 @@ class _OnboardingForgotPasswordStepState extends ConsumerState<OnboardingForgotP
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           stops: [0.0, 0.45],
-          colors: [Color(0xFF276572), Colors.white],
+          colors: [AppColors.authShellTop, Colors.white],
         ),
       ),
       child: SafeArea(
@@ -150,7 +155,11 @@ class _OnboardingForgotPasswordStepState extends ConsumerState<OnboardingForgotP
                         Align(
                           alignment: Alignment.topLeft,
                           child: IconButton(
-                            icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                            icon: const Icon(
+                              Icons.arrow_back_ios,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                             onPressed: widget.onBack,
                           ),
                         ),
@@ -167,7 +176,7 @@ class _OnboardingForgotPasswordStepState extends ConsumerState<OnboardingForgotP
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'No worries! Enter your email and we\'ll send you a reset link.',
+                          'No worries! Enter your email and we\'ll send you a 6-digit reset code.',
                           style: TextStyle(
                             fontSize: 15,
                             color: Colors.grey.shade600,
@@ -183,11 +192,15 @@ class _OnboardingForgotPasswordStepState extends ConsumerState<OnboardingForgotP
                             controller: _emailController,
                             isValid: _isEmailValid,
                             validator: (v) {
-                              if (v == null || !v.contains('@') || !v.contains('.')) {
+                              if (v == null ||
+                                  !v.contains('@') ||
+                                  !v.contains('.')) {
                                 return 'Enter valid email';
                               }
                               WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (!_isEmailValid) setState(() => _isEmailValid = true);
+                                if (!_isEmailValid) {
+                                  setState(() => _isEmailValid = true);
+                                }
                               });
                               return null;
                             },
@@ -217,7 +230,7 @@ class _OnboardingForgotPasswordStepState extends ConsumerState<OnboardingForgotP
                                     ),
                                   )
                                 : const Text(
-                                    'Send Reset Link',
+                                    'Send Reset Code',
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,

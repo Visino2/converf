@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/pusher_service.dart';
+import '../../notifications/providers/notification_providers.dart';
 import '../models/message.dart';
 import '../repositories/message_repository.dart';
 
@@ -29,13 +31,16 @@ final projectMessagesProvider = StreamProvider.autoDispose.family<List<Message>,
           final newMessage = Message.fromJson(messageMap);
           if (!currentMessages.any((m) => m.id == newMessage.id)) {
             currentMessages = [...currentMessages, newMessage];
+            ref.invalidate(notificationsProvider(false));
+            ref.invalidate(notificationsProvider(true));
+            ref.invalidate(unreadNotificationsCountProvider);
             if (!controller.isClosed) {
               controller.add(currentMessages);
             }
           }
         }
       } catch (e) {
-        print("[projectMessagesProvider] Error: $e");
+        debugPrint("[projectMessagesProvider] Error: $e");
       }
     }
   });

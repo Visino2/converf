@@ -1,52 +1,165 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:converf/core/ui/app_colors.dart';
 
+import '../../../features/auth/models/auth_response.dart';
+import '../../../features/auth/models/social_auth_method.dart';
+import '../../../features/auth/providers/social_auth_provider.dart';
+import '../../../features/auth/screens/social_auth_webview.dart';
 
-class OnboardingAuthStep extends StatelessWidget {
-  final VoidCallback onSignupManually;
-  final VoidCallback onLogin;
-
+class OnboardingAuthStep extends ConsumerWidget {
   const OnboardingAuthStep({
     super.key,
     required this.onSignupManually,
     required this.onLogin,
+    this.selectedRole,
   });
+
+  final VoidCallback onSignupManually;
+  final VoidCallback onLogin;
+  final String? selectedRole;
 
   Widget _buildSocialButton({
     required String title,
     required Widget iconWidget,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(30),
-      child: Container(
-        height: 56,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            iconWidget,
-            const SizedBox(width: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF333333),
+      child: Opacity(
+        opacity: onTap == null ? 0.6 : 1,
+        child: Container(
+          height: 56,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              iconWidget,
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF333333),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
+  Future<UserRole?> _resolveRole(BuildContext context) async {
+    final initialRole = userRoleFromOnboardingSelection(selectedRole);
+    if (initialRole != null) {
+      return initialRole;
+    }
+
+    return showModalBottomSheet<UserRole>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Continue as',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Choose the account type you want to use for this sign-in.',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+                ),
+                const SizedBox(height: 20),
+                _RoleOptionTile(
+                  title: 'Project Owner',
+                  onTap: () => Navigator.of(context).pop(UserRole.projectOwner),
+                ),
+                const SizedBox(height: 12),
+                _RoleOptionTile(
+                  title: 'Contractor',
+                  onTap: () => Navigator.of(context).pop(UserRole.contractor),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _handleSocialAuth(
+    BuildContext context,
+    WidgetRef ref,
+    SocialAuthMethod method,
+  ) async {
+    final role = await _resolveRole(context);
+    if (role == null || !context.mounted) {
+      return;
+    }
+
+    try {
+      final authUrl = await ref
+          .read(socialAuthActionProvider.notifier)
+          .getSignInUrl(method: method, role: role);
+
+      if (!context.mounted) return;
+
+      // Open the OAuth flow in the in-app WebView so we can intercept
+      // the converf-fe.netlify.app callback before it opens in the browser.
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SocialAuthWebView(
+            authUrl: authUrl,
+            onCancel: () {},
+            onCallback: (callbackUri) async {
+              try {
+                await ref
+                    .read(socialAuthActionProvider.notifier)
+                    .completeFromCallback(callbackUri);
+                // The authProvider state change will trigger the router automatically.
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(e.toString())),
+                  );
+                }
+              }
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final socialAuthState = ref.watch(socialAuthActionProvider);
+
     return Container(
       key: const ValueKey('auth'),
       decoration: const BoxDecoration(
@@ -54,7 +167,7 @@ class OnboardingAuthStep extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           stops: [0.0, 0.45],
-          colors: [Color(0xFF276572), Colors.white],
+          colors: [AppColors.authShellTop, Colors.white],
         ),
       ),
       child: SafeArea(
@@ -83,7 +196,6 @@ class OnboardingAuthStep extends StatelessWidget {
                             ),
                           ),
                         ),
-                        // This Spacer pushes everything down
                         const Spacer(),
                         const Text(
                           'Get started with\nConverf',
@@ -106,11 +218,18 @@ class OnboardingAuthStep extends StatelessWidget {
                         const SizedBox(height: 32),
                         _buildSocialButton(
                           title: 'Continue with Google',
-                          iconWidget: Image.asset('assets/images/Google Icon.png',
+                          iconWidget: Image.asset(
+                            'assets/images/Google Icon.png',
                             width: 24,
                             height: 24,
                           ),
-                          onTap: () {},
+                          onTap: socialAuthState.isLoading
+                              ? null
+                              : () => _handleSocialAuth(
+                                  context,
+                                  ref,
+                                  SocialAuthMethod.google,
+                                ),
                         ),
                         const SizedBox(height: 16),
                         _buildSocialButton(
@@ -120,7 +239,13 @@ class OnboardingAuthStep extends StatelessWidget {
                             size: 28,
                             color: Colors.black,
                           ),
-                          onTap: () {},
+                          onTap: socialAuthState.isLoading
+                              ? null
+                              : () => _handleSocialAuth(
+                                  context,
+                                  ref,
+                                  SocialAuthMethod.apple,
+                                ),
                         ),
                         const SizedBox(height: 24),
                         Row(
@@ -176,6 +301,48 @@ class OnboardingAuthStep extends StatelessWidget {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _RoleOptionTile extends StatelessWidget {
+  const _RoleOptionTile({required this.title, required this.onTap});
+
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: Color(0xFF667085),
+            ),
+          ],
         ),
       ),
     );

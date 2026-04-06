@@ -88,9 +88,8 @@ class ScheduleRepository {
 
   Future<Schedule> createScheduleFromBid(String bidId, String contractorNotes) async {
     final response = await _apiClient.post(
-      '/api/v1/schedules/create-from-bid',
+      '/api/v1/bids/$bidId/schedule',
       data: {
-        'bid': bidId,
         'contractor_notes': contractorNotes,
       },
     );
@@ -101,8 +100,11 @@ class ScheduleRepository {
     throw Exception("Invalid response format from server");
   }
 
-  Future<void> submitScheduleFromBid(String bidId) async {
-    await _apiClient.post('/api/v1/schedules/submit-from-bid', data: {'bid': bidId});
+  Future<void> submitScheduleFromBid(String bidId, String contractorNotes) async {
+    await _apiClient.post(
+      '/api/v1/bids/$bidId/schedule/submit',
+      data: {'contractor_notes': contractorNotes},
+    );
   }
 
   Future<Schedule> createScheduleFromProject(String projectId, String contractorNotes) async {
@@ -129,18 +131,21 @@ class ScheduleRepository {
   }
 
   Future<Schedule> getProjectScheduleDetail(String projectId) async {
-    try {
-      final response = await _apiClient.get('/api/v1/projects/$projectId/schedule');
-      if (response.data is Map<String, dynamic>) {
-        final map = response.data['data'] ?? response.data;
-        return Schedule.fromJson(map);
-      }
-      throw Exception("Invalid response format from server");
-    } catch (e) {
-      // If we get a 404 or other error, it might mean the schedule doesn't exist yet.
-      // Re-throw or handle as needed by the caller. 
-      rethrow;
+    final response = await _apiClient.get('/api/v1/projects/$projectId/schedule');
+    if (response.data is Map<String, dynamic>) {
+      final map = response.data['data'] ?? response.data;
+      return Schedule.fromJson(map);
     }
+    throw Exception("Invalid response format from server");
+  }
+
+  Future<Schedule> getBidScheduleDetail(String bidId) async {
+    final response = await _apiClient.get('/api/v1/bids/$bidId/schedule');
+    if (response.data is Map<String, dynamic>) {
+      final map = response.data['data'] ?? response.data;
+      return Schedule.fromJson(map);
+    }
+    throw Exception("Invalid response format from server");
   }
 
   // --- SCHEDULE ACTIONS ---

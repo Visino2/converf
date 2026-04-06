@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dio_provider.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -16,44 +18,69 @@ class ApiClient {
 
   ApiClient(this._dio);
 
-  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
-    try {
-      return await _dio.get(path, queryParameters: queryParameters);
-    } on DioException catch (e) {
-      throw _handleError(e);
+  Future<Response> _requestWithRetry(
+    Future<Response> Function() request, {
+    int maxRetries = 3,
+  }) async {
+    int attempts = 0;
+    while (true) {
+      try {
+        return await request();
+      } on DioException catch (e) {
+        final isRetryable = e.type == DioExceptionType.connectionError ||
+            e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
+            e.type == DioExceptionType.receiveTimeout;
+
+        if (isRetryable && attempts < maxRetries) {
+          attempts++;
+          // Exponential backoff: 1s, 2s, 4s
+          final delayMs = (1000 * (1 << (attempts - 1)));
+          await Future.delayed(Duration(milliseconds: delayMs));
+          continue;
+        }
+        throw _handleError(e);
+      }
     }
   }
 
-  Future<Response> post(String path, {dynamic data, Map<String, dynamic>? queryParameters}) async {
-    try {
-      return await _dio.post(path, data: data, queryParameters: queryParameters);
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
+  Future<Response> get(String path,
+      {Map<String, dynamic>? queryParameters, Options? options}) async {
+    return _requestWithRetry(
+      () => _dio.get(path, queryParameters: queryParameters, options: options),
+    );
   }
 
-  Future<Response> patch(String path, {dynamic data, Map<String, dynamic>? queryParameters}) async {
-    try {
-      return await _dio.patch(path, data: data, queryParameters: queryParameters);
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
+  Future<Response> post(String path,
+      {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) async {
+    return _requestWithRetry(
+      () => _dio.post(path,
+          data: data, queryParameters: queryParameters, options: options),
+    );
   }
 
-  Future<Response> put(String path, {dynamic data, Map<String, dynamic>? queryParameters}) async {
-    try {
-      return await _dio.put(path, data: data, queryParameters: queryParameters);
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
+  Future<Response> patch(String path,
+      {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) async {
+    return _requestWithRetry(
+      () => _dio.patch(path,
+          data: data, queryParameters: queryParameters, options: options),
+    );
   }
 
-  Future<Response> delete(String path, {dynamic data, Map<String, dynamic>? queryParameters}) async {
-    try {
-      return await _dio.delete(path, data: data, queryParameters: queryParameters);
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
+  Future<Response> put(String path,
+      {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) async {
+    return _requestWithRetry(
+      () => _dio.put(path,
+          data: data, queryParameters: queryParameters, options: options),
+    );
+  }
+
+  Future<Response> delete(String path,
+      {dynamic data, Map<String, dynamic>? queryParameters, Options? options}) async {
+    return _requestWithRetry(
+      () => _dio.delete(path,
+          data: data, queryParameters: queryParameters, options: options),
+    );
   }
 
   Exception _handleError(DioException error) {
@@ -98,3 +125,8 @@ class ApiClient {
     return ApiException(message, error.response?.statusCode);
   }
 }
+
+final apiClientProvider = Provider<ApiClient>((ref) {
+  final dio = ref.watch(dioProvider);
+  return ApiClient(dio);
+});

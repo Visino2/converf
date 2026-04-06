@@ -23,50 +23,55 @@ class ProfileNotifier extends AsyncNotifier<void> {
     _repository = ref.read(profileRepositoryProvider);
   }
 
-  Future<void> updateProfile(UpdateProfilePayload payload) async {
+  Future<bool> updateProfile(UpdateProfilePayload payload) async {
     state = const AsyncLoading();
     try {
       final updatedProfile = await _repository.updateProfile(payload);
       
-      // Update local session
+      // Update local session safely via AuthNotifier
       final sessionManager = ref.read(sessionManagerProvider);
       final currentToken = await sessionManager.getToken();
-      if (currentToken != null) {
-         await sessionManager.saveSession(currentToken, updatedProfile.toJson());
+      final currentUser = await sessionManager.getUser();
+
+      if (currentToken != null && currentUser != null) {
+        // Use the auth notifier to update state cleanly with role-preservation
+        await ref.read(authProvider.notifier).updateCurrentUser(updatedProfile.toJson());
       }
       
-      // Refresh providers
+      // Refresh supplemental providers
       ref.invalidate(profileProvider);
-      // Also potentially invalidate authProvider if it depends on the user object
-      ref.invalidate(authProvider);
       
       state = const AsyncData(null);
+      return true;
     } catch (e, st) {
       state = AsyncError(e, st);
-      rethrow;
+      return false;
     }
   }
 
-  Future<void> updateProfilePicture(String filePath) async {
+  Future<bool> updateProfilePicture(String filePath) async {
     state = const AsyncLoading();
     try {
       final updatedProfile = await _repository.updateProfilePicture(filePath);
       
-      // Update local session
+      // Update local session safely via AuthNotifier
       final sessionManager = ref.read(sessionManagerProvider);
       final currentToken = await sessionManager.getToken();
-      if (currentToken != null) {
-         await sessionManager.saveSession(currentToken, updatedProfile.toJson());
+      final currentUser = await sessionManager.getUser();
+
+      if (currentToken != null && currentUser != null) {
+        // Use the auth notifier to update state cleanly with role-preservation
+        await ref.read(authProvider.notifier).updateCurrentUser(updatedProfile.toJson());
       }
       
-      // Refresh providers
+      // Refresh supplemental providers
       ref.invalidate(profileProvider);
-      ref.invalidate(authProvider);
       
       state = const AsyncData(null);
+      return true;
     } catch (e, st) {
       state = AsyncError(e, st);
-      rethrow;
+      return false;
     }
   }
 

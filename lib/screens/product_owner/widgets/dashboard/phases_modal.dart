@@ -143,7 +143,7 @@ class _PhasesModalState extends ConsumerState<PhasesModal>
                 width: 22,
                 height: 22,
                 colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn),
-                errorBuilder: (_, __, ___) =>
+                errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.route, color: Color(0xFF276572)),
               ),
               const SizedBox(width: 10),
@@ -258,8 +258,8 @@ class _PhasesTab extends ConsumerWidget {
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                       itemCount: phases.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (_, i) => _PhaseCard(phase: phases[i]),
+                      separatorBuilder: (context, index) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) => _PhaseCard(phase: phases[index]),
                     ),
             ),
           ],
@@ -437,8 +437,8 @@ class _MilestonesTab extends ConsumerWidget {
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                       itemCount: milestones.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (_, i) => _MilestoneCard(milestone: milestones[i]),
+                      separatorBuilder: (context, index) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) => _MilestoneCard(milestone: milestones[index]),
                     ),
             ),
           ],

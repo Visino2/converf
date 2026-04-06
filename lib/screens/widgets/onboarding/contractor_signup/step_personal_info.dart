@@ -9,6 +9,7 @@ class ContractorPersonalInfoStep extends StatefulWidget {
   final Function(String) onCountrySelected;
   final String? emailBackendError;
   final VoidCallback onEmailChanged;
+  final bool isCheckingEmail;
 
   const ContractorPersonalInfoStep({
     super.key,
@@ -20,6 +21,7 @@ class ContractorPersonalInfoStep extends StatefulWidget {
     required this.onCountrySelected,
     required this.emailBackendError,
     required this.onEmailChanged,
+    this.isCheckingEmail = false,
   });
 
   @override
@@ -34,16 +36,6 @@ class _ContractorPersonalInfoStepState
   bool _isEmailValid = false;
   final List<String> _countries = [
     'Nigeria',
-    'Ghana',
-    'Kenya',
-    'South Africa',
-    'Egypt',
-    'Ethiopia',
-    'Tanzania',
-    'Uganda',
-    'Rwanda',
-    'Senegal',
-    'Other African Country',
   ];
 
   void _showCountryPicker() {
@@ -345,15 +337,26 @@ class _ContractorPersonalInfoStepState
                 ),
                 elevation: 0,
               ),
-              onPressed: () {
-                if (_formKey.currentState!.validate()) {
-                  widget.onNext();
-                }
-              },
-              child: const Text(
-                'Next',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
+              onPressed: widget.isCheckingEmail
+                  ? null
+                  : () {
+                      if (_formKey.currentState!.validate()) {
+                        widget.onNext();
+                      }
+                    },
+              child: widget.isCheckingEmail
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Next',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
             ),
           ),
         ],

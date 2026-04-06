@@ -24,6 +24,8 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
@@ -79,6 +81,8 @@
 	<string>This app requires access to the camera to take project photos.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app requires access to the microphone for video recording.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We capture your photo location to meet project documentation requirements.</string>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>

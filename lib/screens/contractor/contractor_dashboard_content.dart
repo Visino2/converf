@@ -1,13 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../product_owner/widgets/dashboard/messages/project_inbox_screen.dart';
+import 'projects/widgets/tools/contractor_notifications_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:converf/features/marketplace/providers/marketplace_providers.dart';
 import 'package:converf/features/dashboard/providers/dashboard_providers.dart';
+import 'package:converf/features/notifications/providers/notification_providers.dart';
 import '../product_owner/widgets/dashboard/home/search_results_state.dart';
 import '../product_owner/widgets/dashboard/home/search_empty_state.dart';
-import 'contractor_dashboard_screen.dart';
 import 'projects/contractor_project_details_screen.dart';
+import 'package:converf/features/projects/providers/project_providers.dart';
 
 class ContractorDashboardContent extends ConsumerStatefulWidget {
   const ContractorDashboardContent({super.key, this.onNavigateToProjects});
@@ -15,14 +17,38 @@ class ContractorDashboardContent extends ConsumerStatefulWidget {
   final VoidCallback? onNavigateToProjects;
 
   @override
-  ConsumerState<ContractorDashboardContent> createState() => _ContractorDashboardContentState();
+  ConsumerState<ContractorDashboardContent> createState() =>
+      _ContractorDashboardContentState();
 }
 
-class _ContractorDashboardContentState extends ConsumerState<ContractorDashboardContent> {
+class _ContractorDashboardContentState
+    extends ConsumerState<ContractorDashboardContent> {
   bool _isSearching = false;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoRefresh();
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        debugPrint(
+          '[ContractorDashboard] Auto-refreshing data and notifications...',
+        );
+        ref.invalidate(assignedProjectsProvider(1));
+        ref.invalidate(dashboardStatsProvider);
+        ref.invalidate(unreadNotificationsCountProvider);
+        ref.invalidate(unreadMessageNotificationsCountProvider);
+      }
+    });
+  }
 
   void _toggleSearch() {
     setState(() {
@@ -38,6 +64,7 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();
@@ -61,7 +88,9 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
 
               // Body Area
               Expanded(
-                child: _isSearching ? _buildSearchBody() : _buildDashboardBody(),
+                child: _isSearching
+                    ? _buildSearchBody()
+                    : _buildDashboardBody(),
               ),
             ],
           ),
@@ -71,6 +100,11 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
   }
 
   Widget _buildNormalHeader() {
+    final unreadCount =
+        ref.watch(unreadNotificationsCountProvider).asData?.value ?? 0;
+    final unreadMessageCount =
+        ref.watch(unreadMessageNotificationsCountProvider).asData?.value ?? 0;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -85,7 +119,54 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
         ),
         Row(
           children: [
-            SvgPicture.asset('assets/images/Bell.svg', width: 24, height: 24),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ContractorNotificationsScreen(),
+                  ),
+                );
+              },
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  SvgPicture.asset(
+                    'assets/images/Bell.svg',
+                    width: 24,
+                    height: 24,
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD42620),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          unreadCount > 99 ? '99+' : unreadCount.toString(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
             const SizedBox(width: 16),
             GestureDetector(
               onTap: () {
@@ -99,27 +180,49 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  SvgPicture.asset('assets/images/message.svg', width: 24, height: 24),
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD42620), // Standard red dot
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.5),
+                  SvgPicture.asset(
+                    'assets/images/message.svg',
+                    width: 24,
+                    height: 24,
+                  ),
+                  if (unreadMessageCount > 0)
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD42620),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          unreadMessageCount > 99
+                              ? '99+'
+                              : unreadMessageCount.toString(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
             const SizedBox(width: 16),
             GestureDetector(
               onTap: _toggleSearch,
-              child: SvgPicture.asset('assets/images/search.svg',
+              child: SvgPicture.asset(
+                'assets/images/search.svg',
                 width: 24,
                 height: 24,
               ),
@@ -166,7 +269,8 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
                 ),
                 prefixIcon: Padding(
                   padding: const EdgeInsets.only(left: 12, right: 8),
-                  child: SvgPicture.asset('assets/images/search.svg',
+                  child: SvgPicture.asset(
+                    'assets/images/search.svg',
                     width: 20,
                     height: 20,
                     colorFilter: ColorFilter.mode(
@@ -209,134 +313,169 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
   }
 
   Widget _buildDashboardBody() {
-    final marketplaceAsync = ref.watch(marketplaceProjectsProvider(1));
+    final assignedProjectsAsync = ref.watch(assignedProjectsProvider(1));
     final statsAsync = ref.watch(dashboardStatsProvider);
 
-    return marketplaceAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF2A8090))),
-      error: (error, _) => Center(child: Text('Error: $error', style: const TextStyle(color: Colors.red))),
-      data: (marketplaceResponse) {
-        final highlightedProject = marketplaceResponse.data.isNotEmpty ? marketplaceResponse.data.first : null;
+    return assignedProjectsAsync.when(
+      loading: () => assignedProjectsAsync.hasValue
+          ? _buildDashboardBodyContent(assignedProjectsAsync.value!, statsAsync)
+          : const Center(
+              child: CircularProgressIndicator(color: Color(0xFF2A8090)),
+            ),
+      error: (error, _) => Center(
+        child: Text('Error: $error', style: const TextStyle(color: Colors.red)),
+      ),
+      data: (projectsResponse) =>
+          _buildDashboardBodyContent(projectsResponse, statsAsync),
+    );
+  }
 
-        return statsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF2A8090))),
-          error: (error, _) => Center(child: Text('Error loading stats: $error', style: const TextStyle(color: Colors.red))),
-          data: (statsResponse) {
-            final stats = statsResponse.data;
-            
-            String marketValueString = '₦0';
-            if (stats != null) {
-              final mv = stats.portfolioValue; // Using portfolioValue as marketValue
-              if (mv >= 1000000000) {
-                marketValueString = '₦${(mv / 1000000000).toStringAsFixed(1)}B';
-              } else if (mv >= 1000000) {
-                marketValueString = '₦${(mv / 1000000).toStringAsFixed(1)}M';
-              } else if (mv > 0) {
-                marketValueString = '₦${mv.toStringAsFixed(0)}';
-              }
-            }
+  Widget _buildDashboardBodyContent(
+    dynamic projectsResponse,
+    AsyncValue statsAsync,
+  ) {
+    final highlightedProject = projectsResponse.data.isNotEmpty
+        ? projectsResponse.data.first
+        : null;
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Update Progress Cards
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildUpdateProgressCard(
-                          'Update Project\nProgress',
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildUpdateProgressCard(
-                          'Update Project\nFinancials',
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
+    return statsAsync.when(
+      loading: () => statsAsync.hasValue
+          ? _buildDashboardScrollable(
+              highlightedProject,
+              statsAsync.value!.data,
+            )
+          : const Center(
+              child: CircularProgressIndicator(color: Color(0xFF2A8090)),
+            ),
+      error: (error, _) => Center(
+        child: Text(
+          'Error loading stats: $error',
+          style: const TextStyle(color: Colors.red),
+        ),
+      ),
+      data: (statsResponse) =>
+          _buildDashboardScrollable(highlightedProject, statsResponse.data),
+    );
+  }
 
-                  // Project Metrics Grid
-                  if (stats != null) ...[
-                    const Text(
-                      'Project Metrics',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
-                    ),
-                    const SizedBox(height: 16),
-                    GridView.count(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      childAspectRatio: 1.25,
-                      children: [
-                        _buildMetricCard(
-                          'Active Tasks',
-                          stats.activeTasks.toString(),
-                          'assets/images/Target.svg',
-                          const Color(0xFFF0F9FB),
-                          const Color(0xFF276572),
-                        ),
-                        _buildMetricCard(
-                          'Pending Invoices',
-                          stats.pendingInvoices.toString(),
-                          'assets/images/financial.svg',
-                          const Color(0xFFFEF6FB),
-                          const Color(0xFFD42620),
-                        ),
-                        _buildMetricCard(
-                          'Upcoming Milestones',
-                          stats.upcomingMilestones.toString(),
-                          'assets/images/calendar-3.svg',
-                          const Color(0xFFEFF8FF),
-                          const Color(0xFF175CD3),
-                        ),
-                        _buildMetricCard(
-                          'Total Earned',
-                          stats.totalEarned ?? '₦0',
-                          'assets/images/financial.svg',
-                          const Color(0xFFECFDF3),
-                          const Color(0xFF027A48),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+  Widget _buildDashboardScrollable(dynamic highlightedProject, dynamic stats) {
+    String marketValueString = '₦0';
+    if (stats != null) {
+      final mv = stats.portfolioValue; // Using portfolioValue as marketValue
+      if (mv >= 1000000000) {
+        marketValueString = '₦${(mv / 1000000000).toStringAsFixed(1)}B';
+      } else if (mv >= 1000000) {
+        marketValueString = '₦${(mv / 1000000).toStringAsFixed(1)}M';
+      } else if (mv > 0) {
+        marketValueString = '₦${mv.toStringAsFixed(0)}';
+      }
+    }
 
-                  // Market Statistics Card
-                  _buildMarketStatsCard(marketValueString),
-                  const SizedBox(height: 32),
-
-                  const Text(
-                    'Project Highlights',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  if (highlightedProject != null)
-                    _buildHighlightedProjectCard(highlightedProject)
-                  else
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text('No active projects to highlight.', style: TextStyle(color: Colors.black54)),
-                      ),
-                    ),
-                  const SizedBox(height: 100), 
-                ],
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Update Progress Cards
+          /*Row(
+            children: [
+              Expanded(
+                child: _buildUpdateProgressCard(
+                  'Update Project\nProgress',
+                ),
               ),
-            );
-          },
-        );
-      },
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildUpdateProgressCard(
+                  'Update Project\nFinancials',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),*/
+
+          // Project Metrics Grid
+          if (stats != null) ...[
+            const Text(
+              'Project Metrics',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF101828),
+              ),
+            ),
+            const SizedBox(height: 16),
+            GridView.count(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: 1.25,
+              children: [
+                _buildMetricCard(
+                  'Active Tasks',
+                  stats.activeTasks.toString(),
+                  'assets/images/Target.svg',
+                  const Color(0xFFF0F9FB),
+                  const Color(0xFF276572),
+                  onTap: () => widget.onNavigateToProjects?.call(),
+                ),
+                _buildMetricCard(
+                  'Pending Invoices',
+                  stats.pendingInvoices.toString(),
+                  'assets/images/financial.svg',
+                  const Color(0xFFFEF6FB),
+                  const Color(0xFFD42620),
+                ),
+                _buildMetricCard(
+                  'Upcoming Milestones',
+                  stats.upcomingMilestones.toString(),
+                  'assets/images/calendar-3.svg',
+                  const Color(0xFFEFF8FF),
+                  const Color(0xFF175CD3),
+                ),
+                _buildMetricCard(
+                  'Total Earned',
+                  stats.totalEarned ?? '₦0',
+                  'assets/images/financial.svg',
+                  const Color(0xFFECFDF3),
+                  const Color(0xFF027A48),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // Market Statistics Card
+          _buildMarketStatsCard(marketValueString),
+          const SizedBox(height: 32),
+
+          const Text(
+            'Project Highlights',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          if (highlightedProject != null)
+            _buildHighlightedProjectCard(highlightedProject)
+          else
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'No active projects to highlight.',
+                  style: TextStyle(color: Colors.black54),
+                ),
+              ),
+            ),
+          const SizedBox(height: 100),
+        ],
+      ),
     );
   }
 
@@ -393,10 +532,7 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
           const SizedBox(height: 32),
           const Text(
             'Total Marketplace Value',
-            style: TextStyle(
-              color: Colors.white60,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.white60, fontSize: 14),
           ),
           const SizedBox(height: 8),
           Text(
@@ -410,11 +546,7 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
           const SizedBox(height: 16),
           Row(
             children: [
-              const Icon(
-                Icons.trending_up,
-                color: Color(0xFF10B981),
-                size: 20,
-              ),
+              const Icon(Icons.trending_up, color: Color(0xFF10B981), size: 20),
               const SizedBox(width: 8),
               Text(
                 '+12.5% ',
@@ -444,118 +576,123 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ContractorProjectDetailsScreen(projectId: highlightedProject.id),
+            builder: (context) => ContractorProjectDetailsScreen(
+              projectId: highlightedProject.id,
+            ),
           ),
         );
       },
       child: Container(
         height: 200,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        image: const DecorationImage(
-          image: AssetImage('assets/images/bg-1.png'),
-          fit: BoxFit.cover,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          image: const DecorationImage(
+            image: AssetImage('assets/images/bg-1.png'),
+            fit: BoxFit.cover,
+          ),
         ),
-      ),
-      child: Stack(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFF8DC0DC).withValues(alpha: 0.9),
-                  Colors.transparent,
-                  Colors.black.withValues(alpha: 0.6),
+        child: Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFF8DC0DC).withValues(alpha: 0.9),
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.6),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          highlightedProject.title,
+                          style: const TextStyle(
+                            color: Color(0xFF111827),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: highlightedProject.status.color.withValues(
+                            alpha: 0.15,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              highlightedProject.status.label.toUpperCase(),
+                              style: TextStyle(
+                                color: highlightedProject.status.color,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: highlightedProject.status.color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        color: Colors.black54,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        highlightedProject.formattedLocation,
+                        style: TextStyle(
+                          color: Colors.black87.withValues(alpha: 0.7),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        highlightedProject.title,
-                        style: const TextStyle(
-                          color: Color(0xFF111827),
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: highlightedProject.status.color.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            highlightedProject.status.label.toUpperCase(),
-                            style: TextStyle(
-                              color: highlightedProject.status.color,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: highlightedProject.status.color,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on,
-                      color: Colors.black54,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      highlightedProject.formattedLocation,
-                      style: TextStyle(
-                        color: Colors.black87.withValues(alpha: 0.7),
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
+  // ignore: unused_element
   Widget _buildUpdateProgressCard(String title) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -572,10 +709,14 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
               color: Color(0xFFF0F9FB),
               shape: BoxShape.circle,
             ),
-            child: SvgPicture.asset('assets/images/camera.svg',
+            child: SvgPicture.asset(
+              'assets/images/camera.svg',
               width: 20,
               height: 20,
-              colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn),
+              colorFilter: const ColorFilter.mode(
+                Color(0xFF276572),
+                BlendMode.srcIn,
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -607,10 +748,7 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
               },
               child: const Text(
                 'Update Progress',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -619,21 +757,30 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
     );
   }
 
-  Widget _buildMetricCard(String title, String value, String iconPath, Color bgColor, Color iconColor) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEAECF0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+  Widget _buildMetricCard(
+    String title,
+    String value,
+    String iconPath,
+    Color bgColor,
+    Color iconColor, {
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFEAECF0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -654,7 +801,11 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
                   colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios, size: 12, color: Color(0xFF98A2B3)),
+              const Icon(
+                Icons.arrow_forward_ios,
+                size: 12,
+                color: Color(0xFF98A2B3),
+              ),
             ],
           ),
           Column(
@@ -662,19 +813,33 @@ class _ContractorDashboardContentState extends ConsumerState<ContractorDashboard
             children: [
               Text(
                 value,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF101828),
+                ),
               ),
               const SizedBox(height: 4),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF667085), fontWeight: FontWeight.w500),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF667085),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ],
       ),
-    );
+    ));
   }
 }

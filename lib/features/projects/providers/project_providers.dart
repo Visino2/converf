@@ -8,12 +8,12 @@ import '../repositories/project_repository.dart';
 
 
 
-final projectsListProvider = FutureProvider.family<PaginatedProjectsResponse, int>((ref, page) async {
+final projectsListProvider = FutureProvider.autoDispose.family<PaginatedProjectsResponse, int>((ref, page) async {
   final repository = ref.read(projectRepositoryProvider);
   return repository.fetchProjects(page: page);
 });
 
-final assignedProjectsProvider = FutureProvider.family<PaginatedProjectsResponse, int>((ref, page) async {
+final assignedProjectsProvider = FutureProvider.autoDispose.family<PaginatedProjectsResponse, int>((ref, page) async {
   final repository = ref.read(projectRepositoryProvider);
   return repository.fetchAssignedProjects(page: page);
 });
@@ -23,7 +23,7 @@ final projectDetailsProvider = FutureProvider.family<ProjectResponse, String>((r
   return repository.fetchProjectById(id);
 });
 
-final projectFinancialsProvider = FutureProvider.family<ProjectFinancials, String>((ref, id) async {
+final projectFinancialsProvider = FutureProvider.autoDispose.family<ProjectFinancials, String>((ref, id) async {
   final repository = ref.read(projectRepositoryProvider);
   return repository.fetchProjectFinancials(id);
 });
@@ -133,4 +133,39 @@ class ProjectWizardNotifier extends AsyncNotifier<void> {
   }
 }
 
+
 final projectWizardProvider = AsyncNotifierProvider<ProjectWizardNotifier, void>(ProjectWizardNotifier.new);
+
+class ProjectSiteNotifier extends AsyncNotifier<void> {
+  late ProjectRepository _repository;
+
+  @override
+  FutureOr<void> build() {
+    _repository = ref.read(projectRepositoryProvider);
+  }
+
+  Future<ProjectResponse> updateSiteCoordinates(
+    String projectId, {
+    required double latitude,
+    required double longitude,
+    required int geofenceRadiusM,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      final response = await _repository.updateSiteCoordinates(
+        projectId,
+        latitude: latitude,
+        longitude: longitude,
+        geofenceRadiusM: geofenceRadiusM,
+      );
+      state = const AsyncData(null);
+      ref.invalidate(projectDetailsProvider(projectId));
+      return response;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
+  }
+}
+
+final projectSiteProvider = AsyncNotifierProvider<ProjectSiteNotifier, void>(ProjectSiteNotifier.new);

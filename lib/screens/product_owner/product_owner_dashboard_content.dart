@@ -8,10 +8,15 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/features/projects/providers/project_providers.dart';
 import 'package:converf/features/projects/models/project.dart';
+import 'package:converf/features/projects/providers/project_advisory_providers.dart';
 import 'package:converf/features/dashboard/providers/dashboard_providers.dart';
+import 'package:converf/features/projects/models/project_advisory.dart';
+import 'package:converf/features/notifications/providers/notification_providers.dart';
+import 'widgets/dashboard/notifications/notifications_screen.dart';
 
 class ProductOwnerDashboardContent extends ConsumerStatefulWidget {
-  const ProductOwnerDashboardContent({super.key});
+  final VoidCallback? onNavigateToProjects;
+  const ProductOwnerDashboardContent({super.key, this.onNavigateToProjects});
 
   @override
   ConsumerState<ProductOwnerDashboardContent> createState() => _ProductOwnerDashboardContentState();
@@ -117,6 +122,11 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
   }
 
   Widget _buildNormalHeader() {
+    final unreadCount =
+        ref.watch(unreadNotificationsCountProvider).asData?.value ?? 0;
+    final unreadMessageCount =
+        ref.watch(unreadMessageNotificationsCountProvider).asData?.value ?? 0;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -131,7 +141,44 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
         ),
         Row(
           children: [
-            SvgPicture.asset('assets/images/Bell.svg', width: 24, height: 24),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationsScreen(),
+                  ),
+                );
+              },
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  SvgPicture.asset('assets/images/Bell.svg', width: 24, height: 24),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD42620),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                        child: Text(
+                          unreadCount > 99 ? '99+' : unreadCount.toString(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
             const SizedBox(width: 16),
             GestureDetector(
               onTap: () {
@@ -146,19 +193,28 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
                 clipBehavior: Clip.none,
                 children: [
                   SvgPicture.asset('assets/images/message.svg', width: 24, height: 24),
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD42620), // Standard red dot
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.5),
+                  if (unreadMessageCount > 0)
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD42620),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                        child: Text(
+                          unreadMessageCount > 99 ? '99+' : unreadMessageCount.toString(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -257,6 +313,7 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
   Widget _buildDashboardBody() {
     final projectsAsync = ref.watch(projectsListProvider(1));
     final statsAsync = ref.watch(dashboardStatsProvider);
+    final advisoryState = ref.watch(dashboardAdvisoryProvider);
 
     // Handle projects loading/error first as it's the primary data
     return projectsAsync.when(
@@ -291,11 +348,11 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // AI Analysis Card
-                  _buildAiAnalysisCard(),
+                  _buildAiAnalysisCard(advisoryState),
                   const SizedBox(height: 24),
 
                   // Grid Stats
-                  _buildStatsGrid(totalProjects, stats, portfolioString),
+                  _buildStatsGrid(totalProjects, stats, portfolioString, projectsResponse.data),
                   const SizedBox(height: 32),
                   
                   const Text(
@@ -308,8 +365,22 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
                   ),
                   const SizedBox(height: 16),
 
-                  if (highlightedProject != null)
-                    _buildHighlightedProjectCard(highlightedProject)
+                  if (projectsResponse.data.isNotEmpty)
+                    SizedBox(
+                      height: 380,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: projectsResponse.data.length,
+                        separatorBuilder: (context, index) => const SizedBox(width: 16),
+                        clipBehavior: Clip.none,
+                        itemBuilder: (context, index) {
+                          return SizedBox(
+                            width: MediaQuery.of(context).size.width - 48,
+                            child: _buildHighlightedProjectCard(projectsResponse.data[index]),
+                          );
+                        },
+                      ),
+                    )
                   else
                     const Center(
                       child: Padding(
@@ -327,83 +398,98 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
     );
   }
 
-  Widget _buildAiAnalysisCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFE0D3), Color(0xFFFF9A6C)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+  Widget _buildAiAnalysisCard(AsyncValue<ProjectAdvisoryResponse?> advisoryState) {
+    return advisoryState.when(
+      loading: () => Container(
+        height: 120,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: const Color(0xFFF9FAFB),
+          border: Border.all(color: const Color(0xFFEAECF0)),
         ),
+        child: const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      error: (err, _) => const SizedBox.shrink(),
+      data: (advisory) {
+        if (advisory == null) return const SizedBox.shrink();
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFFE0D3), Color(0xFFFF9A6C)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFED0AA),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: SvgPicture.asset('assets/images/metallic-paint.svg',
-                  width: 20,
-                  height: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'AI Analysis Complete',
-                style: TextStyle(
-                  color: Colors.black54,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                width: 70,
-                height: 24,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 2,
-                ),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F973D),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  '2h ago',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFED0AA),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: SvgPicture.asset(
+                      'assets/images/metallic-paint.svg',
+                      width: 20,
+                      height: 20,
+                    ),
                   ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'AI Analysis Complete',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F973D),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Health Score: ${advisory.healthScore}%',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                advisory.healthMessage,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  height: 1.5,
+                  color: Colors.black87,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          const Text(
-            "I've analyzed all your projects: 1 critical area needs attention, 2 optimization opportunities found. VI Towers trending toward major delays without intervention.",
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-              height: 1.5,
-              color: Colors.black87,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildStatsGrid(int totalProjects, dynamic stats, String portfolioString) {
+  Widget _buildStatsGrid(int totalProjects, dynamic stats, String portfolioString, List<Project> projects) {
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -418,6 +504,7 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
           'assets/images/projects.svg',
           const Color(0xFFE4F8F9), 
           const Color(0xFFB7E7EA),
+          onTap: widget.onNavigateToProjects,
         ),
         _buildStatCard(
           'Avg Quality Score',
@@ -429,9 +516,30 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
         _buildStatCard(
           'Ball-in-courts',
           stats?.ballInCourts.toString() ?? '2',
-          'assets/images/shield-warning.svg',
+          'assets/images/basketball.svg',
           const Color(0xFFFBEAE9), 
           const Color(0xFFEB9B98), 
+          onTap: () {
+            // Find the first project that has a ball-in-court (atRisk or delayed)
+            final targetProject = projects.firstWhere(
+              (p) => p.status == ProjectStatus.atRisk || p.status == ProjectStatus.delayed,
+              orElse: () => projects.isNotEmpty ? projects.first : projects.first, // Fallback logic handled below
+            );
+            
+            bool projectFound = projects.any((p) => p.status == ProjectStatus.atRisk || p.status == ProjectStatus.delayed);
+            
+            if (projectFound) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProjectDetailsScreen(projectId: targetProject.id),
+                ),
+              );
+            } else {
+              // Fallback to Projects tab if no specific at-risk project is found
+              widget.onNavigateToProjects?.call();
+            }
+          },
         ),
         _buildStatCard(
           'Portfolio Value',
@@ -460,11 +568,13 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
         }
       },
       child: Container(
-        height: 200,
+        height: 380,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          image: const DecorationImage(
-            image: AssetImage('assets/images/bg-1.png'),
+          image: DecorationImage(
+            image: (highlightedProject.coverImage != null && highlightedProject.coverImage!.isNotEmpty)
+                ? NetworkImage(highlightedProject.coverImage!) as ImageProvider
+                : const AssetImage('assets/images/bg-1.png'),
             fit: BoxFit.cover,
           ),
         ),
@@ -477,87 +587,130 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    const Color(0xFF8DC0DC).withValues(alpha: 0.9),
+                    const Color(0xFF111827).withValues(alpha: 0.1),
                     Colors.transparent,
-                    Colors.black.withValues(alpha: 0.6),
+                    Colors.black.withValues(alpha: 0.8),
                   ],
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: Text(
-                          highlightedProject.title,
-                          style: const TextStyle(
-                            color: Color(0xFF111827),
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
+                          horizontal: 12,
+                          vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: highlightedProject.status.color.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Text(
-                              highlightedProject.status.label.toUpperCase(),
-                              style: TextStyle(
-                                color: highlightedProject.status.color,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: highlightedProject.status.color,
-                                shape: BoxShape.circle,
-                              ),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 4,
                             ),
                           ],
                         ),
+                        child: Text(
+                          highlightedProject.status.label.toUpperCase(),
+                          style: TextStyle(
+                            color: highlightedProject.status.color,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 14),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const Spacer(),
+                  Text(
+                    highlightedProject.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       const Icon(
                         Icons.location_on,
-                        color: Colors.black54,
+                        color: Colors.white70,
                         size: 16,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         highlightedProject.formattedLocation,
-                        style: TextStyle(
-                          color: Colors.black87.withValues(alpha: 0.7),
-                          fontSize: 13,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
                         ),
                       ),
                     ],
                   ),
-                  const Spacer(),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+                  if (highlightedProject.status != ProjectStatus.draft)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Budget',
+                                style: TextStyle(color: Colors.white60, fontSize: 12),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                highlightedProject.formattedBudget,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 24,
+                          color: Colors.white24,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Time Left',
+                                style: TextStyle(color: Colors.white60, fontSize: 12),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                highlightedProject.daysRemaining,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -572,10 +725,13 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
     String value,
     String imagePath,
     Color innerColor,
-    Color borderColor,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
+    Color borderColor, {
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFF0F2F5)),
@@ -650,7 +806,8 @@ class _ProductOwnerDashboardContentState extends ConsumerState<ProductOwnerDashb
           ),
         ],
       ),
-    );
+    ),
+   );
   }
 }
 
