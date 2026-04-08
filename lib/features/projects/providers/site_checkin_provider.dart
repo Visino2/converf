@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:converf/core/config/shared_prefs_provider.dart';
 
 /// A single site check-in record.
 class SiteCheckIn {
@@ -49,15 +51,22 @@ double haversineDistanceM(
 
 double _degToRad(double deg) => deg * (pi / 180);
 
+final siteCheckInServiceProvider = Provider<SiteCheckInService>((ref) {
+  return SiteCheckInService(ref.read(sharedPreferencesProvider));
+});
+
 /// Utility service for managing site check-ins via SharedPreferences.
 class SiteCheckInService {
-  static String _storageKey(String projectId) => 'site_checkins_$projectId';
+  final SharedPreferences _prefs;
+
+  SiteCheckInService(this._prefs);
+
+  String _storageKey(String projectId) => 'site_checkins_$projectId';
 
   /// Load check-in history for a project (most recent first).
-  static Future<List<SiteCheckIn>> loadHistory(String projectId) async {
+  Future<List<SiteCheckIn>> loadHistory(String projectId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_storageKey(projectId));
+      final raw = _prefs.getString(_storageKey(projectId));
       if (raw != null) {
         final list = (jsonDecode(raw) as List)
             .map((e) => SiteCheckIn.fromJson(e as Map<String, dynamic>))
@@ -72,15 +81,13 @@ class SiteCheckInService {
   }
 
   /// Save check-in history for a project.
-  static Future<void> _saveHistory(
-      String projectId, List<SiteCheckIn> history) async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _saveHistory(String projectId, List<SiteCheckIn> history) async {
     final encoded = jsonEncode(history.map((e) => e.toJson()).toList());
-    await prefs.setString(_storageKey(projectId), encoded);
+    await _prefs.setString(_storageKey(projectId), encoded);
   }
 
   /// Perform a GPS check-in. Throws if the user is outside the geofence.
-  static Future<SiteCheckIn> checkIn({
+  Future<SiteCheckIn> checkIn({
     required String projectId,
     required double siteLat,
     required double siteLng,

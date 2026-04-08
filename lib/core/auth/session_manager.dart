@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:converf/core/config/shared_prefs_provider.dart';
+
 final sessionManagerProvider = Provider<SessionManager>((ref) {
-  return SessionManager();
+  return SessionManager(ref.read(sharedPreferencesProvider));
 });
 
 final sessionRefreshProvider = StreamProvider<int>((ref) {
@@ -12,6 +14,10 @@ final sessionRefreshProvider = StreamProvider<int>((ref) {
 });
 
 class SessionManager {
+  final SharedPreferences _prefs;
+  
+  SessionManager(this._prefs);
+
   static const String _tokenKey = 'token';
   static const String _userKey = 'user';
   static const String _welcomePrefix = 'welcome_seen_';
@@ -22,26 +28,22 @@ class SessionManager {
   static Stream<int> get sessionChanges => _sessionChangesController.stream;
 
   Future<void> saveSession(String token, Map<String, dynamic> user) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
-    await prefs.setString(_userKey, jsonEncode(user));
+    await _prefs.setString(_tokenKey, token);
+    await _prefs.setString(_userKey, jsonEncode(user));
     _notifySessionChanged();
   }
 
   Future<void> saveUser(Map<String, dynamic> user) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_userKey, jsonEncode(user));
+    await _prefs.setString(_userKey, jsonEncode(user));
     _notifySessionChanged();
   }
 
   Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
+    return _prefs.getString(_tokenKey);
   }
 
   Future<Map<String, dynamic>?> getUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userJson = prefs.getString(_userKey);
+    final userJson = _prefs.getString(_userKey);
     if (userJson != null) {
       return jsonDecode(userJson) as Map<String, dynamic>;
     }
@@ -49,9 +51,8 @@ class SessionManager {
   }
 
   Future<void> clearSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_userKey);
+    await _prefs.remove(_tokenKey);
+    await _prefs.remove(_userKey);
     // Note: we intentionally keep welcome flags so returning users still skip welcome screens.
     _notifySessionChanged();
   }
@@ -65,16 +66,14 @@ class SessionManager {
     if (userId.isEmpty) {
       return true; // default to seen to avoid blocking navigation
     }
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('$_welcomePrefix$userId') ?? false;
+    return _prefs.getBool('$_welcomePrefix$userId') ?? false;
   }
 
   Future<void> setWelcomeSeen(String userId) async {
     if (userId.isEmpty) {
       return;
     }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('$_welcomePrefix$userId', true);
+    await _prefs.setBool('$_welcomePrefix$userId', true);
     _notifySessionChanged();
   }
 

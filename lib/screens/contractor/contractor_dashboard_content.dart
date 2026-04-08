@@ -1,14 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../product_owner/widgets/dashboard/messages/project_inbox_screen.dart';
-import 'projects/widgets/tools/contractor_notifications_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:converf/features/dashboard/providers/dashboard_providers.dart';
 import 'package:converf/features/notifications/providers/notification_providers.dart';
 import '../product_owner/widgets/dashboard/home/search_results_state.dart';
 import '../product_owner/widgets/dashboard/home/search_empty_state.dart';
-import 'projects/contractor_project_details_screen.dart';
 import 'package:converf/features/projects/providers/project_providers.dart';
 
 class ContractorDashboardContent extends ConsumerStatefulWidget {
@@ -27,28 +25,6 @@ class _ContractorDashboardContentState
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
-  Timer? _refreshTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _startAutoRefresh();
-  }
-
-  void _startAutoRefresh() {
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      if (mounted) {
-        debugPrint(
-          '[ContractorDashboard] Auto-refreshing data and notifications...',
-        );
-        ref.invalidate(assignedProjectsProvider(1));
-        ref.invalidate(dashboardStatsProvider);
-        ref.invalidate(unreadNotificationsCountProvider);
-        ref.invalidate(unreadMessageNotificationsCountProvider);
-      }
-    });
-  }
 
   void _toggleSearch() {
     setState(() {
@@ -64,7 +40,6 @@ class _ContractorDashboardContentState
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();
@@ -83,153 +58,21 @@ class _ContractorDashboardContentState
                   horizontal: 24.0,
                   vertical: 16.0,
                 ),
-                child: _isSearching ? _buildSearchBar() : _buildNormalHeader(),
+                child: _isSearching 
+                  ? _buildSearchBar() 
+                  : _ContractorHeader(onToggleSearch: _toggleSearch),
               ),
 
               // Body Area
               Expanded(
                 child: _isSearching
                     ? _buildSearchBody()
-                    : _buildDashboardBody(),
+                    : _ContractorDashboardBody(onNavigateToProjects: widget.onNavigateToProjects),
               ),
             ],
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildNormalHeader() {
-    final unreadCount =
-        ref.watch(unreadNotificationsCountProvider).asData?.value ?? 0;
-    final unreadMessageCount =
-        ref.watch(unreadMessageNotificationsCountProvider).asData?.value ?? 0;
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text(
-          'Dashboard',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-            letterSpacing: -0.5,
-          ),
-        ),
-        Row(
-          children: [
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ContractorNotificationsScreen(),
-                  ),
-                );
-              },
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  SvgPicture.asset(
-                    'assets/images/Bell.svg',
-                    width: 24,
-                    height: 24,
-                  ),
-                  if (unreadCount > 0)
-                    Positioned(
-                      right: -8,
-                      top: -8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD42620),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 18,
-                          minHeight: 18,
-                        ),
-                        child: Text(
-                          unreadCount > 99 ? '99+' : unreadCount.toString(),
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProjectInboxScreen(),
-                  ),
-                );
-              },
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  SvgPicture.asset(
-                    'assets/images/message.svg',
-                    width: 24,
-                    height: 24,
-                  ),
-                  if (unreadMessageCount > 0)
-                    Positioned(
-                      right: -8,
-                      top: -8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD42620),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 18,
-                          minHeight: 18,
-                        ),
-                        child: Text(
-                          unreadMessageCount > 99
-                              ? '99+'
-                              : unreadMessageCount.toString(),
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            GestureDetector(
-              onTap: _toggleSearch,
-              child: SvgPicture.asset(
-                'assets/images/search.svg',
-                width: 24,
-                height: 24,
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -301,8 +144,7 @@ class _ContractorDashboardContentState
 
   Widget _buildSearchBody() {
     if (_searchQuery.isEmpty) {
-      // Show full dashboard when search is open but empty
-      return _buildDashboardBody();
+      return _ContractorDashboardBody(onNavigateToProjects: widget.onNavigateToProjects);
     }
 
     if (_searchQuery.toLowerCase().contains('lekki')) {
@@ -311,91 +153,227 @@ class _ContractorDashboardContentState
       return SearchEmptyState(query: _searchQuery);
     }
   }
+}
 
-  Widget _buildDashboardBody() {
-    final assignedProjectsAsync = ref.watch(assignedProjectsProvider(1));
-    final statsAsync = ref.watch(dashboardStatsProvider);
+class _ContractorHeader extends ConsumerWidget {
+  final VoidCallback onToggleSearch;
+  const _ContractorHeader({required this.onToggleSearch});
 
-    return assignedProjectsAsync.when(
-      loading: () => assignedProjectsAsync.hasValue
-          ? _buildDashboardBodyContent(assignedProjectsAsync.value!, statsAsync)
-          : const Center(
-              child: CircularProgressIndicator(color: Color(0xFF2A8090)),
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadCount = ref.watch(unreadNotificationsCountProvider).asData?.value ?? 0;
+    final unreadMessageCount = ref.watch(unreadMessageNotificationsCountProvider).asData?.value ?? 0;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text(
+          'Dashboard',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+            letterSpacing: -0.5,
+          ),
+        ),
+        Row(
+          children: [
+            GestureDetector(
+              onTap: () {
+                context.pushNamed('contractor-notifications');
+              },
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  SvgPicture.asset(
+                    'assets/images/Bell.svg',
+                    width: 24,
+                    height: 24,
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD42620),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          unreadCount > 99 ? '99+' : unreadCount.toString(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-      error: (error, _) => Center(
-        child: Text('Error: $error', style: const TextStyle(color: Colors.red)),
-      ),
-      data: (projectsResponse) =>
-          _buildDashboardBodyContent(projectsResponse, statsAsync),
+            const SizedBox(width: 16),
+            GestureDetector(
+              onTap: () {
+                context.pushNamed('messages');
+              },
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  SvgPicture.asset(
+                    'assets/images/message.svg',
+                    width: 24,
+                    height: 24,
+                  ),
+                  if (unreadMessageCount > 0)
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD42620),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          unreadMessageCount > 99
+                              ? '99+'
+                              : unreadMessageCount.toString(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            GestureDetector(
+              onTap: onToggleSearch,
+              child: SvgPicture.asset(
+                'assets/images/search.svg',
+                width: 24,
+                height: 24,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
+}
 
-  Widget _buildDashboardBodyContent(
-    dynamic projectsResponse,
-    AsyncValue statsAsync,
-  ) {
-    final highlightedProject = projectsResponse.data.isNotEmpty
-        ? projectsResponse.data.first
-        : null;
+class _ContractorDashboardBody extends ConsumerStatefulWidget {
+  final VoidCallback? onNavigateToProjects;
+  const _ContractorDashboardBody({this.onNavigateToProjects});
 
-    return statsAsync.when(
-      loading: () => statsAsync.hasValue
-          ? _buildDashboardScrollable(
-              highlightedProject,
-              statsAsync.value!.data,
-            )
-          : const Center(
-              child: CircularProgressIndicator(color: Color(0xFF2A8090)),
+  @override
+  ConsumerState<_ContractorDashboardBody> createState() => _ContractorDashboardBodyState();
+}
+
+class _ContractorDashboardBodyState extends ConsumerState<_ContractorDashboardBody> {
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoRefresh();
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        ref.invalidate(assignedProjectsProvider(1));
+        ref.invalidate(dashboardStatsProvider);
+        ref.invalidate(unreadNotificationsCountProvider);
+        ref.invalidate(unreadMessageNotificationsCountProvider);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(assignedProjectsProvider(1));
+        ref.invalidate(dashboardStatsProvider);
+        ref.invalidate(unreadNotificationsCountProvider);
+        ref.invalidate(unreadMessageNotificationsCountProvider);
+      },
+      color: const Color(0xFF2A8090),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ContractorMetricsGrid(onNavigateToProjects: widget.onNavigateToProjects),
+            const SizedBox(height: 24),
+            const _ContractorMarketStatsCard(),
+            const SizedBox(height: 32),
+            const Text(
+              'Project Highlights',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
-      error: (error, _) => Center(
-        child: Text(
-          'Error loading stats: $error',
-          style: const TextStyle(color: Colors.red),
+            const SizedBox(height: 16),
+            const _ContractorHighlights(),
+            const SizedBox(height: 100),
+          ],
         ),
       ),
-      data: (statsResponse) =>
-          _buildDashboardScrollable(highlightedProject, statsResponse.data),
     );
   }
+}
 
-  Widget _buildDashboardScrollable(dynamic highlightedProject, dynamic stats) {
-    String marketValueString = '₦0';
-    if (stats != null) {
-      final mv = stats.portfolioValue; // Using portfolioValue as marketValue
-      if (mv >= 1000000000) {
-        marketValueString = '₦${(mv / 1000000000).toStringAsFixed(1)}B';
-      } else if (mv >= 1000000) {
-        marketValueString = '₦${(mv / 1000000).toStringAsFixed(1)}M';
-      } else if (mv > 0) {
-        marketValueString = '₦${mv.toStringAsFixed(0)}';
-      }
-    }
+class _ContractorMetricsGrid extends ConsumerWidget {
+  final VoidCallback? onNavigateToProjects;
+  const _ContractorMetricsGrid({this.onNavigateToProjects});
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Update Progress Cards
-          /*Row(
-            children: [
-              Expanded(
-                child: _buildUpdateProgressCard(
-                  'Update Project\nProgress',
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildUpdateProgressCard(
-                  'Update Project\nFinancials',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),*/
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(dashboardStatsProvider);
 
-          // Project Metrics Grid
-          if (stats != null) ...[
+    return statsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF2A8090))),
+      error: (error, _) => Center(child: Text('Error: $error', style: const TextStyle(color: Colors.red))),
+      data: (statsResponse) {
+        final stats = statsResponse.data;
+        if (stats == null) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             const Text(
               'Project Metrics',
               style: TextStyle(
@@ -419,7 +397,7 @@ class _ContractorDashboardContentState
                   'assets/images/Target.svg',
                   const Color(0xFFF0F9FB),
                   const Color(0xFF276572),
-                  onTap: () => widget.onNavigateToProjects?.call(),
+                  onTap: () => onNavigateToProjects?.call(),
                 ),
                 _buildMetricCard(
                   'Pending Invoices',
@@ -444,142 +422,248 @@ class _ContractorDashboardContentState
                 ),
               ],
             ),
-            const SizedBox(height: 24),
           ],
-
-          // Market Statistics Card
-          _buildMarketStatsCard(marketValueString),
-          const SizedBox(height: 32),
-
-          const Text(
-            'Project Highlights',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          if (highlightedProject != null)
-            _buildHighlightedProjectCard(highlightedProject)
-          else
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  'No active projects to highlight.',
-                  style: TextStyle(color: Colors.black54),
-                ),
-              ),
-            ),
-          const SizedBox(height: 100),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildMarketStatsCard(String value) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111827),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Market Statistics',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Row(
-                  children: [
-                    Text(
-                      'This Month',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
+  Widget _buildMetricCard(
+    String title,
+    String value,
+    String iconPath,
+    Color bgColor,
+    Color iconColor, {
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFEAECF0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: SvgPicture.asset(
+                    iconPath,
+                    width: 24,
+                    height: 24,
+                    colorFilter: ColorFilter.mode(
+                      iconColor,
+                      BlendMode.srcIn,
                     ),
-                    Icon(
-                      Icons.keyboard_arrow_down,
+                  ),
+                ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF667085),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF101828),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ContractorMarketStatsCard extends ConsumerWidget {
+  const _ContractorMarketStatsCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(dashboardStatsProvider);
+
+    return statsAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (err, _) => const SizedBox.shrink(),
+      data: (statsResponse) {
+        final stats = statsResponse.data;
+        String marketValueString = '₦0';
+        if (stats != null) {
+          final mv = stats.portfolioValue; 
+          if (mv >= 1000000000) {
+            marketValueString = '₦${(mv / 1000000000).toStringAsFixed(1)}B';
+          } else if (mv >= 1000000) {
+            marketValueString = '₦${(mv / 1000000).toStringAsFixed(1)}M';
+          } else if (mv > 0) {
+            marketValueString = '₦${mv.toStringAsFixed(0)}';
+          }
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: const Color(0xFF111827),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Market Statistics',
+                    style: TextStyle(
                       color: Colors.white,
-                      size: 16,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
-                ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      children: [
+                        Text(
+                          'This Month',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Icon(
+                          Icons.keyboard_arrow_down,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 32),
-          const Text(
-            'Total Marketplace Value',
-            style: TextStyle(color: Colors.white60, fontSize: 14),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              const Icon(Icons.trending_up, color: Color(0xFF10B981), size: 20),
-              const SizedBox(width: 8),
+              const SizedBox(height: 32),
+              const Text(
+                'Total Marketplace Value',
+                style: TextStyle(color: Colors.white60, fontSize: 14),
+              ),
+              const SizedBox(height: 8),
               Text(
-                '+12.5% ',
+                marketValueString,
                 style: const TextStyle(
-                  color: Color(0xFF10B981),
-                  fontSize: 14,
+                  color: Colors.white,
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              Text(
-                'from last month',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 14,
-                ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.trending_up, color: Color(0xFF10B981), size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    '+12.5% ',
+                    style: TextStyle(
+                      color: Color(0xFF10B981),
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'from last month',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
+}
 
-  Widget _buildHighlightedProjectCard(dynamic highlightedProject) {
+class _ContractorHighlights extends ConsumerWidget {
+  const _ContractorHighlights();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final assignedProjectsAsync = ref.watch(assignedProjectsProvider(1));
+
+    return assignedProjectsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF2A8090))),
+      error: (err, _) => const SizedBox.shrink(),
+      data: (response) {
+        if (response.data.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'No active projects to highlight.',
+                style: TextStyle(color: Colors.black54),
+              ),
+            ),
+          );
+        }
+
+        final project = response.data.first;
+        return _HighlightedContractorProjectCard(project: project);
+      },
+    );
+  }
+}
+
+class _HighlightedContractorProjectCard extends StatelessWidget {
+  final dynamic project;
+  const _HighlightedContractorProjectCard({required this.project});
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ContractorProjectDetailsScreen(
-              projectId: highlightedProject.id,
-            ),
-          ),
+        context.pushNamed(
+          'contractor-project-details',
+          pathParameters: {'projectId': project.id},
         );
       },
       child: Container(
@@ -617,7 +701,7 @@ class _ContractorDashboardContentState
                     children: [
                       Expanded(
                         child: Text(
-                          highlightedProject.title,
+                          project.title,
                           style: const TextStyle(
                             color: Color(0xFF111827),
                             fontSize: 18,
@@ -634,7 +718,7 @@ class _ContractorDashboardContentState
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: highlightedProject.status.color.withValues(
+                          color: project.status.color.withValues(
                             alpha: 0.15,
                           ),
                           borderRadius: BorderRadius.circular(12),
@@ -642,9 +726,9 @@ class _ContractorDashboardContentState
                         child: Row(
                           children: [
                             Text(
-                              highlightedProject.status.label.toUpperCase(),
+                              project.status.label.toUpperCase(),
                               style: TextStyle(
-                                color: highlightedProject.status.color,
+                                color: project.status.color,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -654,7 +738,7 @@ class _ContractorDashboardContentState
                               width: 6,
                               height: 6,
                               decoration: BoxDecoration(
-                                color: highlightedProject.status.color,
+                                color: project.status.color,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -673,7 +757,7 @@ class _ContractorDashboardContentState
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        highlightedProject.formattedLocation,
+                        project.formattedLocation,
                         style: TextStyle(
                           color: Colors.black87.withValues(alpha: 0.7),
                           fontSize: 13,
@@ -690,156 +774,5 @@ class _ContractorDashboardContentState
         ),
       ),
     );
-  }
-
-  // ignore: unused_element
-  Widget _buildUpdateProgressCard(String title) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF0F2F5)),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF0F9FB),
-              shape: BoxShape.circle,
-            ),
-            child: SvgPicture.asset(
-              'assets/images/camera.svg',
-              width: 20,
-              height: 20,
-              colorFilter: const ColorFilter.mode(
-                Color(0xFF276572),
-                BlendMode.srcIn,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: Colors.black54,
-              height: 1.3,
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF276572),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onPressed: () {
-                widget.onNavigateToProjects?.call();
-              },
-              child: const Text(
-                'Update Progress',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetricCard(
-    String title,
-    String value,
-    String iconPath,
-    Color bgColor,
-    Color iconColor, {
-    VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEAECF0)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  shape: BoxShape.circle,
-                ),
-                child: SvgPicture.asset(
-                  iconPath,
-                  width: 24,
-                  height: 24,
-                  colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
-                ),
-              ),
-              const Icon(
-                Icons.arrow_forward_ios,
-                size: 12,
-                color: Color(0xFF98A2B3),
-              ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF101828),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF667085),
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    ));
   }
 }

@@ -22,7 +22,7 @@ final dashboardAdvisoryProvider = FutureProvider.autoDispose<ProjectAdvisoryResp
   
   // 1. Fetch all projects (we limit to page 1 for the dashboard)
   final projectsResp = await repository.fetchProjects(page: 1);
-  final projects = projectsResp.data ?? [];
+  final projects = projectsResp.data;
   
   if (projects.isEmpty) return null;
 

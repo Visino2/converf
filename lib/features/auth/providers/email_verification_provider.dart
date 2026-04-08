@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/config/shared_prefs_provider.dart';
 
 import '../models/auth_response.dart';
 import '../models/email_verification_status.dart';
@@ -36,7 +37,7 @@ final emailVerificationStatusProvider = FutureProvider<EmailVerificationStatus>(
 
 final pendingEmailVerificationLinkStoreProvider =
     Provider<PendingEmailVerificationLinkStore>((ref) {
-      return PendingEmailVerificationLinkStore();
+      return PendingEmailVerificationLinkStore(ref.read(sharedPreferencesProvider));
     });
 
 class PendingEmailVerificationLink {
@@ -61,6 +62,10 @@ class PendingEmailVerificationLink {
 }
 
 class PendingEmailVerificationLinkStore {
+  final SharedPreferences _prefs;
+
+  PendingEmailVerificationLinkStore(this._prefs);
+
   static const _idKey = 'pending_email_verification_id';
   static const _hashKey = 'pending_email_verification_hash';
   static const _verifyUrlKey = 'pending_email_verification_verify_url';
@@ -73,30 +78,28 @@ class PendingEmailVerificationLinkStore {
     String? verifyUrl,
     Map<String, String> queryParameters = const <String, String>{},
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-
     if (id != null && id.trim().isNotEmpty) {
-      await prefs.setString(_idKey, id.trim());
+      await _prefs.setString(_idKey, id.trim());
     } else {
-      await prefs.remove(_idKey);
+      await _prefs.remove(_idKey);
     }
 
     if (hash != null && hash.trim().isNotEmpty) {
-      await prefs.setString(_hashKey, hash.trim());
+      await _prefs.setString(_hashKey, hash.trim());
     } else {
-      await prefs.remove(_hashKey);
+      await _prefs.remove(_hashKey);
     }
 
     if (verifyUrl != null && verifyUrl.trim().isNotEmpty) {
-      await prefs.setString(_verifyUrlKey, verifyUrl.trim());
+      await _prefs.setString(_verifyUrlKey, verifyUrl.trim());
     } else {
-      await prefs.remove(_verifyUrlKey);
+      await _prefs.remove(_verifyUrlKey);
     }
 
     if (queryParameters.isNotEmpty) {
-      await prefs.setString(_queryParametersKey, jsonEncode(queryParameters));
+      await _prefs.setString(_queryParametersKey, jsonEncode(queryParameters));
     } else {
-      await prefs.remove(_queryParametersKey);
+      await _prefs.remove(_queryParametersKey);
     }
   }
 
@@ -121,8 +124,7 @@ class PendingEmailVerificationLinkStore {
   }
 
   Future<PendingEmailVerificationLink?> read() async {
-    final prefs = await SharedPreferences.getInstance();
-    final queryParametersJson = prefs.getString(_queryParametersKey);
+    final queryParametersJson = _prefs.getString(_queryParametersKey);
     Map<String, String> queryParameters = const <String, String>{};
 
     if (queryParametersJson != null && queryParametersJson.isNotEmpty) {
@@ -135,9 +137,9 @@ class PendingEmailVerificationLinkStore {
     }
 
     final link = PendingEmailVerificationLink(
-      id: prefs.getString(_idKey),
-      hash: prefs.getString(_hashKey),
-      verifyUrl: prefs.getString(_verifyUrlKey),
+      id: _prefs.getString(_idKey),
+      hash: _prefs.getString(_hashKey),
+      verifyUrl: _prefs.getString(_verifyUrlKey),
       queryParameters: queryParameters,
     );
 
@@ -145,11 +147,10 @@ class PendingEmailVerificationLinkStore {
   }
 
   Future<void> clear() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_idKey);
-    await prefs.remove(_hashKey);
-    await prefs.remove(_verifyUrlKey);
-    await prefs.remove(_queryParametersKey);
+    await _prefs.remove(_idKey);
+    await _prefs.remove(_hashKey);
+    await _prefs.remove(_verifyUrlKey);
+    await _prefs.remove(_queryParametersKey);
   }
 }
 

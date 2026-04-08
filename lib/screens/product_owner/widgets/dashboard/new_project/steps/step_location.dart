@@ -13,6 +13,9 @@ class StepLocation extends ConsumerStatefulWidget {
 
 class _StepLocationState extends ConsumerState<StepLocation> {
   late TextEditingController _addressController;
+  late TextEditingController _countryController;
+  late TextEditingController _stateController;
+  late TextEditingController _cityController;
 
   final Map<String, Map<String, List<String>>> _locationData = {
     'Nigeria': {
@@ -62,9 +65,12 @@ class _StepLocationState extends ConsumerState<StepLocation> {
     super.initState();
     final state = ref.read(wizardStateProvider);
     _addressController = TextEditingController(text: state.address);
+    _countryController = TextEditingController(text: state.country ?? '');
+    _stateController = TextEditingController(text: state.state ?? '');
+    _cityController = TextEditingController(text: state.city ?? '');
     
-    // Auto-select Nigeria if not selected
-    if (state.country != 'Nigeria') {
+    // Default to Nigeria only when nothing is set; do not override existing data
+    if (state.country == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(wizardStateProvider.notifier).updateLocation(country: 'Nigeria');
       });
@@ -74,6 +80,9 @@ class _StepLocationState extends ConsumerState<StepLocation> {
   @override
   void dispose() {
     _addressController.dispose();
+    _countryController.dispose();
+    _stateController.dispose();
+    _cityController.dispose();
     super.dispose();
   }
 
@@ -81,6 +90,7 @@ class _StepLocationState extends ConsumerState<StepLocation> {
   Widget build(BuildContext context) {
     final state = ref.watch(wizardStateProvider);
     final notifier = ref.read(wizardStateProvider.notifier);
+    final bool isNigeria = (state.country ?? 'Nigeria').toLowerCase() == 'nigeria';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,40 +118,72 @@ class _StepLocationState extends ConsumerState<StepLocation> {
             Expanded(
               child: WizardDropdown(
                 label: 'Country*',
-                value: state.country ?? 'Nigeria',
-                items: const ['Nigeria'],
-                onChanged: (val) => notifier.updateLocation(country: val),
+                value: isNigeria ? 'Nigeria' : 'Other',
+                items: const ['Nigeria', 'Other'],
+                onChanged: (val) {
+                  if (val == 'Nigeria') {
+                    notifier.updateLocation(country: 'Nigeria', stateName: null, city: null);
+                  } else {
+                    // Keep existing custom country text if present
+                    notifier.updateLocation(country: state.country == null || state.country == 'Nigeria' ? '' : state.country, stateName: null, city: null);
+                  }
+                },
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: WizardDropdown(
-                label: 'State/Province*',
-                value: state.state,
-                items: _locationData['Nigeria']!.keys.toList(),
-                onChanged: (val) {
-                  // Explicitly clear city since state changed
-                  notifier.updateState(state.copyWith(
-                    state: val,
-                    city: null,
-                  ));
-                },
-              ),
+              child: isNigeria
+                  ? WizardDropdown(
+                      label: 'State/Province*',
+                      value: state.state,
+                      items: _locationData['Nigeria']!.keys.toList(),
+                      onChanged: (val) {
+                        // Explicitly clear city since state changed
+                        notifier.updateState(state.copyWith(
+                          state: val,
+                          city: null,
+                        ));
+                        _stateController.text = val ?? '';
+                        _cityController.text = '';
+                      },
+                    )
+                  : WizardTextField(
+                      label: 'State/Province*',
+                      hint: 'Enter state/province',
+                      controller: _stateController,
+                      onChanged: (val) => notifier.updateLocation(stateName: val),
+                    ),
             ),
           ],
         ),
+        if (!isNigeria) ...[
+          const SizedBox(height: 12),
+          WizardTextField(
+            label: 'Country Name',
+            hint: 'e.g., Ghana',
+            controller: _countryController,
+            onChanged: (val) => notifier.updateLocation(country: val),
+          ),
+        ],
         const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
-              child: WizardDropdown(
-                label: 'City/Town*',
-                value: state.city,
-                items: (state.country != null && state.state != null) 
-                  ? _locationData[state.country]![state.state]! 
-                  : [],
-                onChanged: (val) => notifier.updateLocation(city: val),
-              ),
+              child: isNigeria
+                  ? WizardDropdown(
+                      label: 'City/Town*',
+                      value: state.city,
+                      items: (state.country != null && state.state != null)
+                          ? (_locationData[state.country]?[state.state] ?? <String>[])
+                          : const <String>[],
+                      onChanged: (val) => notifier.updateLocation(city: val),
+                    )
+                  : WizardTextField(
+                      label: 'City/Town*',
+                      hint: 'Enter city/town',
+                      controller: _cityController,
+                      onChanged: (val) => notifier.updateLocation(city: val),
+                    ),
             ),
             const SizedBox(width: 16),
             Expanded(

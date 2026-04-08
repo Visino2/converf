@@ -245,7 +245,8 @@ class _ProjectHubModalState extends ConsumerState<ProjectHubModal> {
   }
 
   Widget _buildContent() {
-    switch (_selectedTabIndex) {
+    final idx = _selectedTabIndex;
+    switch (idx) {
       case 0: // Overview
         return OverviewModal(projectId: widget.projectId);
       case 1: // Schedule
@@ -275,7 +276,9 @@ class _ProjectHubModalState extends ConsumerState<ProjectHubModal> {
       case 7: // Site — Mobile GPS experience
         return Consumer(
           builder: (context, ref, child) {
-            final projectAsync = ref.watch(projectDetailsProvider(widget.projectId));
+            final projectAsync = ref.watch(
+              projectDetailsProvider(widget.projectId),
+            );
             return projectAsync.when(
               data: (response) {
                 final project = response.data;

@@ -221,7 +221,7 @@ class AuthRepository {
 
   Future<AuthResponse> exchangeSocialAuthToken({
     required SocialAuthMethod method,
-    required String id,
+    String? id,
     required String token,
   }) async {
     // The backend provides the Sanctum Token directly to the frontend via the callback redirect.

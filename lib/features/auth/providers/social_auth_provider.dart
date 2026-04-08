@@ -9,8 +9,10 @@ import '../repositories/auth_repository.dart';
 import 'auth_provider.dart';
 import 'email_verification_provider.dart';
 
+import '../../../core/config/shared_prefs_provider.dart';
+
 final pendingSocialAuthStoreProvider = Provider<PendingSocialAuthStore>((ref) {
-  return PendingSocialAuthStore();
+  return PendingSocialAuthStore(ref.read(sharedPreferencesProvider));
 });
 
 final socialAuthActionProvider =
@@ -24,6 +26,10 @@ class PendingSocialAuth {
 }
 
 class PendingSocialAuthStore {
+  final SharedPreferences _prefs;
+
+  PendingSocialAuthStore(this._prefs);
+
   static const _methodKey = 'pending_social_auth_method';
   static const _roleKey = 'pending_social_auth_role';
 
@@ -31,15 +37,13 @@ class PendingSocialAuthStore {
     required SocialAuthMethod method,
     required UserRole role,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_methodKey, method.name);
-    await prefs.setString(_roleKey, role.name);
+    await _prefs.setString(_methodKey, method.name);
+    await _prefs.setString(_roleKey, role.name);
   }
 
   Future<PendingSocialAuth?> read() async {
-    final prefs = await SharedPreferences.getInstance();
-    final methodName = prefs.getString(_methodKey);
-    final roleName = prefs.getString(_roleKey);
+    final methodName = _prefs.getString(_methodKey);
+    final roleName = _prefs.getString(_roleKey);
     if (methodName == null || roleName == null) {
       return null;
     }
@@ -68,9 +72,8 @@ class PendingSocialAuthStore {
   }
 
   Future<void> clear() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_methodKey);
-    await prefs.remove(_roleKey);
+    await _prefs.remove(_methodKey);
+    await _prefs.remove(_roleKey);
   }
 }
 
@@ -128,7 +131,7 @@ class SocialAuthNotifier extends AsyncNotifier<void> {
 
       final id = callbackParameters['id'];
       final token = callbackParameters['token'];
-      if (id == null || id.isEmpty || token == null || token.isEmpty) {
+      if (token == null || token.isEmpty) {
         throw Exception('Social sign-in did not return the required token.');
       }
 

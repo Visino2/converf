@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/session_manager.dart';
 import '../config/config.dart';
@@ -36,7 +37,9 @@ final dioProvider = Provider<Dio>((ref) {
     ),
   );
 
-  dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: true));
+  if (kDebugMode) {
+    dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: true));
+  }
 
   return dio;
 });

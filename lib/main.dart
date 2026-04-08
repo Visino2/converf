@@ -11,9 +11,14 @@ import 'features/notifications/services/notification_lifecycle_service.dart';
 import 'router/app_router.dart';
 import 'core/auth/session_timeout_wrapper.dart';
 
-void main() {
+import 'package:shared_preferences/shared_preferences.dart';
+import 'core/config/shared_prefs_provider.dart';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   debugPrint('--- APP STARTING ---');
+
+  final sharedPreferences = await SharedPreferences.getInstance();
 
   FlutterError.onError = (details) {
     debugPrint('--- FLUTTER ERROR ---');
@@ -21,7 +26,14 @@ void main() {
     debugPrint(details.stack?.toString());
   };
 
-  runApp(const ProviderScope(child: ConverfApp()));
+  runApp(
+    ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+      ],
+      child: const ConverfApp(),
+    ),
+  );
 }
 
 class ConverfApp extends ConsumerWidget {

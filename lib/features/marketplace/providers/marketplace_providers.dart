@@ -15,6 +15,7 @@ class MarketplaceFiltersNotifier extends Notifier<MarketplaceFilters> {
     state = cb(state);
   }
 
+  @override
   set state(MarketplaceFilters value) => super.state = value;
 }
 

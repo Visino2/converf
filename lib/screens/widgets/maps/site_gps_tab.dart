@@ -61,8 +61,8 @@ class _SiteGpsTabState extends ConsumerState<SiteGpsTab>
   }
 
   Future<void> _loadCheckInHistory() async {
-    final history =
-        await SiteCheckInService.loadHistory(widget.project.id);
+    final service = ref.read(siteCheckInServiceProvider);
+    final history = await service.loadHistory(widget.project.id);
     if (mounted && history.isNotEmpty) {
       setState(() => _lastCheckIn = history.first);
     }
@@ -186,7 +186,8 @@ class _SiteGpsTabState extends ConsumerState<SiteGpsTab>
     setState(() => _checkInLoading = true);
 
     try {
-      final record = await SiteCheckInService.checkIn(
+      final service = ref.read(siteCheckInServiceProvider);
+      final record = await service.checkIn(
         projectId: widget.project.id,
         siteLat: site.latitude,
         siteLng: site.longitude,

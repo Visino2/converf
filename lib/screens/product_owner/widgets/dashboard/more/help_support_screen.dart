@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
@@ -27,9 +28,10 @@ class HelpSupportScreen extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             const Text(
               'Help Center',
               style: TextStyle(
@@ -61,7 +63,7 @@ class HelpSupportScreen extends StatelessWidget {
               arrowAsset: 'assets/images/right-arrow.svg',
               iconBg: const Color(0xFFE0F4F5),
               iconColor: const Color(0xFF2A8090),
-              onTap: () {},
+              onTap: () => _launchUri(context, 'https://converf.com/support/chat'),
             ),
             const SizedBox(height: 17),
             _buildItem(
@@ -71,7 +73,7 @@ class HelpSupportScreen extends StatelessWidget {
               arrowAsset: 'assets/images/right-arrow.svg',
               iconBg: const Color(0xFFE0F4F5),
               iconColor: const Color(0xFF2A8090),
-              onTap: () {},
+              onTap: () => _launchUri(context, 'mailto:support@converf.com?subject=Converf%20Support'),
             ),
             const SizedBox(height: 28),
 
@@ -88,12 +90,14 @@ class HelpSupportScreen extends StatelessWidget {
               icon: 'assets/images/twitter.svg',
               title: 'Twitter (X)',
               arrowAsset: 'assets/images/right-arrow.svg',
+              onTap: () => _launchUri(context, 'https://twitter.com/converf'),
             ),
             const SizedBox(height: 12),
             _buildItem(
               icon: 'assets/images/instagram.svg',
               title: 'Instagram',
               arrowAsset: 'assets/images/right-arrow.svg',
+              onTap: () => _launchUri(context, 'https://instagram.com/converf'),
             ),
 
             const SizedBox(height: 24),
@@ -111,7 +115,7 @@ class HelpSupportScreen extends StatelessWidget {
                   ),
                 ),
                 child: const Text(
-                  'Save Changes',
+                  'Back to Settings',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -121,9 +125,23 @@ class HelpSupportScreen extends StatelessWidget {
               ),
             ),
           ],
+          ),
         ),
       ),
     );
+  }
+
+  Future<void> _launchUri(BuildContext context, String value) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final uri = Uri.tryParse(value);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not open link')),
+      );
+    }
   }
 
   Widget _buildItem({

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/more/profile_information_screen.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/more/security_screen.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/notifications/notifications_screen.dart';
-import 'package:converf/screens/product_owner/widgets/dashboard/more/billing_screen.dart';
+import 'package:converf/screens/product_owner/widgets/dashboard/more/billing/billing_screen.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/more/help_support_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:converf/screens/widgets/logout_confirmation_modal.dart';

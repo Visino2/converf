@@ -13,27 +13,56 @@ class PusherService {
   final Ref _ref;
   PusherChannelsClient? _client;
   bool _isInitialized = false;
+  bool _fallbackTried = false;
   final Map<String, Channel> _channels = {};
 
   PusherService(this._ref);
 
   Future<void> init() async {
     if (_isInitialized) return;
+    await _connect(
+      scheme: 'wss',
+      host: AppConfig.pusherHost,
+      port: AppConfig.pusherPort,
+      allowFallback: AppConfig.isDevelopment,
+    );
+  }
 
+  Future<void> _connect({
+    required String scheme,
+    required String host,
+    required int port,
+    bool allowFallback = false,
+  }) async {
     try {
-      debugPrint("[PusherService] Initializing (pure Dart)...");
-      
+      debugPrint(
+        "[PusherService] Initializing (scheme=$scheme, host=$host, port=$port)...",
+      );
+
       final options = PusherChannelsOptions.fromHost(
-        scheme: 'wss',
-        host: AppConfig.pusherHost,
+        scheme: scheme,
+        host: host,
         key: AppConfig.pusherKey,
-        port: AppConfig.pusherPort,
+        port: port,
       );
 
       _client = PusherChannelsClient.websocket(
         options: options,
-        connectionErrorHandler: (exception, trace, stream) {
+        connectionErrorHandler: (exception, trace, stream) async {
           debugPrint("[PusherService] Connection error: $exception");
+          if (allowFallback && !_fallbackTried) {
+            _fallbackTried = true;
+            debugPrint(
+              "[PusherService] Trying fallback websocket (${AppConfig.pusherFallbackScheme}://$host:${AppConfig.pusherFallbackPort})...",
+            );
+            _client?.disconnect();
+            await _connect(
+              scheme: AppConfig.pusherFallbackScheme,
+              host: host,
+              port: AppConfig.pusherFallbackPort,
+              allowFallback: false,
+            );
+          }
         },
       );
 
@@ -53,7 +82,7 @@ class PusherService {
     if (!_isInitialized) {
       await init();
     }
-    
+
     final token = await _ref.read(sessionManagerProvider).getToken();
     if (token == null) {
       throw Exception("No token found for Pusher authentication");
@@ -68,13 +97,14 @@ class PusherService {
 
     final channel = _client!.privateChannel(
       channelName,
-      authorizationDelegate: EndpointAuthorizableChannelTokenAuthorizationDelegate.forPrivateChannel(
-        authorizationEndpoint: Uri.parse(AppConfig.pusherAuthEndpoint),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      ),
+      authorizationDelegate:
+          EndpointAuthorizableChannelTokenAuthorizationDelegate.forPrivateChannel(
+            authorizationEndpoint: Uri.parse(AppConfig.pusherAuthEndpoint),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Accept': 'application/json',
+            },
+          ),
     );
 
     channel.subscribe();

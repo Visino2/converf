@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/config/shared_prefs_provider.dart';
 
 import '../../../core/api/pusher_service.dart';
 import '../../../core/ui/app_scaffold_messenger.dart';
@@ -24,7 +25,7 @@ final nativePushSupportedProvider = Provider<bool>((ref) {
 });
 
 final deviceTokenStoreProvider = Provider<DeviceTokenStore>((ref) {
-  return DeviceTokenStore();
+  return DeviceTokenStore(ref.read(sharedPreferencesProvider));
 });
 
 final notificationLifecycleProvider = Provider<NotificationLifecycleService>((
@@ -52,20 +53,20 @@ class NoopPushTokenSource extends PushTokenSource {
 
 class DeviceTokenStore {
   static const _registeredTokenKey = 'registered_device_token';
+  final SharedPreferences _prefs;
+
+  DeviceTokenStore(this._prefs);
 
   Future<String?> getRegisteredToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_registeredTokenKey);
+    return _prefs.getString(_registeredTokenKey);
   }
 
   Future<void> saveRegisteredToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_registeredTokenKey, token);
+    await _prefs.setString(_registeredTokenKey, token);
   }
 
   Future<void> clearRegisteredToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_registeredTokenKey);
+    await _prefs.remove(_registeredTokenKey);
   }
 }
 

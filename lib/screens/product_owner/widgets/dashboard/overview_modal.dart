@@ -17,20 +17,32 @@ class OverviewModal extends ConsumerWidget {
     final scheduleAsync = ref.watch(projectScheduleProvider(projectId));
     final milestonesAsync = ref.watch(projectMilestonesProvider(projectId));
 
+    // Use any cached project data while a refresh is in flight to avoid blank spinners.
+    var project = projectAsync.asData?.value.data;
+    projectAsync.when(
+      data: (response) => project = response.data,
+      loading: () {
+        // keep cached project if available
+      },
+      error: (_, errIgnored) {
+        // keep cached project if available
+      },
+    );
+
     return _buildOverviewContainer(
       context,
-      projectAsync.when(
-        skipLoadingOnRefresh: true,
-        loading: () => projectAsync.hasValue ? projectAsync.value!.data : null,
-        error: (error, _) => null,
-        data: (response) => response.data,
-      ),
+      project,
       scheduleAsync,
       milestonesAsync,
     );
   }
 
-  Widget _buildOverviewContainer(BuildContext context, dynamic project, AsyncValue<dynamic> scheduleAsync, AsyncValue<List<ProjectMilestone>> milestonesAsync) {
+  Widget _buildOverviewContainer(
+    BuildContext context,
+    dynamic project,
+    AsyncValue<dynamic> scheduleAsync,
+    AsyncValue<List<ProjectMilestone>> milestonesAsync,
+  ) {
     if (project == null) {
       return Container(
         height: 200,
@@ -38,7 +50,9 @@ class OverviewModal extends ConsumerWidget {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+        child: const Center(
+          child: CircularProgressIndicator(color: Color(0xFF276572)),
+        ),
       );
     }
 
@@ -80,7 +94,10 @@ class OverviewModal extends ConsumerWidget {
               'assets/images/home-2.svg',
               width: 24,
               height: 24,
-              colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn),
+              colorFilter: const ColorFilter.mode(
+                Color(0xFF276572),
+                BlendMode.srcIn,
+              ),
             ),
             const SizedBox(width: 12),
             const Text(
@@ -101,11 +118,7 @@ class OverviewModal extends ConsumerWidget {
               color: Color(0xFFF2F4F7),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.close,
-              size: 16,
-              color: Color(0xFF667085),
-            ),
+            child: const Icon(Icons.close, size: 16, color: Color(0xFF667085)),
           ),
         ),
       ],
@@ -118,24 +131,45 @@ class OverviewModal extends ConsumerWidget {
       children: [
         const Text(
           'Project Description',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF101828),
+          ),
         ),
         const SizedBox(height: 12),
         Text(
           project.description,
-          style: const TextStyle(fontSize: 14, color: Color(0xFF475467), height: 1.5),
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF475467),
+            height: 1.5,
+          ),
         ),
         const SizedBox(height: 24),
         const Text(
           'Project Details',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF101828),
+          ),
         ),
         const Divider(height: 24, color: Color(0xFFEAECF0)),
-        _buildDetailRow('Project Owner', project.owner?.displayName ?? 'Not Assigned'),
+        _buildDetailRow(
+          'Project Owner',
+          project.owner?.displayName ?? 'Not Assigned',
+        ),
         const SizedBox(height: 16),
-        _buildDetailRow('Start Date', project.formattedDates.split(' - ').first),
+        _buildDetailRow(
+          'Start Date',
+          project.formattedDates.split(' - ').first,
+        ),
         const SizedBox(height: 16),
-        _buildDetailRow('Expected Completion', project.formattedDates.split(' - ').last),
+        _buildDetailRow(
+          'Expected Completion',
+          project.formattedDates.split(' - ').last,
+        ),
         const SizedBox(height: 16),
         _buildDetailRow('Location', project.formattedLocation),
       ],
@@ -153,26 +187,42 @@ class OverviewModal extends ConsumerWidget {
       ),
       error: (error, _) {
         final errStr = error.toString().toLowerCase();
-        bool isNotFound = errStr.contains('404') || errStr.contains('not found') || errStr.contains('no query results');
-        return _buildEmptySchedule(isNotFound ? 'No schedule has been created yet' : 'Schedule not available');
+        bool isNotFound =
+            errStr.contains('404') ||
+            errStr.contains('not found') ||
+            errStr.contains('no query results');
+        return _buildEmptySchedule(
+          isNotFound
+              ? 'No schedule has been created yet'
+              : 'Schedule not available',
+        );
       },
       data: (schedule) {
         if (schedule == null || schedule.phases.isEmpty) {
           return _buildEmptySchedule('No schedule has been created yet');
         }
         final currentPhase = schedule.phases.first.name;
-        final completedCount = schedule.phases.where((p) => p.status == 'completed').length;
+        final completedCount = schedule.phases
+            .where((p) => p.status == 'completed')
+            .length;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               'Current Status',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF101828),
+              ),
             ),
             const Divider(height: 24, color: Color(0xFFEAECF0)),
             _buildDetailRow('Current Phase', currentPhase),
             const SizedBox(height: 16),
-            _buildDetailRow('Phases Completed', '$completedCount of ${schedule.phases.length}'),
+            _buildDetailRow(
+              'Phases Completed',
+              '$completedCount of ${schedule.phases.length}',
+            ),
             const SizedBox(height: 16),
             _buildDetailRowStatus('Schedule Status', schedule.statusLabel),
           ],
@@ -187,7 +237,11 @@ class OverviewModal extends ConsumerWidget {
       child: Center(
         child: Text(
           message,
-          style: const TextStyle(fontSize: 14, color: Color(0xFF667085), fontStyle: FontStyle.italic),
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF667085),
+            fontStyle: FontStyle.italic,
+          ),
         ),
       ),
     );
@@ -242,9 +296,13 @@ class OverviewModal extends ConsumerWidget {
     );
   }
 
-  Widget _buildMilestoneSection(AsyncValue<List<ProjectMilestone>> milestonesAsync) {
+  Widget _buildMilestoneSection(
+    AsyncValue<List<ProjectMilestone>> milestonesAsync,
+  ) {
     return milestonesAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF276572)),
+      ),
       error: (error, _) => const SizedBox(),
       data: (milestones) {
         if (milestones.isEmpty) return const SizedBox();
@@ -254,29 +312,47 @@ class OverviewModal extends ConsumerWidget {
           children: [
             const Text(
               'Project Milestones',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF101828),
+              ),
             ),
             const Divider(height: 24, color: Color(0xFFEAECF0)),
-            ...milestones.map((m) => Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(m.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF101828))),
-                        if (m.dueDate != null)
-                          Text('Due: ${DateFormat('MMM dd, yyyy').format(m.dueDate!)}', 
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF667085))),
-                      ],
+            ...milestones.map(
+              (m) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            m.title,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF101828),
+                            ),
+                          ),
+                          if (m.dueDate != null)
+                            Text(
+                              'Due: ${DateFormat('MMM dd, yyyy').format(m.dueDate!)}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF667085),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  _buildMilestoneStatusBadge(m.status),
-                ],
+                    _buildMilestoneStatusBadge(m.status),
+                  ],
+                ),
               ),
-            )),
+            ),
           ],
         );
       },
@@ -286,7 +362,7 @@ class OverviewModal extends ConsumerWidget {
   Widget _buildMilestoneStatusBadge(String status) {
     Color bg = const Color(0xFFF2F4F7);
     Color text = const Color(0xFF344054);
-    
+
     switch (status.toLowerCase()) {
       case 'approved':
         bg = const Color(0xFFECFDF3);
@@ -310,7 +386,11 @@ class OverviewModal extends ConsumerWidget {
       ),
       child: Text(
         status.toUpperCase(),
-        style: TextStyle(color: text, fontSize: 10, fontWeight: FontWeight.bold),
+        style: TextStyle(
+          color: text,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

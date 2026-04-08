@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/core/ui/app_colors.dart';
 
+import 'package:url_launcher/url_launcher.dart';
 import '../../../features/auth/models/auth_response.dart';
 import '../../../features/auth/models/social_auth_method.dart';
 import '../../../features/auth/providers/social_auth_provider.dart';
-import '../../../features/auth/screens/social_auth_webview.dart';
 
 class OnboardingAuthStep extends ConsumerWidget {
   const OnboardingAuthStep({
@@ -124,30 +124,16 @@ class OnboardingAuthStep extends ConsumerWidget {
 
       if (!context.mounted) return;
 
-      // Open the OAuth flow in the in-app WebView so we can intercept
-      // the converf-fe.netlify.app callback before it opens in the browser.
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => SocialAuthWebView(
-            authUrl: authUrl,
-            onCancel: () {},
-            onCallback: (callbackUri) async {
-              try {
-                await ref
-                    .read(socialAuthActionProvider.notifier)
-                    .completeFromCallback(callbackUri);
-                // The authProvider state change will trigger the router automatically.
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(e.toString())),
-                  );
-                }
-              }
-            },
-          ),
-        ),
-      );
+      // Open the OAuth flow in the system browser so Google allows it.
+      // The AppLink handler (AuthAppLinksService) will intercept the return 
+      // to converf-fe.netlify.app/auth/callback and complete the sign-in.
+      final uri = Uri.parse(authUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        throw Exception('Could not launch the browser for signing in.');
+      }
+
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(

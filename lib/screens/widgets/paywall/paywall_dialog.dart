@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../product_owner/widgets/dashboard/more/billing_screen.dart';
+import '../../product_owner/widgets/dashboard/more/billing/billing_screen.dart';
 
 class PaywallDialog extends StatelessWidget {
   const PaywallDialog({super.key});

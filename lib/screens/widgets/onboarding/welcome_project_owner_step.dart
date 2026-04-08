@@ -4,17 +4,19 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/auth/session_manager.dart';
 
-class OnboardingWelcomeProjectOwnerStep extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+class OnboardingWelcomeProjectOwnerStep extends ConsumerStatefulWidget {
   final VoidCallback? onCompleted;
   const OnboardingWelcomeProjectOwnerStep({super.key, this.onCompleted});
 
   @override
-  State<OnboardingWelcomeProjectOwnerStep> createState() =>
+  ConsumerState<OnboardingWelcomeProjectOwnerStep> createState() =>
       _OnboardingWelcomeProjectOwnerStepState();
 }
 
 class _OnboardingWelcomeProjectOwnerStepState
-    extends State<OnboardingWelcomeProjectOwnerStep> {
+    extends ConsumerState<OnboardingWelcomeProjectOwnerStep> {
   static const _redirectDelay = Duration(seconds: 3);
 
   Timer? _redirectTimer;
@@ -39,7 +41,7 @@ class _OnboardingWelcomeProjectOwnerStepState
       return;
     }
 
-    final sessionManager = SessionManager();
+    final sessionManager = ref.read(sessionManagerProvider);
     final user = await sessionManager.getUser();
     final userId = user?['id']?.toString() ?? '';
     if (userId.isNotEmpty) {

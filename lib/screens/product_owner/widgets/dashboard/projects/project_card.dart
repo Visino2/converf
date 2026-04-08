@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../features/projects/models/project.dart';
-import '../../../../../core/utils/project_utils.dart';
 import 'project_details_screen.dart';
 import '../new_project_modal.dart';
 import 'package:flutter_svg/flutter_svg.dart';

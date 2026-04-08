@@ -49,136 +49,6 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
     super.dispose();
   }
 
-  void _showAddTeamMenu(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.5),
-      builder: (BuildContext context) {
-        return Stack(
-          children: [
-            Positioned(
-              top: 100,
-              right: 16,
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  width: 280,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(height: 16),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            Navigator.pop(context);
-                            try {
-                              final result = await ref.read(teamActionProvider.notifier).exportTeamMembers();
-                              
-                              if (result != null && result['status'] == true && result['data'] != null) {
-                                final urlString = result['data'].toString();
-                                if (urlString.isNotEmpty) {
-                                  final uri = Uri.tryParse(urlString);
-                                  if (uri != null && await canLaunchUrl(uri)) {
-                                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                  }
-                                }
-                              }
-                              
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Export command sent')),
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Export failed: $e')),
-                                );
-                              }
-                            }
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFD0D5DD)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            minimumSize: const Size(double.infinity, 48),
-                          ),
-                          icon: const Icon(Icons.file_download_outlined, color: Color(0xFF344054)),
-                          label: const Text(
-                            'Export CSV',
-                            style: TextStyle(
-                              color: Color(0xFF344054),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (context) => AddTeamModal(
-                                onNavigateToProjects: () {
-                                  if (widget.onNavigateToProjects != null) {
-                                    widget.onNavigateToProjects!();
-                                  }
-                                },
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF276572),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            minimumSize: const Size(double.infinity, 48),
-                            elevation: 0,
-                          ),
-                          icon: const Icon(Icons.add_circle_outline, color: Colors.white),
-                          label: const Text(
-                            'Add Team',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final teamMembersAsync = ref.watch(teamMembersProvider((projectId: null, page: 1, perPage: 100)));
@@ -209,7 +79,7 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
                 ),
               ),
               loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
+              error: (error, stackTrace) => const SizedBox.shrink(),
             ),
           ],
         ),

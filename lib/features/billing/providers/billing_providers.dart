@@ -62,7 +62,7 @@ class BillingActionNotifier extends AsyncNotifier<void> {
     try {
       await _repository.verifyPayment(reference);
       ref.invalidate(billingSubscriptionProvider);
-      ref.invalidate(billingTransactionsProvider(null));
+      ref.invalidate(billingTransactionsProvider);
       ref.read(pendingPaymentReferenceProvider.notifier).clear();
       state = const AsyncData(null);
     } catch (e, st) {

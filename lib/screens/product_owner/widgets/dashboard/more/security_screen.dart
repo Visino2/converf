@@ -11,6 +11,7 @@ class SecurityScreen extends ConsumerStatefulWidget {
 }
 
 class _SecurityScreenState extends ConsumerState<SecurityScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -18,6 +19,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
   bool _showCurrent = false;
   bool _showNew = false;
   bool _showConfirm = false;
+  String? _formError;
 
   @override
   void dispose() {
@@ -28,6 +30,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
   }
 
   Future<void> _updatePassword() async {
+    if (_formKey.currentState?.validate() != true) return;
     final current = _currentPasswordController.text.trim();
     final newPassword = _newPasswordController.text.trim();
     final confirm = _confirmPasswordController.text.trim();
@@ -52,6 +55,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
       passwordConfirmation: confirm,
     );
 
+    setState(() => _formError = null);
     try {
       await ref.read(profileNotifierProvider.notifier).changePassword(payload);
       if (mounted) {
@@ -64,6 +68,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _formError = e.toString());
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to change password: $e')),
         );
@@ -96,9 +101,11 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             const Text(
               'Security & Access',
               style: TextStyle(
@@ -124,12 +131,30 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
             ),
             const SizedBox(height: 16),
 
+            if (_formError != null || actionState.hasError) ...[
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF2F0),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: Text(
+                  _formError ?? actionState.error.toString(),
+                  style: const TextStyle(color: Color(0xFFB42318), fontSize: 13),
+                ),
+              ),
+            ],
+
             _buildPasswordField(
               'Current Password',
               _currentPasswordController,
               _showCurrent,
               () => setState(() => _showCurrent = !_showCurrent),
               enabled: !actionState.isLoading,
+              validator: (v) => (v == null || v.isEmpty) ? 'Enter current password' : null,
             ),
             const SizedBox(height: 16),
 
@@ -142,6 +167,11 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                     _showNew,
                     () => setState(() => _showNew = !_showNew),
                     enabled: !actionState.isLoading,
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Enter new password';
+                      if (v.length < 8) return 'Use at least 8 characters';
+                      return null;
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -152,6 +182,11 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                     _showConfirm,
                     () => setState(() => _showConfirm = !_showConfirm),
                     enabled: !actionState.isLoading,
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Re-enter new password';
+                      if (v != _newPasswordController.text.trim()) return 'Passwords do not match';
+                      return null;
+                    },
                   ),
                 ),
               ],
@@ -192,7 +227,8 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildPasswordField(
@@ -201,6 +237,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
     bool isVisible,
     VoidCallback onToggle, {
     bool enabled = true,
+    String? Function(String?)? validator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,10 +251,12 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
           ),
         ),
         const SizedBox(height: 6),
-        TextField(
+        TextFormField(
           controller: controller,
           obscureText: !isVisible,
           enabled: enabled,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          validator: validator,
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.white,

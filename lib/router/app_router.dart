@@ -13,6 +13,11 @@ import '../features/auth/models/email_verification_status.dart';
 import '../features/auth/utils/auth_flow.dart';
 import '../screens/widgets/onboarding/onboarding_verify_email_step.dart';
 import '../screens/welcome_screen.dart';
+import '../screens/product_owner/widgets/dashboard/notifications/notifications_screen.dart';
+import '../screens/product_owner/widgets/dashboard/messages/project_inbox_screen.dart';
+import '../screens/product_owner/widgets/dashboard/projects/project_details_screen.dart';
+import '../screens/contractor/projects/widgets/tools/contractor_notifications_screen.dart';
+import '../screens/contractor/projects/contractor_project_details_screen.dart';
 
 final routerRefreshProvider = Provider((ref) => RouterRefreshNotifier(ref));
 
@@ -198,6 +203,37 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/welcome',
         name: 'welcome',
         builder: (context, state) => const WelcomeScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        name: 'notifications',
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/contractor-notifications',
+        name: 'contractor-notifications',
+        builder: (context, state) => const ContractorNotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/messages',
+        name: 'messages',
+        builder: (context, state) => const ProjectInboxScreen(),
+      ),
+      GoRoute(
+        path: '/projects/:projectId',
+        name: 'project-details',
+        builder: (context, state) {
+          final projectId = state.pathParameters['projectId']!;
+          return ProjectDetailsScreen(projectId: projectId);
+        },
+      ),
+      GoRoute(
+        path: '/contractor-projects/:projectId',
+        name: 'contractor-project-details',
+        builder: (context, state) {
+          final projectId = state.pathParameters['projectId']!;
+          return ContractorProjectDetailsScreen(projectId: projectId);
+        },
       ),
     ],
   );

@@ -66,8 +66,8 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
                 onTap: () async {
                   final date = await showDatePicker(
                     context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime.now(),
+                    initialDate: state.startDate ?? DateTime.now(),
+                    firstDate: DateTime(2000),
                     lastDate: DateTime(2100),
                   );
               if (date != null) {
@@ -88,8 +88,8 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
             onTap: () async {
               final date = await showDatePicker(
                 context: context,
-                initialDate: state.startDate?.add(const Duration(days: 1)) ?? DateTime.now().add(const Duration(days: 1)),
-                firstDate: state.startDate?.add(const Duration(days: 1)) ?? DateTime.now(),
+                initialDate: state.endDate ?? (state.startDate?.add(const Duration(days: 1)) ?? DateTime.now().add(const Duration(days: 1))),
+                firstDate: (state.startDate ?? DateTime(2000)).add(const Duration(days: 1)),
                 lastDate: DateTime(2100),
               );
               if (date != null) notifier.updateTimelineBudget(endDate: date);
@@ -243,7 +243,7 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
           final date = await showDatePicker(
             context: context,
             initialDate: state.biddingDeadline ?? (state.startDate?.subtract(const Duration(days: 1)) ?? DateTime.now()),
-            firstDate: DateTime.now(),
+            firstDate: DateTime(2000),
             lastDate: state.startDate?.subtract(const Duration(days: 1)) ?? DateTime(2100),
           );
           if (date != null) notifier.updateTimelineBudget(biddingDeadline: date);
@@ -366,6 +366,9 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
 
   Widget _buildContractorCard(String name, String image, double rating, int projects, String category, NewProjectState state, WizardStateNotifier notifier, String id) {
     bool isSelected = state.selectedContractorId == id;
+    final ImageProvider provider = image.startsWith('http')
+        ? NetworkImage(image)
+        : AssetImage(image);
     return GestureDetector(
       onTap: () => notifier.updateTimelineBudget(selectedContractorId: id),
       child: Container(
@@ -377,7 +380,7 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
         ),
         child: Row(
           children: [
-            CircleAvatar(radius: 20, backgroundImage: AssetImage(image)),
+            CircleAvatar(radius: 20, backgroundImage: provider),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
