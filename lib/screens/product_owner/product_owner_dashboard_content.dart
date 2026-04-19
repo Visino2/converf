@@ -11,8 +11,10 @@ import 'package:converf/features/projects/models/project.dart';
 import 'package:converf/features/projects/providers/project_advisory_providers.dart';
 import 'package:converf/features/dashboard/providers/dashboard_providers.dart';
 import 'package:converf/features/notifications/providers/notification_providers.dart';
+import 'package:converf/features/auth/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
-import 'widgets/dashboard/more/billing/billing_screen.dart';
+import 'package:converf/features/billing/providers/billing_providers.dart';
+import '../widgets/modals/upgrade_plan_modal.dart';
 
 class ProductOwnerDashboardContent extends ConsumerStatefulWidget {
   final VoidCallback? onNavigateToProjects;
@@ -59,92 +61,6 @@ class _ProductOwnerDashboardContentState
     ref.invalidate(dashboardAdvisoryProvider);
   }
 
-  Future<bool?> _showUpgradeModal(BuildContext context) {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.star, color: Color(0xFF0EA5E9)),
-                  SizedBox(width: 6),
-                  Icon(Icons.star, color: Color(0xFF0EA5E9)),
-                  SizedBox(width: 6),
-                  Icon(Icons.star, color: Color(0xFF0EA5E9)),
-                ],
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Unlock Premium',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Upgrade Your Plan',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF111827),
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                "You've used your one free project creation. Upgrade your account to professional to manage multiple projects and unlock exclusive features.",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.4,
-                  color: Color(0xFF4B5563),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0EA5E9),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 0,
-                  ),
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  child: const Text(
-                    'View Subscription Plans',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: const Text(
-                  'Maybe Later',
-                  style: TextStyle(
-                    color: Color(0xFF6B7280),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   void _toggleSearch() {
     setState(() {
@@ -160,6 +76,9 @@ class _ProductOwnerDashboardContentState
 
   @override
   Widget build(BuildContext context) {
+    // Keep subscription data warm in memory
+    ref.watch(billingSubscriptionProvider);
+    
     return SafeArea(
       child: Stack(
         children: [
@@ -211,17 +130,58 @@ class _ProductOwnerDashboardContentState
                       ),
                     ),
                     onPressed: () async {
-                      final goToBilling = await _showUpgradeModal(context);
+                      // More robust check for active projects.
+                      final statsState = ref.read(dashboardStatsProvider);
+                      final projectsState = ref.read(projectsListProvider(1));
 
-                      if (goToBilling == true) {
-                        if (!context.mounted) return;
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const BillingScreen(),
-                          ),
+                      int activeProjects = 0;
+
+                      // 1. Check statistics
+                      if (statsState.hasValue) {
+                        activeProjects = max(
+                          activeProjects,
+                          statsState.value?.data?.activeProjects ?? 0,
                         );
+                      }
+
+                      // 2. Check project list metadata (more direct)
+                      if (projectsState.hasValue) {
+                        activeProjects = max(
+                          activeProjects,
+                          projectsState.value?.meta?.total ?? 0,
+                        );
+                      }
+
+                      // 3. Check subscription limits
+                      final subState = ref.read(billingSubscriptionProvider);
+                      final authState = ref.read(authProvider);
+                      
+                      int maxProjects = 1; // Default for free plan
+                      
+                      bool isPremiumPlan = false;
+                      final userPlan = authState.value?.user['plan']?.toString().toLowerCase() ?? '';
+                      if (userPlan.contains('builder') || userPlan.contains('starter') || userPlan.contains('professional')) {
+                        isPremiumPlan = true;
+                      }
+
+                      if (subState.hasValue && subState.value?.limits?.maxProjects != null) {
+                        maxProjects = subState.value!.limits!.maxProjects!;
+                      } else if (isPremiumPlan) {
+                        // Safe fallback if billing data is still loading but we know they are premium
+                        maxProjects = 10; 
+                      }
+
+                      debugPrint(
+                        'CHECK: active=$activeProjects, max=$maxProjects, plan=$userPlan, isPremium=$isPremiumPlan',
+                      );
+
+                      if (activeProjects >= maxProjects) {
+                        debugPrint('LIMIT REACHED: showing upgrade modal');
+                        await showUpgradePlanModal(context);
                         return;
                       }
+
+                      debugPrint('PROCEED: opening new project modal');
 
                       if (!context.mounted) return;
                       showModalBottomSheet(
@@ -557,30 +517,50 @@ class _DashboardAdvisoryCard extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    'AI Analysis Complete',
-                    style: TextStyle(
-                      color: Colors.black54,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F973D),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Health Score: ${advisory.healthScore}%',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'AI Analysis Complete',
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F973D),
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 2,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                'Health Score: ${advisory.healthScore}%',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ],

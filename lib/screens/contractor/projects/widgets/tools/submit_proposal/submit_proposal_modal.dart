@@ -7,6 +7,26 @@ import 'package:converf/features/marketplace/models/marketplace_responses.dart';
 import 'package:converf/features/marketplace/providers/marketplace_providers.dart';
 import 'package:converf/screens/contractor/projects/schedule/schedule_screen.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/marketplace_screen.dart';
+import 'package:intl/intl.dart';
+
+class _CurrencyInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.selection.baseOffset == 0) return newValue;
+
+    final text = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (text.isEmpty) return newValue.copyWith(text: '');
+
+    final value = int.parse(text);
+    final formatted = NumberFormat('#,###').format(value);
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
 
 class SubmitProposalModal extends ConsumerStatefulWidget {
   final String projectId;
@@ -21,35 +41,15 @@ class SubmitProposalModal extends ConsumerStatefulWidget {
 class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
   final _bidAmountController = TextEditingController();
   final _proposalController = TextEditingController();
-  final _equipmentController = TextEditingController();
-
-  String? _duration;
-  String? _paymentPreference;
-  final List<Map<String, dynamic>> _milestones = [];
   final List<String> _documentPaths = [];
 
   bool _isSuccess = false;
   String? _submittedBidId;
 
-  final List<String> _durationOptions = [
-    '1 Month',
-    '3 Months',
-    '6 Months',
-    '12 Months',
-    'Flexible',
-  ];
-  final List<String> _paymentOptions = [
-    'Milestone-based',
-    'Lump Sum',
-    'Weekly',
-    'Monthly',
-  ];
-
   @override
   void dispose() {
     _bidAmountController.dispose();
     _proposalController.dispose();
-    _equipmentController.dispose();
     super.dispose();
   }
 
@@ -72,12 +72,6 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
     final amount = double.tryParse(amountText) ?? 0.0;
 
     try {
-      final equipmentList = _equipmentController.text
-          .split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList();
-
       final response = await ref
           .read(marketplaceActionProvider.notifier)
           .submitBid(
@@ -85,10 +79,6 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
             SubmitBidPayload(
               amount: amount,
               proposal: _proposalController.text.trim(),
-              duration: _duration,
-              paymentPreference: _paymentPreference,
-              equipment: equipmentList.isNotEmpty ? equipmentList : null,
-              milestones: _milestones.isNotEmpty ? _milestones : null,
               documentPaths: _documentPaths.isNotEmpty ? _documentPaths : null,
             ),
           );
@@ -110,7 +100,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
   }
 
   Future<void> _pickDocuments() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg'],
@@ -229,6 +219,9 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                 TextField(
                   controller: _bidAmountController,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    _CurrencyInputFormatter(),
+                  ],
                   style: const TextStyle(
                     fontSize: 16,
                     color: Color(0xFF101828),
@@ -262,205 +255,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
-                const SizedBox(height: 24),
 
-                // Duration & Payment Preference
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Duration',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF344054),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: const Color(0xFFD0D5DD),
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: DropdownButton<String>(
-                              value: _duration,
-                              hint: const Text('Select'),
-                              isExpanded: true,
-                              underline: const SizedBox(),
-                              items: _durationOptions
-                                  .map(
-                                    (e) => DropdownMenuItem(
-                                      value: e,
-                                      child: Text(e),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (v) => setState(() => _duration = v),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Payment',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF344054),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: const Color(0xFFD0D5DD),
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: DropdownButton<String>(
-                              value: _paymentPreference,
-                              hint: const Text('Select'),
-                              isExpanded: true,
-                              underline: const SizedBox(),
-                              items: _paymentOptions
-                                  .map(
-                                    (e) => DropdownMenuItem(
-                                      value: e,
-                                      child: Text(e),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (v) =>
-                                  setState(() => _paymentPreference = v),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Milestones Builder
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Milestones',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF344054),
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: _showAddMilestoneDialog,
-                      icon: const Icon(
-                        Icons.add,
-                        size: 16,
-                        color: Color(0xFF276572),
-                      ),
-                      label: const Text(
-                        'Add',
-                        style: TextStyle(color: Color(0xFF276572)),
-                      ),
-                    ),
-                  ],
-                ),
-                if (_milestones.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFFEAECF0)),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _milestones.length,
-                      separatorBuilder: (c, i) =>
-                          const Divider(height: 1, color: Color(0xFFEAECF0)),
-                      itemBuilder: (context, index) {
-                        final m = _milestones[index];
-                        return ListTile(
-                          title: Text(
-                            m['title'],
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '₦${m['amount']} • Due: ${m['due_date']}',
-                            style: const TextStyle(
-                              color: Colors.black54,
-                              fontSize: 12,
-                            ),
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.red,
-                              size: 18,
-                            ),
-                            onPressed: () =>
-                                setState(() => _milestones.removeAt(index)),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 24),
-
-                // Equipment Section
-                const Text(
-                  'Equipment (comma-separated)',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF344054),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _equipmentController,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF101828),
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'e.g., Excavator, Crane',
-                    contentPadding: const EdgeInsets.all(14),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFFD0D5DD)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFFD0D5DD)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(
-                        color: Color(0xFF276572),
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                ),
                 const SizedBox(height: 24),
 
                 // Proposal Section
@@ -793,69 +588,4 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
     );
   }
 
-  void _showAddMilestoneDialog() {
-    final titleCtrl = TextEditingController();
-    final amountCtrl = TextEditingController();
-    final dateCtrl =
-        TextEditingController(); // Simple string for now, could use DatePicker
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Milestone', style: TextStyle(fontSize: 18)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                hintText: 'e.g., Foundation completion',
-              ),
-            ),
-            TextField(
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Amount (₦)'),
-            ),
-            TextField(
-              controller: dateCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Due Date',
-                hintText: 'YYYY-MM-DD',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.black54),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (titleCtrl.text.isNotEmpty && amountCtrl.text.isNotEmpty) {
-                setState(() {
-                  _milestones.add({
-                    'title': titleCtrl.text.trim(),
-                    'amount': double.tryParse(amountCtrl.text.trim()) ?? 0.0,
-                    'due_date': dateCtrl.text.trim(),
-                  });
-                });
-                Navigator.pop(ctx);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF276572),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-  }
 }

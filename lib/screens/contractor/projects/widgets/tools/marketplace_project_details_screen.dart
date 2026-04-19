@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/features/projects/providers/project_providers.dart';
+import 'package:converf/features/projects/models/project.dart';
 import 'package:converf/features/marketplace/models/bid.dart';
 import 'package:converf/features/marketplace/providers/marketplace_providers.dart';
 import 'submit_proposal/submit_proposal_modal.dart';
-import '../../../../widgets/paywall/paywall_dialog.dart';
 import 'bid_detail_screen.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/projects/project_images_modal.dart';
 import 'package:converf/features/projects/providers/project_document_providers.dart';
@@ -294,13 +294,25 @@ class _MarketplaceProjectDetailsScreenState
                     loading: () => const CircularProgressIndicator(
                       color: Color(0xFF276572),
                     ),
-                    error: (err, stack) =>
-                        _buildSubmitButton(context, ref), // fallback CTA
+                    error: (err, stack) {
+                      final isAwarded = project.contractorId != null ||
+                          project.status == ProjectStatus.active ||
+                          project.status == ProjectStatus.completed;
+                      return isAwarded ? _buildAwardedBanner() : _buildSubmitButton(context, ref);
+                    }, // fallback CTA
                     data: (response) {
                       final existingBid = response.data.cast<Bid?>().firstWhere(
                         (b) => b?.projectId == projectId,
                         orElse: () => null,
                       );
+
+                      final isAwarded = project.contractorId != null ||
+                          project.status == ProjectStatus.active ||
+                          project.status == ProjectStatus.completed;
+
+                      if (isAwarded) {
+                        return _buildAwardedBanner();
+                      }
 
                       if (existingBid != null) {
                         return _buildReviewButton(context, existingBid);
@@ -475,22 +487,7 @@ class _MarketplaceProjectDetailsScreenState
 
   Widget _buildSubmitButton(BuildContext context, WidgetRef ref) {
     return ElevatedButton(
-      onPressed: () async {
-        try {
-          final bidsResponse = await ref.read(myBidsProvider(1).future);
-          final total = bidsResponse.meta?.total ?? bidsResponse.data.length;
-
-          if (total >= 1) {
-            if (!context.mounted) return;
-            await PaywallDialog.show(context);
-            return;
-          }
-        } catch (e) {
-          // If check fails, we still allow opening the modal for now, or show error
-          debugPrint('Error checking bid count: $e');
-        }
-
-        if (!context.mounted) return;
+      onPressed: () {
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
@@ -565,6 +562,34 @@ class _MarketplaceProjectDetailsScreenState
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAwardedBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF3F2), // Light red bg
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFEE4E2)), // Red border
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.block, color: Color(0xFFB42318), size: 18),
+          SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              'Project Awarded',
+              style: TextStyle(
+                color: Color(0xFFB42318),
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

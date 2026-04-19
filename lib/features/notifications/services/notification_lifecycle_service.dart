@@ -15,14 +15,7 @@ import '../../projects/repositories/project_repository.dart';
 import '../models/notification_models.dart';
 import '../providers/notification_providers.dart';
 import '../repositories/notification_repository.dart';
-
-final pushTokenSourceProvider = Provider<PushTokenSource>((ref) {
-  return const NoopPushTokenSource();
-});
-
-final nativePushSupportedProvider = Provider<bool>((ref) {
-  return ref.watch(pushTokenSourceProvider).isConfigured;
-});
+import 'push_token_source.dart';
 
 final deviceTokenStoreProvider = Provider<DeviceTokenStore>((ref) {
   return DeviceTokenStore(ref.read(sharedPreferencesProvider));
@@ -33,23 +26,6 @@ final notificationLifecycleProvider = Provider<NotificationLifecycleService>((
 ) {
   return NotificationLifecycleService(ref);
 });
-
-abstract class PushTokenSource {
-  const PushTokenSource();
-
-  bool get isConfigured;
-  Future<String?> getToken();
-}
-
-class NoopPushTokenSource extends PushTokenSource {
-  const NoopPushTokenSource();
-
-  @override
-  bool get isConfigured => false;
-
-  @override
-  Future<String?> getToken() async => null;
-}
 
 class DeviceTokenStore {
   static const _registeredTokenKey = 'registered_device_token';
@@ -71,9 +47,16 @@ class DeviceTokenStore {
 }
 
 class NotificationLifecycleService {
+  static const Set<String> _projectMessageEventNames = <String>{
+    'project.message.sent',
+    '.project.message.sent',
+  };
+
   final Ref _ref;
   final List<StreamSubscription<dynamic>> _messageSubscriptions = [];
   String? _activeUserId;
+  String? _lastHandledRealtimeMessageId;
+  Timer? _notificationPoller;
 
   NotificationLifecycleService(this._ref);
 
@@ -94,6 +77,9 @@ class NotificationLifecycleService {
       if (_activeUserId != null) {
         await _stopRealtimeMessageSubscriptions();
       }
+      _activeUserId = null;
+      _lastHandledRealtimeMessageId = null;
+      _stopNotificationPolling();
       return;
     }
 
@@ -113,7 +99,12 @@ class NotificationLifecycleService {
         await _stopRealtimeMessageSubscriptions();
         _activeUserId = null;
       }
+      _stopNotificationPolling();
       return;
+    }
+
+    if (_ref.read(nativePushSupportedProvider)) {
+      unawaited(registerCurrentDeviceToken());
     }
 
     if (_activeUserId == userId) return;
@@ -125,6 +116,7 @@ class NotificationLifecycleService {
       role: response.role,
       currentUserId: userId,
     );
+    _startNotificationPolling();
   }
 
   Future<bool> registerCurrentDeviceToken() async {
@@ -176,6 +168,8 @@ class NotificationLifecycleService {
   Future<void> handleLoggedOut() async {
     await _stopRealtimeMessageSubscriptions();
     _activeUserId = null;
+    _lastHandledRealtimeMessageId = null;
+    _stopNotificationPolling();
     _ref.read(pusherServiceProvider).disconnect();
   }
 
@@ -199,16 +193,16 @@ class NotificationLifecycleService {
     for (final projectId in projectIds) {
       try {
         final channel = await pusherService.subscribeToProject(projectId);
-        final subscription = channel.bind('project.message.sent').listen((
-          event,
-        ) {
-          _handleProjectMessageEvent(
-            event: event,
-            projectId: projectId,
-            currentUserId: currentUserId,
-          );
-        });
-        _messageSubscriptions.add(subscription);
+        for (final eventName in _projectMessageEventNames) {
+          final subscription = channel.bind(eventName).listen((event) {
+            _handleProjectMessageEvent(
+              event: event,
+              projectId: projectId,
+              currentUserId: currentUserId,
+            );
+          });
+          _messageSubscriptions.add(subscription);
+        }
       } catch (e) {
         debugPrint(
           '[Notifications] Failed to subscribe to project $projectId: $e',
@@ -256,6 +250,12 @@ class NotificationLifecycleService {
         Map<String, dynamic>.from(payload['message'] as Map),
       );
 
+      if (message.id.isNotEmpty &&
+          _lastHandledRealtimeMessageId == message.id) {
+        return;
+      }
+      _lastHandledRealtimeMessageId = message.id;
+
       if (message.sender?.id == currentUserId) {
         return;
       }
@@ -294,6 +294,22 @@ class NotificationLifecycleService {
       await subscription.cancel();
     }
     _messageSubscriptions.clear();
+  }
+
+  void _startNotificationPolling() {
+    _notificationPoller?.cancel();
+    // Lightweight foreground poll to keep notifications fresh, mirroring web behaviour.
+    _notificationPoller = Timer.periodic(const Duration(seconds: 30), (_) {
+      _ref.invalidate(notificationsProvider(false));
+      _ref.invalidate(notificationsProvider(true));
+      _ref.invalidate(unreadNotificationsCountProvider);
+      _ref.invalidate(unreadMessageNotificationsCountProvider);
+    });
+  }
+
+  void _stopNotificationPolling() {
+    _notificationPoller?.cancel();
+    _notificationPoller = null;
   }
 
   String get _platformName {

@@ -15,7 +15,7 @@ final sessionRefreshProvider = StreamProvider<int>((ref) {
 
 class SessionManager {
   final SharedPreferences _prefs;
-  
+
   SessionManager(this._prefs);
 
   static const String _tokenKey = 'token';
@@ -42,6 +42,10 @@ class SessionManager {
     return _prefs.getString(_tokenKey);
   }
 
+  String? getTokenSync() {
+    return _prefs.getString(_tokenKey);
+  }
+
   Future<Map<String, dynamic>?> getUser() async {
     final userJson = _prefs.getString(_userKey);
     if (userJson != null) {
@@ -59,6 +63,11 @@ class SessionManager {
 
   Future<bool> hasSession() async {
     final token = await getToken();
+    return token != null && token.isNotEmpty;
+  }
+
+  bool hasSessionSync() {
+    final token = getTokenSync();
     return token != null && token.isNotEmpty;
   }
 

@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "165586994124",
+    "project_id": "converf",
+    "storage_bucket": "converf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165586994124:android:b053ab3a270b2d4048d369",
+        "android_client_info": {
+          "package_name": "com.converf.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "165586994124-etvi2qfifm6labfj7hdgf13f820kkv3v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.converf.app",
+            "certificate_hash": "e94b7399fd573002277a55f07293a86495089d27"
+          }
+        },
+        {
+          "client_id": "165586994124-ehinqf0siepk2ioifu13kkv3oc901t9f.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbChvGD1zIvP4W8IFHzpY81pwHk8Ay_Jc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "165586994124-ehinqf0siepk2ioifu13kkv3oc901t9f.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "165586994124-5tiu5dl7hn1q56lqp5edq2gbeujbcgts.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.converf.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

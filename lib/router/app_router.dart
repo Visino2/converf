@@ -5,6 +5,7 @@ import '../screens/splash_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/product_owner/product_owner_dashboard_screen.dart';
 import '../screens/contractor/contractor_dashboard_screen.dart';
+import '../screens/widgets/onboarding/onboarding_accept_invitation_step.dart';
 import '../screens/widgets/onboarding/onboarding_reset_password_step.dart';
 import '../features/auth/providers/auth_provider.dart';
 import '../features/auth/providers/email_verification_provider.dart';
@@ -43,6 +44,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuthenticated = isAuthenticatedResponse(user);
       final isAuthRoute = isRootAuthPath(locationPath);
       final isPasswordReset = locationPath == '/auth/reset-password';
+      final isAcceptInvitationRoute = isAcceptInvitationPath(locationPath);
       final isVerifyEmailRoute = isVerifyEmailPath(locationPath);
       final dashboardRoute = dashboardRouteForRole(
         user?.role ?? UserRole.unknown,
@@ -60,7 +62,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (isVerifyEmailRoute) {
           return onboardingLocation(login: true);
         }
-        if (!isAuthRoute && !isPasswordReset) {
+        if (!isAuthRoute && !isPasswordReset && !isAcceptInvitationRoute) {
           return onboardingLocation(login: true);
         }
         return null;
@@ -113,6 +115,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         return dashboardRoute;
       }
 
+      if (isAcceptInvitationRoute) {
+        return dashboardRoute;
+      }
+
       return null;
     },
     routes: [
@@ -153,6 +159,18 @@ final routerProvider = Provider<GoRouter>((ref) {
                     child: child,
                   );
                 },
+          );
+        },
+      ),
+      GoRoute(
+        path: '/accept-invitation',
+        name: 'accept-invitation',
+        builder: (context, state) {
+          final token = state.uri.queryParameters['token'] ?? '';
+          return OnboardingAcceptInvitationStep(
+            token: token,
+            onAccepted: () => context.go(onboardingLocation(login: true)),
+            onBackToLogin: () => context.go(onboardingLocation(login: true)),
           );
         },
       ),
@@ -238,4 +256,3 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
-

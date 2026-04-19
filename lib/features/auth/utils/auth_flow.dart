@@ -5,6 +5,7 @@ const String splashRoute = '/';
 const String onboardingRoute = '/onboarding';
 const String ownerDashboardRoute = '/owner-dashboard';
 const String contractorDashboardRoute = '/contractor-dashboard';
+const String acceptInvitationRoute = '/accept-invitation';
 const String verifyEmailRoute = '/auth/verify-email';
 
 bool isAuthenticatedResponse(AuthResponse? response) {
@@ -17,6 +18,10 @@ bool isRootAuthPath(String path) {
 
 bool isVerifyEmailPath(String path) {
   return path == verifyEmailRoute || path.startsWith('/auth/email/verify/');
+}
+
+bool isAcceptInvitationPath(String path) {
+  return path == acceptInvitationRoute;
 }
 
 bool isOwnerDashboardPath(String path) {
@@ -43,6 +48,15 @@ String onboardingLocation({bool login = false}) {
     return onboardingRoute;
   }
   return '$onboardingRoute?${Uri(queryParameters: const {'mode': 'login'}).query}';
+}
+
+String acceptInvitationLocation({String? token}) {
+  final trimmedToken = token?.trim() ?? '';
+  if (trimmedToken.isEmpty) {
+    return acceptInvitationRoute;
+  }
+
+  return '$acceptInvitationRoute?${Uri(queryParameters: {'token': trimmedToken}).query}';
 }
 
 String verifyEmailLocation({

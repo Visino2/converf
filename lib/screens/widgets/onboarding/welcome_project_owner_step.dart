@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/auth/session_manager.dart';
+import '../../product_owner/widgets/dashboard/more/billing/utils/billing_formatters.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,14 +18,26 @@ class OnboardingWelcomeProjectOwnerStep extends ConsumerStatefulWidget {
 
 class _OnboardingWelcomeProjectOwnerStepState
     extends ConsumerState<OnboardingWelcomeProjectOwnerStep> {
-  static const _redirectDelay = Duration(seconds: 3);
+  static const _redirectDelay = Duration(milliseconds: 1500);
 
   Timer? _redirectTimer;
+  String _firstName = '';
 
   @override
   void initState() {
     super.initState();
+    _loadUser();
     _redirectTimer = Timer(_redirectDelay, _complete);
+  }
+
+  Future<void> _loadUser() async {
+    final sessionManager = ref.read(sessionManagerProvider);
+    final user = await sessionManager.getUser();
+    if (user != null && mounted) {
+      setState(() {
+        _firstName = user['first_name']?.toString() ?? '';
+      });
+    }
   }
 
   @override
@@ -36,17 +49,21 @@ class _OnboardingWelcomeProjectOwnerStepState
   Future<void> _complete() async {
     final router = GoRouter.of(context);
     if (!context.mounted) return;
-    if (widget.onCompleted != null) {
-      widget.onCompleted!();
-      return;
-    }
 
+    // 1. Mark welcome as seen immediately to prevent onboarding loops
     final sessionManager = ref.read(sessionManagerProvider);
     final user = await sessionManager.getUser();
     final userId = user?['id']?.toString() ?? '';
     if (userId.isNotEmpty) {
       await sessionManager.setWelcomeSeen(userId);
     }
+
+    // 2. Execute completion callback or default redirect
+    if (widget.onCompleted != null) {
+      widget.onCompleted!();
+      return;
+    }
+
     if (!context.mounted) return;
     router.go('/owner-dashboard');
   }
@@ -143,9 +160,11 @@ class _OnboardingWelcomeProjectOwnerStepState
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Welcome to\nConverf as project\nowner',
-                  style: TextStyle(
+                Text(
+                  _firstName.isNotEmpty
+                      ? 'Welcome to\nConverf\n${_firstName.toTitleCase()}'
+                      : 'Welcome to\nConverf as project\nowner',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 40,
                     fontWeight: FontWeight.w800,

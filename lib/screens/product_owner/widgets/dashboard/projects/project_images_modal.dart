@@ -38,7 +38,7 @@ class ProjectImagesModal extends ConsumerWidget {
       children: [
         if (!isEmbedded) ...[
           _buildHandle(),
-          _buildHeader(context, imagesAsync.asData?.value ?? []),
+          _buildHeader(context, ref, imagesAsync.asData?.value ?? []),
           const Divider(height: 1, color: Color(0xFFEAECF0)),
         ],
         Expanded(
@@ -87,7 +87,7 @@ class ProjectImagesModal extends ConsumerWidget {
     ),
   );
 
-  Widget _buildHeader(BuildContext context, List<ProjectImage> images) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref, List<ProjectImage> images) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       child: Row(
@@ -111,49 +111,111 @@ class ProjectImagesModal extends ConsumerWidget {
               ),
             ],
           ),
-          Row(
-            children: [
-              ElevatedButton.icon(
-                onPressed: () =>
-                    _showUploadSheet(context, images.any((i) => i.isPrimary)),
-                icon: const Icon(
-                  Icons.upload_rounded,
+          if (images.length < 3)
+            ElevatedButton.icon(
+              onPressed: () =>
+                  _showUploadSheet(context, images.any((i) => i.isPrimary)),
+              icon: const Icon(
+                Icons.upload_rounded,
+                size: 18,
+                color: Colors.white,
+              ),
+              label: const Text(
+                'Upload',
+                style: TextStyle(color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF276572),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                elevation: 0,
+              ),
+            )
+          else
+            const Badge(
+              label: Text('LIMIT REACHED'),
+              backgroundColor: Color(0xFFFEE4E2),
+              textColor: Color(0xFFB42318),
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            ),
+          if (images.isNotEmpty) ...[
+            GestureDetector(
+              onTap: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Delete All Images?'),
+                    content: const Text('This will remove all cover photos for this project. This action cannot be undone.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text(
+                          'Delete All',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirmed == true) {
+                  try {
+                    await ref.read(projectImageNotifierProvider.notifier).deleteAllImages(
+                          projectId,
+                          images.map((i) => i.id).toList(),
+                        );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('All images deleted')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to delete: $e')),
+                      );
+                    }
+                  }
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFEE4E2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.delete_sweep_outlined,
                   size: 18,
-                  color: Colors.white,
-                ),
-                label: const Text(
-                  'Upload',
-                  style: TextStyle(color: Colors.white),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF276572),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  elevation: 0,
+                  color: Color(0xFFB42318),
                 ),
               ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF2F4F7),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.close,
-                    size: 18,
-                    color: Color(0xFF667085),
-                  ),
-                ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF2F4F7),
+                shape: BoxShape.circle,
               ),
-            ],
+              child: const Icon(
+                Icons.close,
+                size: 18,
+                color: Color(0xFF667085),
+              ),
+            ),
           ),
         ],
       ),
@@ -294,7 +356,7 @@ class _ImageCard extends ConsumerWidget {
                   ),
                   child: image.fileUrl.isNotEmpty
                       ? Image.network(
-                          image.fileUrl,
+                          '${image.fileUrl}${image.fileUrl.contains('?') ? '&' : '?'}t=${DateTime.now().millisecondsSinceEpoch}',
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
                               Container(
@@ -504,9 +566,15 @@ class _UploadImageSheetState extends ConsumerState<_UploadImageSheet> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+        final errorMsg = e.toString()
+            .replaceAll('ApiException: ', '')
+            .replaceAll('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
       }
     }
   }

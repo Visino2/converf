@@ -297,7 +297,7 @@ class VerificationTab extends ConsumerWidget {
   }
 
   Future<void> _pickAndUpload(BuildContext context, WidgetRef ref) async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
       withData: false,

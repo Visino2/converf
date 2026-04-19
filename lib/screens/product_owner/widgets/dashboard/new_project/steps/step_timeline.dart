@@ -149,33 +149,44 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          WizardPriorityButton(
-            priority: 'low',
-            title: 'Low',
-            icon: SvgPicture.asset('assets/images/logo.svg', width: 20, height: 20),
-            isActive: state.urgencyLevel == 'low',
-            onTap: () => notifier.updateTimelineBudget(urgencyLevel: 'low'),
+          Expanded(
+            child: WizardPriorityButton(
+              priority: 'low',
+              title: 'Low',
+              icon: SvgPicture.asset('assets/images/logo.svg', width: 20, height: 20),
+              isActive: state.urgencyLevel == 'low',
+              onTap: () => notifier.updateTimelineBudget(urgencyLevel: 'low'),
+            ),
           ),
-          WizardPriorityButton(
-            priority: 'medium',
-            title: 'Medium',
-            icon: SvgPicture.asset('assets/images/logo.svg', width: 20, height: 20),
-            isActive: state.urgencyLevel == 'medium',
-            onTap: () => notifier.updateTimelineBudget(urgencyLevel: 'medium'),
+          const SizedBox(width: 4),
+          Expanded(
+            child: WizardPriorityButton(
+              priority: 'medium',
+              title: 'Medium',
+              icon: SvgPicture.asset('assets/images/logo.svg', width: 20, height: 20),
+              isActive: state.urgencyLevel == 'medium',
+              onTap: () => notifier.updateTimelineBudget(urgencyLevel: 'medium'),
+            ),
           ),
-          WizardPriorityButton(
-            priority: 'high',
-            title: 'High',
-            icon: SvgPicture.asset('assets/images/Target.svg', width: 20, height: 20),
-            isActive: state.urgencyLevel == 'high',
-            onTap: () => notifier.updateTimelineBudget(urgencyLevel: 'high'),
+          const SizedBox(width: 4),
+          Expanded(
+            child: WizardPriorityButton(
+              priority: 'high',
+              title: 'High',
+              icon: SvgPicture.asset('assets/images/Target.svg', width: 20, height: 20),
+              isActive: state.urgencyLevel == 'high',
+              onTap: () => notifier.updateTimelineBudget(urgencyLevel: 'high'),
+            ),
           ),
-          WizardPriorityButton(
-            priority: 'critical',
-            title: 'Critical',
-            icon: SvgPicture.asset('assets/images/shield-warning.svg', width: 20, height: 20),
-            isActive: state.urgencyLevel == 'critical',
-            onTap: () => notifier.updateTimelineBudget(urgencyLevel: 'critical'),
+          const SizedBox(width: 4),
+          Expanded(
+            child: WizardPriorityButton(
+              priority: 'critical',
+              title: 'Critical',
+              icon: SvgPicture.asset('assets/images/shield-warning.svg', width: 20, height: 20),
+              isActive: state.urgencyLevel == 'critical',
+              onTap: () => notifier.updateTimelineBudget(urgencyLevel: 'critical'),
+            ),
           ),
         ],
       ),

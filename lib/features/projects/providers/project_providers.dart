@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/project.dart';
 import '../models/project_payloads.dart';
 import '../models/project_responses.dart';
+import '../models/project_responsibility.dart';
 import '../repositories/project_repository.dart';
 
 
@@ -26,6 +27,11 @@ final projectDetailsProvider = FutureProvider.family<ProjectResponse, String>((r
 final projectFinancialsProvider = FutureProvider.autoDispose.family<ProjectFinancials, String>((ref, id) async {
   final repository = ref.read(projectRepositoryProvider);
   return repository.fetchProjectFinancials(id);
+});
+
+final projectResponsibilityProvider = FutureProvider.autoDispose.family<ProjectResponsibilityResponse, String>((ref, id) async {
+  final repository = ref.read(projectRepositoryProvider);
+  return repository.fetchProjectResponsibility(id);
 });
 
 

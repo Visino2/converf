@@ -8,6 +8,7 @@ import 'package:converf/features/auth/models/auth_response.dart';
 import 'widgets/schedule_dialogs.dart';
 import 'schedule_library_import_screen.dart';
 import 'package:converf/core/api/api_client.dart';
+import 'package:converf/features/projects/repositories/schedule_repository.dart';
 import 'dart:async';
 
 class _StatusStyle {
@@ -80,26 +81,14 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
   @override
   void initState() {
     super.initState();
-    _startAutoRefresh();
+    // Removed aggressive auto-refresh timer which was causing 
+    // infinite skeleton loops on poor connections.
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
     super.dispose();
-  }
-
-  void _startAutoRefresh() {
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      if (mounted) {
-        if (widget.projectId != null) {
-          ref.invalidate(projectScheduleProvider(widget.projectId!));
-        } else if (widget.bidId != null) {
-          ref.invalidate(bidScheduleProvider(widget.bidId!));
-        }
-      }
-    });
   }
 
   Widget _buildScheduleSkeleton() {
@@ -181,9 +170,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheduleAsync = widget.bidId != null
-        ? ref.watch(bidScheduleProvider(widget.bidId!))
-        : ref.watch(projectScheduleProvider(widget.projectId!));
+    final scheduleAsync = ref.watch(projectScheduleProvider(widget.projectId!));
     final userRole = ref.watch(authProvider).value?.role ?? UserRole.unknown;
     final isOwner = userRole == UserRole.projectOwner;
 
@@ -248,11 +235,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
-                  if (widget.projectId != null) {
-                    ref.invalidate(projectScheduleProvider(widget.projectId!));
-                  } else if (widget.bidId != null) {
-                    ref.invalidate(bidScheduleProvider(widget.bidId!));
-                  }
+                  ref.invalidate(projectScheduleProvider(widget.projectId!));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF276572),
@@ -277,14 +260,14 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
           }
           return null;
         }
-        return schedule.status == 'draft' ? _buildSubmitBar(schedule) : null;
+        return (['draft', 'revision_requested', 'resubmitted'].contains(schedule.status.toLowerCase())) ? _buildSubmitBar(schedule) : null;
       },
       loading: () => scheduleAsync.hasValue
           ? (isOwner
                 ? (scheduleAsync.value!.status == 'submitted'
                       ? _buildOwnerApprovalBar(scheduleAsync.value!)
                       : null)
-                : (scheduleAsync.value!.status == 'draft'
+                : (['draft', 'revision_requested', 'resubmitted'].contains(scheduleAsync.value!.status.toLowerCase())
                       ? _buildSubmitBar(scheduleAsync.value!)
                       : null))
           : null,
@@ -363,13 +346,34 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
                 ),
+                minimumSize: const Size(double.infinity, 54),
               ),
               child: const Text(
-                'Create Schedule',
+                'Create Blank Schedule',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _createFromLibrary,
+              icon: const Icon(Icons.library_books_outlined, size: 20),
+              label: const Text(
+                'Use Library Template',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                minimumSize: const Size(double.infinity, 54),
+                side: const BorderSide(color: Color(0xFF276572), width: 1.5),
+                foregroundColor: const Color(0xFF276572),
               ),
             ),
           ],
@@ -381,12 +385,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
   Widget _buildScheduleContent(Schedule schedule, bool isOwner) {
     return RefreshIndicator(
       onRefresh: () {
-        if (widget.projectId != null) {
-          return ref.refresh(projectScheduleProvider(widget.projectId!).future);
-        } else if (widget.bidId != null) {
-          return ref.refresh(bidScheduleProvider(widget.bidId!).future);
-        }
-        return Future.value();
+        return ref.refresh(projectScheduleProvider(widget.projectId!).future);
       },
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -561,7 +560,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${phase.activities.length} Activities',
+                          '${phase.activitiesCount} Activities',
                           style: const TextStyle(
                             fontSize: 12,
                             color: Color(0xFF667085),
@@ -607,23 +606,55 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Column(
                 children: [
-                  if (phase.activities.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Text(
-                        'No activities in this phase',
-                        style: TextStyle(color: Color(0xFF98A2B3)),
-                      ),
-                    )
-                  else
-                    ...phase.activities.map(
-                      (activity) => _buildActivityItem(
-                        schedule,
-                        phase,
-                        activity,
-                        isOwner,
-                      ),
-                    ),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final activitiesAsync = ref.watch(phaseActivitiesProvider(
+                          (scheduleId: schedule.id, phaseId: phase.id)));
+
+                      return activitiesAsync.when(
+                        data: (activities) {
+                          if (activities.isEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 20),
+                              child: Text(
+                                'No activities in this phase',
+                                style: TextStyle(color: Color(0xFF98A2B3)),
+                              ),
+                            );
+                          }
+                          return Column(
+                            children: activities
+                                .map((activity) => _buildActivityItem(
+                                      schedule,
+                                      phase,
+                                      activity,
+                                      isOwner,
+                                    ))
+                                .toList(),
+                          );
+                        },
+                        loading: () => Column(
+                          children: List.generate(
+                            phase.activitiesCount > 0 ? phase.activitiesCount : 2,
+                            (index) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _shimmerBox(width: double.infinity, height: 60),
+                            ),
+                          ),
+                        ),
+                        error: (error, _) => Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: Text(
+                              'Error loading activities: $error',
+                              style: const TextStyle(color: Colors.red, fontSize: 12),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                   if (schedule.status == 'draft' && !isOwner)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
@@ -852,6 +883,50 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
       await ref
           .read(scheduleActionProvider.notifier)
           .createScheduleFromProject(widget.projectId!, notes);
+    }
+  }
+
+  void _createFromLibrary() async {
+    final notes = await _showNotesDialog();
+    if (notes == null) return;
+
+    try {
+      // 1. Create the schedule record
+      Schedule? schedule;
+      if (widget.bidId != null) {
+        schedule = await ref
+            .read(scheduleRepositoryProvider)
+            .createScheduleFromBid(widget.bidId!, notes);
+      } else if (widget.projectId != null) {
+        schedule = await ref
+            .read(scheduleRepositoryProvider)
+            .createScheduleFromProject(widget.projectId!, notes);
+      }
+
+      if (schedule != null && mounted) {
+        // 2. Refresh local state
+        if (widget.projectId != null) {
+          ref.invalidate(projectScheduleProvider(widget.projectId!));
+        }
+
+        // 3. Immediately push to library import
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ScheduleLibraryImportScreen(
+              scheduleId: schedule!.id,
+              projectId: widget.projectId,
+              bidId: widget.bidId,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error creating schedule: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 

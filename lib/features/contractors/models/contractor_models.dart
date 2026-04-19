@@ -1,3 +1,5 @@
+import '../../projects/models/project_image.dart';
+
 class ContractorProfile {
   final String id;
   final String? companyName;
@@ -39,14 +41,20 @@ class ContractorProfile {
       companyName: json['company_name']?.toString(),
       businessRegistrationNumber:
           json['business_registration_number']?.toString(),
-      yearsInBusiness: json['years_in_business'] as int?,
+      yearsInBusiness: json['years_in_business'] == null
+          ? null
+          : int.tryParse(json['years_in_business'].toString()),
       licenseNumber: json['license_number']?.toString(),
       businessAddress: json['business_address']?.toString(),
       taxIdentificationNumber: json['tax_identification_number']?.toString(),
       verificationStatus: json['verification_status']?.toString(),
       verificationState: json['verification_state']?.toString(),
-      rating: (json['rating'] as num?)?.toDouble(),
-      totalProjectsCount: json['total_projects_count'] as int?,
+      rating: json['rating'] == null
+          ? null
+          : double.tryParse(json['rating'].toString()),
+      totalProjectsCount: json['total_projects_count'] == null
+          ? null
+          : int.tryParse(json['total_projects_count'].toString()),
       specialisations: (json['specialisations'] as List<dynamic>?)
           ?.map((e) => e.toString())
           .toList(),
@@ -229,13 +237,15 @@ class ContractorPortfolioItem {
       state: json['state']?.toString(),
       country: json['country']?.toString(),
       constructionType: json['construction_type']?.toString(),
-      budget: json['budget'] as num?,
+      budget: json['budget'] == null
+          ? null
+          : num.tryParse(json['budget'].toString()),
       currency: json['currency']?.toString(),
       status: json['status']?.toString(),
       startDate: json['start_date']?.toString(),
       completedDate: json['completed_date']?.toString(),
       description: json['description']?.toString(),
-      coverImage: json['cover_image']?.toString(),
+      coverImage: ProjectImage.normalizeImageUrl(json['cover_image']?.toString()),
     );
   }
 

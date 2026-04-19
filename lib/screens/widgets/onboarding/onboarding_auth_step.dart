@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/core/ui/app_colors.dart';
-
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../features/auth/models/auth_response.dart';
 import '../../../features/auth/models/social_auth_method.dart';
@@ -112,33 +113,67 @@ class OnboardingAuthStep extends ConsumerWidget {
     WidgetRef ref,
     SocialAuthMethod method,
   ) async {
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     final role = await _resolveRole(context);
-    if (role == null || !context.mounted) {
+    if (role == null || !navigator.mounted) {
       return;
     }
 
+    // Small delay to allow bottom sheet animation to finish before native SDK takes over.
+    // This prevents the 'hang' issue on some Android devices.
+    await Future.delayed(const Duration(milliseconds: 150));
+    if (!navigator.mounted) return;
+
     try {
-      final authUrl = await ref
-          .read(socialAuthActionProvider.notifier)
-          .getSignInUrl(method: method, role: role);
+      if (method == SocialAuthMethod.google) {
+        debugPrint(
+          '[OnboardingAuthStep] Starting native Google Sign-In for role=${role.name} on ${defaultTargetPlatform.name}.',
+        );
+        final response = await ref
+            .read(socialAuthActionProvider.notifier)
+            .signInWithGoogleNative(role: role);
 
-      if (!context.mounted) return;
-
-      // Open the OAuth flow in the system browser so Google allows it.
-      // The AppLink handler (AuthAppLinksService) will intercept the return 
-      // to converf-fe.netlify.app/auth/callback and complete the sign-in.
-      final uri = Uri.parse(authUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (response == null) {
+          return;
+        }
       } else {
-        throw Exception('Could not launch the browser for signing in.');
-      }
+        final authUrl = await ref
+            .read(socialAuthActionProvider.notifier)
+            .getSignInUrl(method: method, role: role);
 
+        if (!navigator.mounted) return;
+
+        final uri = Uri.parse(authUrl);
+        debugPrint(
+          '[OnboardingAuthStep] Launching external ${method.name} auth URL: $uri',
+        );
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          throw Exception('Could not launch the browser for signing in.');
+        }
+      }
+    } on PlatformException catch (e) {
+      if (!navigator.mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Google Sign-In failed (${e.code}). Please try again or contact support if this persists.',
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (!navigator.mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -211,11 +246,14 @@ class OnboardingAuthStep extends ConsumerWidget {
                           ),
                           onTap: socialAuthState.isLoading
                               ? null
-                              : () => _handleSocialAuth(
-                                  context,
-                                  ref,
-                                  SocialAuthMethod.google,
-                                ),
+                              : () {
+                                  FocusScope.of(context).unfocus();
+                                  _handleSocialAuth(
+                                    context,
+                                    ref,
+                                    SocialAuthMethod.google,
+                                  );
+                                },
                         ),
                         const SizedBox(height: 16),
                         _buildSocialButton(

@@ -9,6 +9,10 @@ import '../repositories/message_repository.dart';
 final projectMessagesProvider = StreamProvider.autoDispose.family<List<Message>, String>((ref, projectId) async* {
   final repository = ref.read(messageRepositoryProvider);
   final pusherService = ref.watch(pusherServiceProvider);
+  const eventNames = <String>{
+    'project.message.sent',
+    '.project.message.sent',
+  };
   
   // Initial fetch
   try {
@@ -21,32 +25,38 @@ final projectMessagesProvider = StreamProvider.autoDispose.family<List<Message>,
   final controller = StreamController<List<Message>>();
   
   final channel = await pusherService.subscribeToProject(projectId);
-  
-  final subscription = channel.bind('project.message.sent').listen((event) {
-    final data = event.data;
-    if (data != null && data is Map) {
-      try {
-        if (data['message'] != null) {
-          final messageMap = Map<String, dynamic>.from(data['message']);
-          final newMessage = Message.fromJson(messageMap);
-          if (!currentMessages.any((m) => m.id == newMessage.id)) {
-            currentMessages = [...currentMessages, newMessage];
-            ref.invalidate(notificationsProvider(false));
-            ref.invalidate(notificationsProvider(true));
-            ref.invalidate(unreadNotificationsCountProvider);
-            if (!controller.isClosed) {
-              controller.add(currentMessages);
+  final subscriptions = <StreamSubscription<dynamic>>[];
+
+  for (final eventName in eventNames) {
+    final subscription = channel.bind(eventName).listen((event) {
+      final data = event.data;
+      if (data != null && data is Map) {
+        try {
+          if (data['message'] != null) {
+            final messageMap = Map<String, dynamic>.from(data['message']);
+            final newMessage = Message.fromJson(messageMap);
+            if (!currentMessages.any((m) => m.id == newMessage.id)) {
+              currentMessages = [...currentMessages, newMessage];
+              ref.invalidate(notificationsProvider(false));
+              ref.invalidate(notificationsProvider(true));
+              ref.invalidate(unreadNotificationsCountProvider);
+              if (!controller.isClosed) {
+                controller.add(currentMessages);
+              }
             }
           }
+        } catch (e) {
+          debugPrint("[projectMessagesProvider] Error: $e");
         }
-      } catch (e) {
-        debugPrint("[projectMessagesProvider] Error: $e");
       }
-    }
-  });
+    });
+    subscriptions.add(subscription);
+  }
 
   ref.onDispose(() {
-    subscription.cancel();
+    for (final subscription in subscriptions) {
+      subscription.cancel();
+    }
     pusherService.unsubscribe('private-project.$projectId');
     controller.close();
   });
@@ -55,7 +65,7 @@ final projectMessagesProvider = StreamProvider.autoDispose.family<List<Message>,
 });
 
 
-class SendMessageNotifier extends AsyncNotifier<void> {
+class SendMessageNotifier extends AutoDisposeAsyncNotifier<void> {
   @override
   FutureOr<void> build() {}
 
@@ -76,7 +86,7 @@ class SendMessageNotifier extends AsyncNotifier<void> {
 final sendMessageProvider = AsyncNotifierProvider.autoDispose<SendMessageNotifier, void>(SendMessageNotifier.new);
 
 
-class DeleteMessageNotifier extends AsyncNotifier<void> {
+class DeleteMessageNotifier extends AutoDisposeAsyncNotifier<void> {
   @override
   FutureOr<void> build() {}
 

@@ -201,6 +201,23 @@ class AuthRepository {
     return AuthResponse.fromJson(response.data);
   }
 
+  Future<AuthResponse> googleNativeAuth({
+    required String idToken,
+    required UserRole role,
+  }) async {
+    final response = await _apiClient.post(
+      '/api/v1/auth/google/native',
+      data: {
+        'id_token': idToken,
+        'role': role.socialAuthQueryValue,
+      },
+    );
+    if (response.data is! Map<String, dynamic>) {
+      throw Exception('Server returned an invalid response format');
+    }
+    return AuthResponse.fromJson(response.data);
+  }
+
   Future<String> getSocialAuthUrl({
     required SocialAuthMethod method,
     required UserRole role,
@@ -256,6 +273,16 @@ class AuthRepository {
         message: 'Signed in with ${method.displayName}',
       );
     }
+  }
+
+  Future<Map<String, dynamic>> fetchCurrentUserWithToken(String token) async {
+    final response = await _apiClient.get(
+      '/api/v1/auth/me',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return _extractUserPayload(
+      _requireMapResponse(response.data),
+    );
   }
 
   Future<Map<String, dynamic>> fetchCurrentUser({

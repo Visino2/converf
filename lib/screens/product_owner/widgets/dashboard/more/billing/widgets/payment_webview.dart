@@ -65,8 +65,21 @@ class _PaymentWebViewState extends State<PaymentWebView> {
     if (uri == null) return false;
     final host = uri.host.toLowerCase();
     final path = uri.path.toLowerCase();
-    return host.contains('paystack') &&
-        (path.contains('close') || path.contains('cancel'));
+    
+    // Intercept Paystack close/cancel signals
+    if (host.contains('paystack') && (path.contains('close') || path.contains('cancel'))) {
+      return true;
+    }
+
+    // Intercept backend success/callback patterns to return to app automatically
+    if (path.contains('callback') || 
+        path.contains('success') || 
+        path.contains('verify') || 
+        path.contains('complete')) {
+      return true;
+    }
+
+    return false;
   }
 
   void _closeView() {

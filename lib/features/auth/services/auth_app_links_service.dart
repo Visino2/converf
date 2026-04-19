@@ -20,6 +20,12 @@ final authAppLinksServiceProvider = Provider<AuthAppLinksService>((ref) {
 class AuthAppLinksService {
   AuthAppLinksService(this._ref);
 
+  static const Set<String> _acceptedHttpsHosts = <String>{
+    'converf-fe.netlify.app',
+    'converf.io',
+    'www.converf.io',
+  };
+
   final Ref _ref;
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _subscription;
@@ -73,6 +79,12 @@ class AuthAppLinksService {
       }
     }
 
+    if (_isAcceptInvitationLink(uri)) {
+      final token = extractAuthCallbackParameters(uri)['token'];
+      _navigate(router, acceptInvitationLocation(token: token));
+      return;
+    }
+
     if (await _tryHandleSocialCallback(uri, router)) {
       return;
     }
@@ -83,8 +95,9 @@ class AuthAppLinksService {
     }
 
     if (_isVerifyEmailLink(uri)) {
-      final targetPath = uri.path.startsWith('/auth/email/verify/')
-          ? uri.path
+      final normalizedPath = _normalizedPath(uri);
+      final targetPath = normalizedPath.startsWith('/auth/email/verify/')
+          ? normalizedPath
           : '/auth/verify-email';
       _navigate(router, '$targetPath${_querySuffix(uri)}');
     }
@@ -100,7 +113,9 @@ class AuthAppLinksService {
       return false;
     }
 
-    if (_isResetPasswordLink(uri) || _isVerifyEmailLink(uri)) {
+    if (_isResetPasswordLink(uri) ||
+        _isVerifyEmailLink(uri) ||
+        _isAcceptInvitationLink(uri)) {
       return false;
     }
 
@@ -139,16 +154,35 @@ class AuthAppLinksService {
   }
 
   bool _isConverfLink(Uri uri) {
-    return uri.host == 'converf-fe.netlify.app';
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme == 'converf') {
+      return true;
+    }
+    if (scheme != 'https' && scheme != 'http') {
+      return false;
+    }
+    return _acceptedHttpsHosts.contains(uri.host.toLowerCase());
   }
 
   bool _isResetPasswordLink(Uri uri) {
-    return uri.path.contains('/auth/reset-password');
+    return _normalizedPath(uri).contains('/auth/reset-password');
   }
 
   bool _isVerifyEmailLink(Uri uri) {
-    return uri.path.contains('/auth/verify-email') ||
-        uri.path.contains('/auth/email/verify/');
+    final normalizedPath = _normalizedPath(uri);
+    return normalizedPath.contains('/auth/verify-email') ||
+        normalizedPath.contains('/auth/email/verify/');
+  }
+
+  bool _isAcceptInvitationLink(Uri uri) {
+    return _normalizedPath(uri).contains('/accept-invitation');
+  }
+
+  String _normalizedPath(Uri uri) {
+    if (uri.scheme.toLowerCase() == 'converf' && uri.host.isNotEmpty) {
+      return '/${uri.host}${uri.path}';
+    }
+    return uri.path;
   }
 
   String _querySuffix(Uri uri) {

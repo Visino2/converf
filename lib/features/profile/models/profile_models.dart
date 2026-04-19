@@ -88,6 +88,7 @@ class UserProfile {
   final NotificationSettings? notificationSettings;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool hideFinancials;
 
   // Contractor specific fields
   final String? companyName;
@@ -119,6 +120,7 @@ class UserProfile {
     this.notificationSettings,
     required this.createdAt,
     required this.updatedAt,
+    this.hideFinancials = false,
     this.companyName,
     this.businessRegistrationNumber,
     this.licenseNumber,
@@ -152,6 +154,7 @@ class UserProfile {
           : null,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : DateTime.now(),
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'] as String) : DateTime.now(),
+      hideFinancials: json['hide_financials'] == true,
       companyName: (json['company_name'] ?? json['profile']?['company_name'])?.toString(),
       businessRegistrationNumber: (json['business_registration_number'] ?? json['profile']?['business_registration_number'])?.toString(),
       licenseNumber: (json['license_number'] ?? json['profile']?['license_number'])?.toString(),
@@ -186,6 +189,7 @@ class UserProfile {
       'notification_settings': notificationSettings?.toJson(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'hide_financials': hideFinancials,
       'company_name': companyName,
       'business_registration_number': businessRegistrationNumber,
       'license_number': licenseNumber,

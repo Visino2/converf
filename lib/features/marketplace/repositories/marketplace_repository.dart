@@ -21,32 +21,19 @@ class MarketplaceRepository {
     int page = 1,
     MarketplaceFilters? filters,
   }) async {
-    try {
-      final Map<String, dynamic> queryParams = {'page': page};
-      if (filters != null) {
-        queryParams.addAll(filters.toJson());
-      }
-
-      final response = await _apiClient.get(
-        '/api/v1/marketplace/projects',
-        queryParameters: queryParams,
-      );
-      if (response.data is! Map<String, dynamic>) {
-        throw Exception("Invalid response format from server");
-      }
-      return PaginatedProjectsResponse.fromJson(response.data);
-    } on ApiException catch (e) {
-      if (e.statusCode == 403 && (e.message.contains('not verified') || e.message.contains('verify your email'))) {
-        // Return an empty projects list instead of crashing for the unverified bypass.
-        return PaginatedProjectsResponse(
-          status: true,
-          message: 'Offline (Unverified)',
-          data: [],
-          meta: null,
-        );
-      }
-      rethrow;
+    final Map<String, dynamic> queryParams = {'page': page};
+    if (filters != null) {
+      queryParams.addAll(filters.toJson());
     }
+
+    final response = await _apiClient.get(
+      '/api/v1/marketplace/projects',
+      queryParameters: queryParams,
+    );
+    if (response.data is! Map<String, dynamic>) {
+      throw Exception("Invalid response format from server");
+    }
+    return PaginatedProjectsResponse.fromJson(response.data);
   }
 
   Future<PaginatedBidsResponse> fetchMyBids({int page = 1}) async {

@@ -108,6 +108,8 @@ class OverviewModal extends ConsumerWidget {
                 color: Color(0xFF101828),
               ),
             ),
+            const SizedBox(width: 8),
+            const Icon(Icons.lock_outline, size: 18, color: Color(0xFF667085)),
           ],
         ),
         GestureDetector(

@@ -85,4 +85,18 @@ class ProfileRepository {
     final settingsData = (data['data'] as Map<String, dynamic>)['settings'] ?? data['data'];
     return NotificationSettings.fromJson(settingsData as Map<String, dynamic>);
   }
+
+  Future<void> deleteAccount({String? password}) async {
+    await _apiClient.delete(
+      '/api/v1/settings/account',
+      data: password != null ? {'password': password} : null,
+    );
+  }
+
+  Future<void> updateHideFinancials(bool hide) async {
+    await _apiClient.patch(
+      '/api/v1/settings/hide-financials',
+      data: {'hide_financials': hide},
+    );
+  }
 }

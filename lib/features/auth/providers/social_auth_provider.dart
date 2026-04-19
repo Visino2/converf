@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/auth_response.dart';
@@ -8,6 +9,7 @@ import '../models/social_auth_method.dart';
 import '../repositories/auth_repository.dart';
 import 'auth_provider.dart';
 import 'email_verification_provider.dart';
+import '../services/google_auth_service.dart';
 
 import '../../../core/config/shared_prefs_provider.dart';
 
@@ -161,6 +163,78 @@ class SocialAuthNotifier extends AsyncNotifier<void> {
       rethrow;
     } finally {
       await _pendingStore.clear();
+    }
+  }
+
+  Future<AuthResponse?> signInWithGoogleNative({required UserRole role}) async {
+    state = const AsyncLoading();
+    try {
+      debugPrint(
+        '[SocialAuth] signInWithGoogleNative started for role=${role.name}.',
+      );
+      final googleAuthService = ref.read(googleAuthServiceProvider);
+      final idToken = await googleAuthService.signIn();
+
+      if (idToken == null) {
+        debugPrint('[SocialAuth] Google Sign-In cancelled by user.');
+        state = const AsyncData(null);
+        return null;
+      }
+
+      final tokenClaims = googleAuthService.parseIdTokenClaims(idToken);
+      final tokenAud = tokenClaims?.audience ?? 'unknown';
+      debugPrint(
+        '[SocialAuth] Posting Google native auth to backend with aud=$tokenAud.',
+      );
+      late final AuthResponse response;
+      try {
+        response = await _repository.googleNativeAuth(
+          idToken: idToken,
+          role: role,
+        );
+      } catch (e) {
+        debugPrint('[SocialAuth] Backend rejected Google token: $e');
+        // Re-throw with token aud info so we can see exactly what was sent
+        throw Exception('Backend error: $e\n\nToken aud sent: $tokenAud');
+      }
+
+      if (!response.status ||
+          response.data == null ||
+          response.data!.token.isEmpty) {
+        throw Exception(
+          response.message.isNotEmpty
+              ? response.message
+              : 'Google sign-in failed.',
+        );
+      }
+
+      AuthResponse authResponse = response;
+      if (authResponse.user.isEmpty) {
+        try {
+          final user = await _repository.fetchCurrentUserWithToken(
+            authResponse.data!.token,
+          );
+          authResponse = authResponse.copyWith(
+            data: authResponse.data!.copyWith(user: user),
+          );
+        } catch (e) {
+          // If profile fetch fails, we still have the token, but we might
+          // fail the role check later. We continue to see if persist succeeds.
+          debugPrint('[SocialAuth] Failed to auto-hydrate profile: $e');
+        }
+      }
+
+      await ref
+          .read(authProvider.notifier)
+          .persistAuthenticatedResponse(authResponse);
+      ref.invalidate(emailVerificationStatusProvider);
+      debugPrint('[SocialAuth] Google native auth completed successfully.');
+      state = const AsyncData(null);
+      return authResponse;
+    } catch (e, st) {
+      debugPrint('[SocialAuth] Google native auth failed: $e');
+      state = AsyncError(e, st);
+      rethrow;
     }
   }
 }

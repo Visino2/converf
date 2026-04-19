@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/core/config/shared_prefs_provider.dart';
 import 'package:converf/core/ui/app_colors.dart';
+import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 import '../../../features/auth/models/auth_response.dart';
 import '../../../features/auth/models/social_auth_method.dart';
 import '../../../features/auth/providers/auth_provider.dart';
@@ -75,22 +77,34 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    await ref.read(authProvider.notifier).login(email, password);
+    try {
+      final authNotifier = ref.read(authProvider.notifier);
+      await authNotifier.login(email, password);
 
-    if (mounted) {
+      if (!mounted) return;
+
+      // Use a small delay to ensure state updates are processed
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      if (!mounted) return;
+
       final authState = ref.read(authProvider);
+
       if (authState.hasError) {
         String error = authState.error.toString();
         if (error.contains('Exception:')) {
           error = error.replaceAll('Exception: ', '');
         }
 
+        debugPrint('[Login] Error: $error');
+
         // Show as inline error if it seems identity-related
         if (error.toLowerCase().contains('invalid') ||
             error.toLowerCase().contains('email') ||
             error.toLowerCase().contains('password') ||
             error.toLowerCase().contains('found') ||
-            error.toLowerCase().contains('credentials')) {
+            error.toLowerCase().contains('credentials') ||
+            error.toLowerCase().contains('unauthorized')) {
           setState(() => _loginError = 'Invalid email or password');
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -98,6 +112,7 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
               content: Text(error),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 5),
             ),
           );
         }
@@ -109,12 +124,21 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
           _isPasswordValid = true;
         });
 
-        // We no longer call context.go() here. 
-        // AppRouter will see the authProvider state change and redirect automatically.
+        debugPrint('[Login] Success - router will redirect automatically');
       } else if (authState.value?.status == false) {
         setState(
           () => _loginError = authState.value?.message ?? 'Login failed',
         );
+      } else if (authState.isLoading) {
+        // Still loading - this shouldn't happen after await, but just in case
+        debugPrint('[Login] Still loading after await');
+      } else {
+        debugPrint('[Login] Unexpected state: ${authState.value}');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loginError = 'Error: ${e.toString()}');
+        debugPrint('[Login] Exception: $e');
       }
     }
   }
@@ -176,28 +200,81 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
       return;
     }
 
+    // Small delay to allow bottom sheet animation to finish before native SDK takes over.
+    FocusScope.of(context).unfocus();
+    await Future.delayed(const Duration(milliseconds: 150));
+    if (!mounted) return;
+
     try {
-      final authUrl = await ref
-          .read(socialAuthActionProvider.notifier)
-          .getSignInUrl(method: method, role: role);
+      if (method == SocialAuthMethod.google) {
+        // Native Google Sign-In flow
+        debugPrint(
+          '[OnboardingLoginStep] Starting native Google Sign-In for role=${role.name} on ${defaultTargetPlatform.name}.',
+        );
+        final response = await ref
+            .read(socialAuthActionProvider.notifier)
+            .signInWithGoogleNative(role: role);
 
-      if (!mounted) return;
+        if (response == null) {
+          // User cancelled
+          return;
+        }
 
-      // Open the OAuth flow in the system browser so Google allows it.
-      // The AppLink handler (AuthAppLinksService) will intercept the return 
-      // to converf-fe.netlify.app/auth/callback and complete the sign-in.
-      final uri = Uri.parse(authUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        // DEBUG: Token was copied to clipboard - notify user to paste and send to backend
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                '✅ Token copied to clipboard — paste and send to backend dev',
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 6),
+            ),
+          );
+        }
+
+        // Success: authProvider state updated → router redirects to dashboard automatically.
       } else {
-        throw Exception('Could not launch the browser for signing in.');
-      }
+        // Apple: use the in-app WebView flow
+        final authUrl = await ref
+            .read(socialAuthActionProvider.notifier)
+            .getSignInUrl(method: method, role: role);
 
+        if (!mounted) return;
+
+        final uri = Uri.parse(authUrl);
+        debugPrint(
+          '[OnboardingLoginStep] Launching external ${method.name} auth URL: $uri',
+        );
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          throw Exception('Could not launch the browser for signing in.');
+        }
+      }
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+      // Do NOT fall back to the external browser — that sends users to the web app.
+      // Show a clear error so the user knows to retry.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Google Sign-In failed (${e.code}). Please try again or contact support if this persists.',
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 

@@ -934,22 +934,6 @@ class _ContractorProfileScreenState
               ),
             ),
           ),
-          // Top Actions (Delete)
-          Positioned(
-            top: 12,
-            right: 12,
-            child: IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-              ),
-              onPressed: () => _confirmDeletePortfolio(item),
-            ),
-          ),
           // Content
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -1075,6 +1059,22 @@ class _ContractorProfileScreenState
                   ],
                 ),
               ],
+            ),
+          ),
+          // Top Actions (Delete) - MOVED TO END TO ENSURE CLICKABILITY
+          Positioned(
+            top: 12,
+            right: 12,
+            child: IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+              ),
+              onPressed: () => _confirmDeletePortfolio(item),
             ),
           ),
         ],

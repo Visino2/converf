@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/contractor_models.dart';
@@ -125,6 +126,7 @@ class PortfolioNotifier extends AsyncNotifier<void> {
     try {
       await _repository.createPortfolioItem(payload);
       ref.invalidate(contractorPortfolioProvider);
+      ref.invalidate(contractorProfileProvider);
       state = const AsyncData(null);
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -137,6 +139,7 @@ class PortfolioNotifier extends AsyncNotifier<void> {
     try {
       await _repository.updatePortfolioItem(id, payload);
       ref.invalidate(contractorPortfolioProvider);
+      ref.invalidate(contractorProfileProvider);
       state = const AsyncData(null);
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -147,10 +150,15 @@ class PortfolioNotifier extends AsyncNotifier<void> {
   Future<void> deleteItem(String id) async {
     state = const AsyncLoading();
     try {
+      debugPrint('[PortfolioNotifier] Deleting item: $id');
       await _repository.deletePortfolioItem(id);
+      debugPrint('[PortfolioNotifier] Deletion successful for: $id');
       ref.invalidate(contractorPortfolioProvider);
+      ref.invalidate(contractorProfileProvider);
       state = const AsyncData(null);
     } catch (e, st) {
+      debugPrint('[PortfolioNotifier] Error deleting item: $e');
+      debugPrint('[PortfolioNotifier] Stacktrace: $st');
       state = AsyncError(e, st);
       rethrow;
     }

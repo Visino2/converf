@@ -79,6 +79,9 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
 
     await ref.read(authProvider.notifier).registerOwner(request);
 
+    // Add delay to allow authProvider state to propagate before reading it
+    await Future.delayed(const Duration(milliseconds: 100));
+
     if (mounted) {
       final authState = ref.read(authProvider);
       bool shouldAttemptVerify = false;
@@ -123,18 +126,12 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
           _isPasswordValid = true;
         });
 
-        final response = authState.value;
         if (!mounted) {
           return;
         }
 
-        // New accounts always require email verification upon signup
-        context.go(
-          verifyEmailLocation(
-            email: response?.data?.user['email']?.toString() ?? request.email,
-            autoResend: true,
-          ),
-        );
+        // Smooth transition to onboarding welcome step
+        widget.onSignupSubmit();
         return;
       }
 
@@ -159,6 +156,10 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
     }
 
     await ref.read(authProvider.notifier).login(email, password);
+
+    // Add delay to allow authProvider state to propagate before reading it
+    await Future.delayed(const Duration(milliseconds: 100));
+
     if (!mounted) {
       return;
     }
@@ -325,9 +326,7 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
   }
 
   void _showCountryPicker() {
-    final countries = [
-      'Nigeria',
-    ];
+    final countries = ['Nigeria'];
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(

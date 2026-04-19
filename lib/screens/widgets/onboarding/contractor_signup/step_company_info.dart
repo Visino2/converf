@@ -284,6 +284,8 @@ class _ContractorCompanyInfoStepState extends State<ContractorCompanyInfoStep> {
                   'Enter license',
                   controller: widget.licenseNumberController,
                   validator: (v) {
+                    if (v == null || v.isEmpty) return 'Enter license number';
+                    if (v.length < 3) return 'Invalid license';
                     return null;
                   },
                 ),

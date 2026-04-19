@@ -139,14 +139,6 @@ class ScheduleRepository {
     throw Exception("Invalid response format from server");
   }
 
-  Future<Schedule> getBidScheduleDetail(String bidId) async {
-    final response = await _apiClient.get('/api/v1/bids/$bidId/schedule');
-    if (response.data is Map<String, dynamic>) {
-      final map = response.data['data'] ?? response.data;
-      return Schedule.fromJson(map);
-    }
-    throw Exception("Invalid response format from server");
-  }
 
   // --- SCHEDULE ACTIONS ---
 

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -292,30 +291,12 @@ class _ContractorDashboardBody extends ConsumerStatefulWidget {
 }
 
 class _ContractorDashboardBodyState extends ConsumerState<_ContractorDashboardBody> {
-  Timer? _refreshTimer;
-
   @override
   void initState() {
     super.initState();
-    _startAutoRefresh();
-  }
-
-  void _startAutoRefresh() {
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      if (mounted) {
-        ref.invalidate(assignedProjectsProvider(1));
-        ref.invalidate(dashboardStatsProvider);
-        ref.invalidate(unreadNotificationsCountProvider);
-        ref.invalidate(unreadMessageNotificationsCountProvider);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    super.dispose();
+    // Removed aggressive 30-second auto-refresh timer which was causing
+    // re-render loops on poor connections. Data loads once and can be
+    // refreshed via the pull-to-refresh gesture.
   }
 
   @override
@@ -365,8 +346,12 @@ class _ContractorMetricsGrid extends ConsumerWidget {
     final statsAsync = ref.watch(dashboardStatsProvider);
 
     return statsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF2A8090))),
-      error: (error, _) => Center(child: Text('Error: $error', style: const TextStyle(color: Colors.red))),
+      loading: () => _buildLoadingMetrics(),
+      error: (error, _) => _buildErrorState(
+        'Failed to load metrics',
+        error.toString(),
+        () => ref.invalidate(dashboardStatsProvider),
+      ),
       data: (statsResponse) {
         final stats = statsResponse.data;
         if (stats == null) return const SizedBox.shrink();
@@ -425,6 +410,71 @@ class _ContractorMetricsGrid extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildLoadingMetrics() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Project Metrics',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
+        ),
+        const SizedBox(height: 16),
+        GridView.count(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: 1.25,
+          children: List.generate(4, (index) => _buildLoadingCard()),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoadingCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEAECF0)),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEAECF0)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String title, String error, VoidCallback onRetry) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF3F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFECDCA)),
+      ),
+      child: Column(
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFB42318))),
+          const SizedBox(height: 4),
+          Text(
+            error.contains('Network is unreachable') ? 'Network connection lost.' : error,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, color: Color(0xFFB42318)),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('Retry', style: TextStyle(color: Color(0xFFB42318), fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -594,26 +644,12 @@ class _ContractorMarketStatsCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Icon(Icons.trending_up, color: Color(0xFF10B981), size: 20),
-                  const SizedBox(width: 8),
-                  const Text(
-                    '+12.5% ',
-                    style: TextStyle(
-                      color: Color(0xFF10B981),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'from last month',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
+              Text(
+                'Portfolio value across all active projects.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
@@ -631,7 +667,20 @@ class _ContractorHighlights extends ConsumerWidget {
     final assignedProjectsAsync = ref.watch(assignedProjectsProvider(1));
 
     return assignedProjectsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF2A8090))),
+      loading: () => Container(
+        height: 200,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFEAECF0)),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2A8090)),
+          ),
+        ),
+      ),
       error: (err, _) => const SizedBox.shrink(),
       data: (response) {
         if (response.data.isEmpty) {

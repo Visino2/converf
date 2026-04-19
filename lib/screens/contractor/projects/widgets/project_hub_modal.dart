@@ -178,7 +178,7 @@ class _ProjectHubModalState extends ConsumerState<ProjectHubModal> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text(
-                      'This feature will be available once your bid is accepted.',
+                      'This feature is available once the project is active.',
                     ),
                   ),
                 );

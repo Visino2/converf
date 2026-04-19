@@ -5,7 +5,6 @@ import 'package:converf/features/projects/models/project.dart';
 import 'package:converf/features/projects/providers/project_providers.dart';
 import 'package:converf/features/projects/models/project_payloads.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/new_project/models/new_project_state.dart';
-import 'package:converf/screens/product_owner/widgets/dashboard/more/billing/billing_screen.dart';
 import 'providers/wizard_provider.dart';
 import 'steps/step_type.dart';
 import 'steps/step_details.dart';
@@ -14,6 +13,7 @@ import 'steps/step_timeline.dart';
 import 'steps/step_specialisations.dart';
 import 'steps/step_review.dart';
 import 'widgets/success_view.dart';
+import 'package:converf/screens/widgets/modals/upgrade_plan_modal.dart';
 
 class NewProjectWizard extends ConsumerStatefulWidget {
   final Project? initialProject;
@@ -651,16 +651,20 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
     } catch (e) {
       debugPrint('Wizard Error: $e');
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
         final message = e.toString();
-        if (_isPlanLimitError(message)) {
-          _showUpgradeDialog(context, message);
+        if (message.toLowerCase().contains('402') ||
+            message.toLowerCase().contains('free plan allows')) {
+          // It's a payment/plan limitation. Close the wizard and show the premium modal.
+          Navigator.of(context).pop(); // Close NewProjectWizard
+          showUpgradePlanModal(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
       }
     } finally {
@@ -668,96 +672,4 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
     }
   }
 
-  bool _isPlanLimitError(String message) {
-    final lower = message.toLowerCase();
-    return lower.contains('free plan allows') ||
-        lower.contains('upgrade to create more');
-  }
-
-  void _showUpgradeDialog(BuildContext context, String message) {
-    showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Upgrade Required',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  height: 1.4,
-                  color: Color(0xFF475467),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        side: const BorderSide(color: Color(0xFFE5E7EB)),
-                      ),
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                      child: const Text(
-                        'Maybe Later',
-                        style: TextStyle(
-                          color: Color(0xFF0EA5E9),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0EA5E9),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      onPressed: () {
-                        Navigator.of(ctx).pop(true);
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const BillingScreen(),
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        'Go to Billing',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

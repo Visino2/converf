@@ -79,23 +79,26 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
     final sessionManager = ref.read(sessionManagerProvider);
     final pusherService = ref.read(pusherServiceProvider);
 
-    // 1. Capture token for the final API call before we wipe it locally
-    final token = await sessionManager.getToken();
-    
-    // 2. Unregister tokens and fire API logout (fire-and-forget)
-    unawaited(notificationLifecycle.unregisterCurrentDeviceToken());
-    
-    // Fire the logout request using the captured token.
-    unawaited(repository.logout(token: token).catchError((_) {
-      return AuthResponse(status: false, message: 'Logout failed');
-    }));
+    // 1. Update state immediately to trigger AppRouter redirect
+    state = const AsyncValue.data(null);
 
-    // 3. Clear local session immediately for instant UX
+    // 2. Capture token for the final API call before we wipe it locally
+    final token = await sessionManager.getToken();
+
+    // 3. Unregister tokens and fire API logout (fire-and-forget)
+    unawaited(notificationLifecycle.unregisterCurrentDeviceToken());
+
+    // Fire the logout request using the captured token.
+    unawaited(
+      repository.logout(token: token).catchError((_) {
+        return AuthResponse(status: false, message: 'Logout failed');
+      }),
+    );
+
+    // 4. Clear local session immediately for instant UX
     await sessionManager.clearSession();
     await notificationLifecycle.handleLoggedOut();
     pusherService.disconnect();
-    
-    state = const AsyncValue.data(null);
   }
 
   Future<void> forgotPassword(String email) async {
@@ -154,10 +157,7 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
         current?.data?.user ?? await sessionManager.getUser() ?? {};
 
     // 2. Perform a role-preserving merge
-    final mergedUser = {
-      ...existingUser,
-      ...newUser,
-    };
+    final mergedUser = {...existingUser, ...newUser};
 
     // If the new user object is missing the role but we had it before, keep the old one.
     // This prevents accidental logouts when an API returns a partial profile.
@@ -175,14 +175,14 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
     // 3. Validation - only clear if the role is confirmed invalid, not just missing
     if (!_hasSupportedRole(response)) {
       debugPrint('[AUTH] updateCurrentUser failed: Role is unknown.');
-      // If we HAD a role and now it's gone, that's a problem. 
+      // If we HAD a role and now it's gone, that's a problem.
       // But if we're just in the middle of a partial update, don't wipe.
       if (mergedUser['role'] == null || mergedUser['role'].toString().isEmpty) {
-         // Potential false positive? Let's be safe and NOT logout here 
-         // unless we are sure the user is invalid.
-         return;
+        // Potential false positive? Let's be safe and NOT logout here
+        // unless we are sure the user is invalid.
+        return;
       }
-      
+
       await sessionManager.clearSession();
       state = const AsyncValue.data(null);
       return;
@@ -259,9 +259,6 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
         token: token,
         cachedUser: cachedUser,
       );
-      if (!ref.mounted) {
-        return;
-      }
 
       final activeToken = await ref.read(sessionManagerProvider).getToken();
       if (activeToken != token) {
@@ -295,7 +292,6 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
     return response;
   }
 
-
   bool _hasSupportedRole(AuthResponse response) {
     return response.role != UserRole.unknown;
   }
@@ -311,12 +307,14 @@ class WelcomeSeenRefreshNotifier extends Notifier<int> {
 
 final welcomeSeenRefreshProvider =
     NotifierProvider<WelcomeSeenRefreshNotifier, int>(
-  WelcomeSeenRefreshNotifier.new,
-);
+      WelcomeSeenRefreshNotifier.new,
+    );
 
 /// Tracks whether a given user has already seen the welcome screen.
-final welcomeSeenProvider =
-    FutureProvider.family<bool, String>((ref, userId) async {
+final welcomeSeenProvider = FutureProvider.family<bool, String>((
+  ref,
+  userId,
+) async {
   // Watch the refresh provider so we can manually trigger a re-fetch
   ref.watch(welcomeSeenRefreshProvider);
   final sessionManager = ref.read(sessionManagerProvider);

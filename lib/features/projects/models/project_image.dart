@@ -1,3 +1,5 @@
+import '../../../core/config/config.dart';
+
 class ProjectImage {
   final String id;
   final String projectId;
@@ -21,31 +23,66 @@ class ProjectImage {
     required this.updatedAt,
   });
 
-  static String? normalizeImageUrl(String? url) {
-    if (url == null) return null;
-    if (url.startsWith('http:https://')) {
-      return url.replaceFirst('http:https://', 'https://');
+  static String? normalizeImageUrl(String? url, {String? timestamp}) {
+    if (url == null || url.trim().isEmpty) return null;
+
+    String normalized = url.trim();
+    // Fix double-protocol bugs (e.g. 'http:https://' or 'https://https://')
+    normalized = normalized.replaceFirstMapped(
+      RegExp(r'^https?:\/*(https?://)', caseSensitive: false),
+      (m) => m.group(1)!,
+    );
+    // Fix malformed external URLs wrapped in storage path
+    // e.g. 'https://api.example.com/storage/https://cdn.example.com/image.jpg'
+    final nestedUrlMatch = RegExp(
+      r'/storage/(https?://.+)$',
+      caseSensitive: false,
+    ).firstMatch(normalized);
+    if (nestedUrlMatch != null) {
+      return nestedUrlMatch.group(1)!;
     }
-    if (url.startsWith('http:http://')) {
-      return url.replaceFirst('http:http://', 'http://');
+
+    String? finalUrl;
+    // If it's a relative path, prefix with the API base URL
+    if (!normalized.startsWith('http')) {
+      final baseUrl = AppConfig.apiBaseUrl;
+      if (normalized.startsWith('/')) {
+        finalUrl = '$baseUrl$normalized';
+      } else {
+        finalUrl = '$baseUrl/storage/$normalized';
+      }
+    } else {
+      finalUrl = normalized;
     }
-    return url;
+
+    if (timestamp != null && timestamp.isNotEmpty) {
+      final separator = finalUrl.contains('?') ? '&' : '?';
+      // Use hash of timestamp to keep URL clean but unique
+      finalUrl = '$finalUrl${separator}t=${timestamp.hashCode}';
+    }
+
+    return finalUrl;
   }
 
   factory ProjectImage.fromJson(Map<String, dynamic> json) {
+    // API returns either 'file_url' (images endpoint) or 'url' (thumbnail/cover_images)
+    final rawUrl = (json['file_url'] ?? json['url'])?.toString();
     return ProjectImage(
       id: json['id']?.toString() ?? '',
       projectId: json['project_id']?.toString() ?? '',
-      fileUrl: normalizeImageUrl(json['file_url'] as String?) ?? '',
+      fileUrl: normalizeImageUrl(rawUrl) ?? '',
       fileSize: json['file_size'] as int? ?? 0,
       mimeType: json['mime_type'] as String? ?? '',
       caption: json['caption'] as String?,
-      isPrimary: json['is_primary'] == true || json['is_primary'] == 1 || json['is_primary'] == '1',
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'] as String) 
+      isPrimary:
+          json['is_primary'] == true ||
+          json['is_primary'] == 1 ||
+          json['is_primary'] == '1',
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.parse(json['updated_at'] as String) 
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
           : DateTime.now(),
     );
   }
@@ -71,16 +108,26 @@ class ProjectImageListResponse {
   ProjectImageListResponse({required this.data});
 
   factory ProjectImageListResponse.fromJson(Map<String, dynamic> json) {
+    // Handles both:
+    //   /images endpoint  → {"data": [...]}
+    //   /thumbnail endpoint → {"data": {"cover_images": [...]}}
+    final dynamic raw = json['data'];
+    List<dynamic> items;
+    if (raw is List) {
+      items = raw;
+    } else if (raw is Map) {
+      items = (raw['cover_images'] as List<dynamic>?) ?? [];
+    } else {
+      items = [];
+    }
     return ProjectImageListResponse(
-      data: (json['data'] as List<dynamic>)
+      data: items
           .map((e) => ProjectImage.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'data': data.map((e) => e.toJson()).toList(),
-    };
+    return {'data': data.map((e) => e.toJson()).toList()};
   }
 }

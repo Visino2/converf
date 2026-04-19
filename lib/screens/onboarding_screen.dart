@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'widgets/onboarding/onboarding_splash_step.dart';
@@ -12,6 +13,8 @@ import 'widgets/onboarding/welcome_contractor_step.dart';
 import 'widgets/onboarding/onboarding_forgot_password_step.dart';
 import 'widgets/onboarding/onboarding_reset_password_step.dart';
 import 'widgets/onboarding/onboarding_accept_invitation_step.dart';
+import '../features/auth/models/auth_response.dart';
+import '../features/auth/providers/auth_provider.dart';
 
 enum OnboardingStep {
   splash,
@@ -25,16 +28,16 @@ enum OnboardingStep {
   acceptInvitation,
 }
 
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key, this.initialStep = OnboardingStep.splash});
 
   final OnboardingStep initialStep;
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late OnboardingStep _step;
   String? _selectedRole;
 
@@ -44,7 +47,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _step = widget.initialStep;
 
     if (_step == OnboardingStep.splash) {
-      Future.delayed(const Duration(milliseconds: 800), () {
+      Future.delayed(const Duration(milliseconds: 400), () {
         if (mounted) {
           setState(() => _step = OnboardingStep.role);
         }
@@ -117,7 +120,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           onLogin: () => setState(() => _step = OnboardingStep.login),
         );
       case OnboardingStep.welcome:
-        if (_selectedRole == 'project_owner') {
+        final authState = ref.read(authProvider);
+        final authRole = authState.value?.role;
+        final effectiveRole = switch (authRole) {
+          UserRole.projectOwner => 'project_owner',
+          UserRole.contractor => 'contractor',
+          _ => _selectedRole,
+        };
+
+        if (effectiveRole == 'project_owner') {
           return OnboardingWelcomeProjectOwnerStep(
             onCompleted: () => context.go('/owner-dashboard'),
           );

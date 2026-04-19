@@ -4,7 +4,7 @@ enum UserRole {
   unknown;
 
   static UserRole fromString(String? role) {
-    if (role == 'project_owner' || role == 'owner') {
+    if (role == 'project_owner' || role == 'owner' || role == 'product_owner') {
       return UserRole.projectOwner;
     }
     if (role == 'contractor') {
@@ -19,7 +19,6 @@ class AuthResponse {
   final String message;
   final AuthData? data;
   final dynamic errors;
-
   AuthResponse({
     required this.status,
     required this.message,
