@@ -156,6 +156,11 @@ class OnboardingAuthStep extends ConsumerWidget {
       }
     } on PlatformException catch (e) {
       if (!navigator.mounted) return;
+      debugPrintStack(
+        label: '[OnboardingAuthStep] PlatformException during social auth',
+        stackTrace: StackTrace.current,
+        
+      );
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text(
