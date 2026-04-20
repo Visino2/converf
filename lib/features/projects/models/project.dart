@@ -11,10 +11,15 @@ num? _parseNum(dynamic value, [String? fieldName]) {
   if (value is Map) {
     if (value.isEmpty) return null;
     debugPrint('DEBUG: field $fieldName expected num? but got Map: $value');
-    if (value.containsKey('amount'))
+    if (value.containsKey('amount')) {
       return _parseNum(value['amount'], fieldName);
-    if (value.containsKey('value')) return _parseNum(value['value'], fieldName);
-    if (value.containsKey('id')) return _parseNum(value['id'], fieldName);
+    }
+    if (value.containsKey('value')) {
+      return _parseNum(value['value'], fieldName);
+    }
+    if (value.containsKey('id')) {
+      return _parseNum(value['id'], fieldName);
+    }
   }
   return null;
 }

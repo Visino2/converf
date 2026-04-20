@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/gestures.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class StepSummaryAgreement extends StatelessWidget {
   final Map<String, String> projectType;
@@ -57,7 +58,9 @@ class StepSummaryAgreement extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xFFF0FBFB),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF309DAA).withValues(alpha: 0.3)),
+            border: Border.all(
+              color: const Color(0xFF309DAA).withValues(alpha: 0.3),
+            ),
           ),
           child: Row(
             children: [
@@ -75,7 +78,10 @@ class StepSummaryAgreement extends StatelessWidget {
                         pIcon,
                         width: 32,
                         height: 32,
-                        colorFilter: const ColorFilter.mode(Color(0xFFEA580C), BlendMode.srcIn),
+                        colorFilter: const ColorFilter.mode(
+                          Color(0xFFEA580C),
+                          BlendMode.srcIn,
+                        ),
                       )
                     : Image.asset(
                         filterQuality: FilterQuality.high,
@@ -185,9 +191,12 @@ class StepSummaryAgreement extends StatelessWidget {
                         assignmentType == 'tender'
                             ? 'assets/images/construction-1.svg'
                             : (assignmentType == 'direct'
-                                ? 'assets/images/group-1.svg'
-                                : 'assets/images/Calendar-1.svg'),
-                        colorFilter: const ColorFilter.mode(Color(0xFF309DAA), BlendMode.srcIn),
+                                  ? 'assets/images/group-1.svg'
+                                  : 'assets/images/Calendar-1.svg'),
+                        colorFilter: const ColorFilter.mode(
+                          Color(0xFF309DAA),
+                          BlendMode.srcIn,
+                        ),
                         width: 20,
                         height: 20,
                       ),
@@ -306,11 +315,19 @@ class StepSummaryAgreement extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                       recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          // TODO: Navigate to terms and conditions
+                        ..onTap = () async {
+                          final uri = Uri.parse('https://converf.com/terms');
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
                         },
                     ),
-                    const TextSpan(text: ' regarding project quality monitoring.'),
+                    const TextSpan(
+                      text: ' regarding project quality monitoring.',
+                    ),
                   ],
                 ),
               ),
@@ -342,7 +359,9 @@ class StepSummaryAgreement extends StatelessWidget {
   String _formatBudget() {
     final cleaned = budgetAmount.replaceAll(',', '').replaceAll(' ', '');
     final value = num.tryParse(cleaned);
-    final formatted = value != null ? NumberFormat('#,##0').format(value) : budgetAmount;
+    final formatted = value != null
+        ? NumberFormat('#,##0').format(value)
+        : budgetAmount;
     return '$selectedCurrency $formatted'.trim();
   }
 
@@ -354,7 +373,9 @@ class StepSummaryAgreement extends StatelessWidget {
 
   String _assignmentTitle() {
     if (assignmentType == 'tender') {
-      final deadlineText = biddingDeadline != null ? ' (Deadline: ${_formatDate(biddingDeadline)})' : '';
+      final deadlineText = biddingDeadline != null
+          ? ' (Deadline: ${_formatDate(biddingDeadline)})'
+          : '';
       return 'Public Tender$deadlineText';
     }
     if (assignmentType == 'direct') return 'Assign Directly';
@@ -387,7 +408,10 @@ class StepSummaryAgreement extends StatelessWidget {
                     iconPath,
                     width: 24,
                     height: 24,
-                    colorFilter: const ColorFilter.mode(Color(0xFFEA580C), BlendMode.srcIn),
+                    colorFilter: const ColorFilter.mode(
+                      Color(0xFFEA580C),
+                      BlendMode.srcIn,
+                    ),
                   )
                 : Image.asset(
                     filterQuality: FilterQuality.high,
