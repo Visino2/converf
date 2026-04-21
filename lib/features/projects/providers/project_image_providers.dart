@@ -7,6 +7,7 @@ import '../models/project_image.dart';
 import '../repositories/project_image_repository.dart';
 import '../repositories/project_repository.dart';
 import 'project_providers.dart';
+import '../../../core/providers/cache_provider.dart';
 
 final projectImagesProvider = FutureProvider.family<List<ProjectImage>, String>(
   (ref, projectId) async {
@@ -102,19 +103,49 @@ class ProjectImageNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<void> uploadThumbnail({
+  Future<List<ProjectImage>> uploadThumbnail({
     required String projectId,
     required String filePath,
   }) async {
     state = const AsyncLoading();
     try {
-      await _projectRepository.uploadProjectThumbnail(projectId, filePath);
+      final cacheService = ref.read(hiveCacheServiceProvider);
+      final result = await _projectRepository.uploadProjectThumbnail(
+        projectId,
+        filePath,
+      );
       state = const AsyncData(null);
-      // Delay to allow backend to process the upload before refetch
-      await Future.delayed(const Duration(milliseconds: 800));
-      // Invalidate after delay so the re-fetch sees the processed image
+
+      // Cache each thumbnail image
+      final coverImages = result.data?.coverImages ?? [];
+      for (final image in coverImages) {
+        await cacheService.cacheThumbnail(projectId, image.id, {
+          'id': image.id,
+          'projectId': image.projectId,
+          'fileUrl': image.fileUrl,
+          'fileSize': image.fileSize,
+          'mimeType': image.mimeType,
+          'caption': image.caption,
+          'isPrimary': image.isPrimary,
+          'createdAt': image.createdAt.toIso8601String(),
+          'updatedAt': image.updatedAt.toIso8601String(),
+        });
+      }
+
+      // Add to sync queue for offline sync
+      await cacheService.addToSyncQueue(
+        projectId,
+        'thumbnail',
+        DateTime.now().millisecondsSinceEpoch.toString(),
+        {'filePath': filePath, 'uploadedAt': DateTime.now().toIso8601String()},
+      );
+
+      // Invalidate in background so next full refresh picks up server state
       ref.invalidate(projectImagesProvider(projectId));
       ref.invalidate(projectDetailsProvider(projectId));
+
+      // Return the cover images from the upload response directly
+      return coverImages;
     } catch (e, st) {
       debugPrint('[ProjectImageNotifier] Thumbnail upload error: $e');
       state = AsyncError(e, st);

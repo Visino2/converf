@@ -16,25 +16,38 @@ import 'core/auth/session_timeout_wrapper.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/config/shared_prefs_provider.dart';
+import 'core/cache/hive_cache_service.dart';
+import 'core/providers/cache_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  debugPrint('--- APP STARTING ---');
+  debugPrint('=== APP STARTING ===');
+  debugPrint('[INIT] WidgetsFlutterBinding initialized');
+
+  // Initialize Hive cache
+  try {
+    await HiveCacheService().init();
+    debugPrint('[INIT] Hive cache initialized successfully');
+  } catch (e) {
+    debugPrint('[ERROR] Hive cache initialization failed: $e');
+  }
 
   final sharedPreferences = await SharedPreferences.getInstance();
+  debugPrint('[INIT] SharedPreferences loaded');
 
   try {
     await Firebase.initializeApp();
+    debugPrint('[INIT] Firebase initialized');
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    debugPrint('[INIT] Firebase messaging background handler registered');
   } catch (e) {
-    debugPrint('--- FIREBASE INIT ERROR ---');
-    debugPrint(e.toString());
+    debugPrint('[ERROR] FIREBASE INIT ERROR: $e');
   }
 
   FlutterError.onError = (details) {
-    debugPrint('--- FLUTTER ERROR ---');
-    debugPrint(details.exceptionAsString());
-    debugPrint(details.stack?.toString());
+    debugPrint('=== FLUTTER ERROR ===');
+    debugPrint('[ERROR] ${details.exceptionAsString()}');
+    debugPrint('[STACK] ${details.stack?.toString()}');
   };
 
   runApp(
@@ -64,6 +77,7 @@ class ConverfApp extends ConsumerWidget {
 
     unawaited(ref.read(authAppLinksServiceProvider).initialize(router));
     unawaited(ref.read(firebaseMessagingServiceProvider).initialize(router));
+    ref.read(networkSyncServiceProvider); // Initialize sync service
     unawaited(
       ref
           .read(notificationLifecycleProvider)

@@ -79,15 +79,13 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
 
     try {
       final authNotifier = ref.read(authProvider.notifier);
+
+      // Wait for the login operation to complete by watching the state
       await authNotifier.login(email, password);
 
       if (!mounted) return;
 
-      // Use a small delay to ensure state updates are processed
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      if (!mounted) return;
-
+      // Now read the final state after login completes
       final authState = ref.read(authProvider);
 
       if (authState.hasError) {
@@ -129,9 +127,6 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
         setState(
           () => _loginError = authState.value?.message ?? 'Login failed',
         );
-      } else if (authState.isLoading) {
-        // Still loading - this shouldn't happen after await, but just in case
-        debugPrint('[Login] Still loading after await');
       } else {
         debugPrint('[Login] Unexpected state: ${authState.value}');
       }

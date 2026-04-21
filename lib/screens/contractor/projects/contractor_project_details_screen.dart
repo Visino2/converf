@@ -36,6 +36,8 @@ class _ContractorProjectDetailsScreenState
   Timer? _refreshTimer;
   String?
   _optimisticThumbnailPath; // Local file path shown instantly after pick
+  List<ProjectImage> _serverCoverImages =
+      []; // Images returned directly from upload response
 
   @override
   void initState() {
@@ -255,8 +257,11 @@ class _ContractorProjectDetailsScreenState
                           .when(
                             skipLoadingOnReload: true,
                             data: (projectResp) {
-                              final coverImages =
-                                  projectResp.data?.coverImages ?? [];
+                              // Always prefer _serverCoverImages first (most recent upload)
+                              // then fall back to details endpoint, then empty
+                              final coverImages = _serverCoverImages.isNotEmpty
+                                  ? _serverCoverImages
+                                  : (projectResp.data?.coverImages ?? []);
 
                               if (coverImages.isEmpty) {
                                 return GestureDetector(
@@ -1192,15 +1197,28 @@ class _ContractorProjectDetailsScreenState
         // Show local image instantly (optimistic update)
         setState(() => _optimisticThumbnailPath = image.path);
         try {
-          await ref
+          final uploadedImages = await ref
               .read(projectImageNotifierProvider.notifier)
               .uploadThumbnail(
                 projectId: widget.projectId,
                 filePath: image.path,
               );
 
-          // Clear optimistic path — server data is now loaded
-          if (mounted) setState(() => _optimisticThumbnailPath = null);
+          // Store images from upload response and clear optimistic path
+          if (mounted) {
+            setState(() {
+              _optimisticThumbnailPath = null;
+              if (uploadedImages.isNotEmpty) {
+                _serverCoverImages = uploadedImages;
+              }
+            });
+            // Defer invalidation to avoid concurrent modification error
+            Future.microtask(() {
+              if (mounted) {
+                ref.invalidate(projectDetailsProvider(widget.projectId));
+              }
+            });
+          }
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -1209,59 +1227,57 @@ class _ContractorProjectDetailsScreenState
           }
         } catch (uploadErr) {
           // Revert optimistic update on failure
-          if (mounted) setState(() => _optimisticThumbnailPath = null);
           if (mounted) {
-            String errorMsg = uploadErr.toString().replaceAll(
-              'Exception: ',
-              '',
-            );
-
-            // Specific handling for site coordinates not configured
-            if (errorMsg.contains('site coordinates') ||
-                errorMsg.contains('Site Coordinates') ||
-                errorMsg.contains('must be configured')) {
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Site Not Ready'),
-                  content: const Text(
-                    'The project owner needs to configure the site coordinates first. This establishes the geofence and location context for the project. Please check back later.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
-              return;
-            }
-
-            // Specific handling for the 3-image limit error
-            if (errorMsg.contains('Maximum of 3 cover images')) {
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Limit Reached'),
-                  content: const Text(
-                    'You already have 3 cover images. Please delete one of the existing thumbnails before uploading a new one.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
-              return;
-            }
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error updating thumbnail: $errorMsg')),
-            );
+            setState(() => _optimisticThumbnailPath = null);
           }
+
+          String errorMsg = uploadErr.toString().replaceAll('Exception: ', '');
+
+          // Specific handling for site coordinates not configured
+          if (errorMsg.contains('site coordinates') ||
+              errorMsg.contains('Site Coordinates') ||
+              errorMsg.contains('must be configured')) {
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Site Not Ready'),
+                content: const Text(
+                  'The project owner needs to configure the site coordinates first. This establishes the geofence and location context for the project. Please check back later.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+            return;
+          }
+
+          // Specific handling for the 3-image limit error
+          if (errorMsg.contains('Maximum of 3 cover images')) {
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Limit Reached'),
+                content: const Text(
+                  'You already have 3 cover images. Please delete one of the existing thumbnails before uploading a new one.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+            return;
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error updating thumbnail: $errorMsg')),
+          );
         }
       }
     } catch (e) {

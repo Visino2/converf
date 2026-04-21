@@ -38,6 +38,7 @@ class ProjectRepository {
       debugPrint(
         '--- ProjectRepository: Received response: ${response.statusCode} ---',
       );
+      debugPrint('--- Full response data: ${response.data} ---');
 
       if (response.data is! Map<String, dynamic>) {
         debugPrint('--- ProjectRepository ERROR: Invalid response format ---');
@@ -47,6 +48,9 @@ class ProjectRepository {
       final result = ProjectResponse.fromJson(response.data);
       debugPrint(
         '--- ProjectRepository: Parsing successful. Project: ${result.data?.title} ---',
+      );
+      debugPrint(
+        '--- ProjectRepository: Cover images count: ${result.data?.coverImages.length} ---',
       );
       return result;
     } catch (e, stack) {

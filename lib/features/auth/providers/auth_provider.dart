@@ -47,57 +47,113 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
   }
 
   Future<void> registerContractor(ContractorRegisterRequest request) async {
+    debugPrint('[AUTH] Contractor signup attempt for: ${request.email}');
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      final repository = ref.read(authRepositoryProvider);
-      final response = await repository.registerContractor(request);
-      return persistAuthenticatedResponse(response);
+      try {
+        debugPrint('[AUTH] Getting repository...');
+        final repository = ref.read(authRepositoryProvider);
+        debugPrint('[AUTH] Calling repository.registerContractor()...');
+        final response = await repository.registerContractor(request);
+        debugPrint(
+          '[AUTH] Signup response: status=${response.status}, message=${response.message}',
+        );
+        final authData = await persistAuthenticatedResponse(response);
+        debugPrint('[AUTH] Contractor signup successful, token persisted');
+        return authData;
+      } catch (e, stack) {
+        debugPrint('[AUTH ERROR] Contractor signup failed: $e');
+        debugPrint('[STACK] $stack');
+        rethrow;
+      }
     });
   }
 
   Future<void> login(String email, String password) async {
+    debugPrint('[AUTH] Login attempt for: $email');
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      final repository = ref.read(authRepositoryProvider);
-      final response = await repository.login(email, password);
-      return persistAuthenticatedResponse(response);
+      try {
+        debugPrint('[AUTH] Getting repository...');
+        final repository = ref.read(authRepositoryProvider);
+        debugPrint('[AUTH] Calling repository.login()...');
+        final response = await repository.login(email, password);
+        debugPrint(
+          '[AUTH] Login response: status=${response.status}, message=${response.message}',
+        );
+        final authData = await persistAuthenticatedResponse(response);
+        debugPrint('[AUTH] Login successful, token persisted');
+        return authData;
+      } catch (e, stack) {
+        debugPrint('[AUTH ERROR] Login failed: $e');
+        debugPrint('[STACK] $stack');
+        rethrow;
+      }
     });
   }
 
   Future<void> registerOwner(ProductOwnerRegisterRequest request) async {
+    debugPrint('[AUTH] Owner signup attempt for: ${request.email}');
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      final repository = ref.read(authRepositoryProvider);
-      final response = await repository.registerOwner(request);
-      return persistAuthenticatedResponse(response);
+      try {
+        debugPrint('[AUTH] Getting repository...');
+        final repository = ref.read(authRepositoryProvider);
+        debugPrint('[AUTH] Calling repository.registerOwner()...');
+        final response = await repository.registerOwner(request);
+        debugPrint(
+          '[AUTH] Signup response: status=${response.status}, message=${response.message}',
+        );
+        final authData = await persistAuthenticatedResponse(response);
+        debugPrint('[AUTH] Owner signup successful, token persisted');
+        return authData;
+      } catch (e, stack) {
+        debugPrint('[AUTH ERROR] Owner signup failed: $e');
+        debugPrint('[STACK] $stack');
+        rethrow;
+      }
     });
   }
 
   Future<void> logout() async {
+    debugPrint('[AUTH] Logout initiated');
     final notificationLifecycle = ref.read(notificationLifecycleProvider);
     final repository = ref.read(authRepositoryProvider);
     final sessionManager = ref.read(sessionManagerProvider);
     final pusherService = ref.read(pusherServiceProvider);
 
+    debugPrint('[AUTH] Updating state to null (trigger redirect)...');
     // 1. Update state immediately to trigger AppRouter redirect
     state = const AsyncValue.data(null);
 
     // 2. Capture token for the final API call before we wipe it locally
+    debugPrint('[AUTH] Capturing token...');
     final token = await sessionManager.getToken();
+    debugPrint('[AUTH] Token captured: ${token != null ? '****' : 'null'}');
 
     // 3. Unregister tokens and fire API logout (fire-and-forget)
+    debugPrint('[AUTH] Unregistering device token...');
     unawaited(notificationLifecycle.unregisterCurrentDeviceToken());
 
     // Fire the logout request using the captured token.
+    debugPrint('[AUTH] Calling repository.logout()...');
     unawaited(
-      repository.logout(token: token).catchError((_) {
-        return AuthResponse(status: false, message: 'Logout failed');
-      }),
+      repository
+          .logout(token: token)
+          .then((_) {
+            debugPrint('[AUTH] Logout API call successful');
+          })
+          .catchError((e) {
+            debugPrint('[AUTH] Logout API call failed: $e');
+          }),
     );
 
     // 4. Clear local session immediately for instant UX
+    debugPrint('[AUTH] Clearing local session...');
     await sessionManager.clearSession();
+    debugPrint('[AUTH] Session cleared');
     await notificationLifecycle.handleLoggedOut();
+    debugPrint('[AUTH] Logout complete');
     pusherService.disconnect();
   }
 
@@ -288,6 +344,20 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
     await ref
         .read(sessionManagerProvider)
         .saveSession(response.data!.token, response.data!.user);
+
+    // Auto-mark welcome as seen immediately after login to skip welcome screen
+    // This provides smooth navigation: Login → Dashboard (no intermediate screens)
+    final userId = response.data?.user['id']?.toString() ?? '';
+    if (userId.isNotEmpty) {
+      try {
+        await ref.read(welcomeSeenActionProvider).markAsSeen(userId);
+        debugPrint('[AUTH] Welcome marked as seen for user: $userId');
+      } catch (e) {
+        debugPrint('[AUTH] Warning: Could not mark welcome as seen: $e');
+        // Continue anyway - this is non-critical
+      }
+    }
+
     state = AsyncValue.data(response);
     return response;
   }

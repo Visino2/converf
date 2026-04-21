@@ -287,7 +287,16 @@ class _ContractorProjectsScreenState
           .map(
             (opt) => PopupMenuItem(
               value: opt,
-              child: Text(opt, style: const TextStyle(fontSize: 14)),
+              child: Row(
+                children: [
+                  if (opt == current)
+                    const Icon(Icons.check, color: Color(0xFF276572), size: 18)
+                  else
+                    const SizedBox(width: 18),
+                  const SizedBox(width: 8),
+                  Text(opt, style: const TextStyle(fontSize: 14)),
+                ],
+              ),
             ),
           )
           .toList(),
