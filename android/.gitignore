@@ -12,3 +12,5 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+# Exception: allow our own release keystore (private repo only)
+!app/converf-release.jks
