@@ -42,6 +42,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
   final _bidAmountController = TextEditingController();
   final _proposalController = TextEditingController();
   final List<String> _documentPaths = [];
+  String? _selectedScheduleId;
 
   bool _isSuccess = false;
   String? _submittedBidId;
@@ -79,6 +80,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
             SubmitBidPayload(
               amount: amount,
               proposal: _proposalController.text.trim(),
+              scheduleId: _selectedScheduleId,
               documentPaths: _documentPaths.isNotEmpty ? _documentPaths : null,
             ),
           );
@@ -120,6 +122,14 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
   void _removeDocument(int index) {
     setState(() {
       _documentPaths.removeAt(index);
+    });
+  }
+
+  void _selectSchedule() {
+    setState(() {
+      _selectedScheduleId = _selectedScheduleId == null 
+          ? 'schedule-123' 
+          : null;
     });
   }
 
@@ -296,6 +306,51 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                     ),
                   ),
                   onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 24),
+
+                // Schedule Selection (Optional)
+                const Text(
+                  'Attach Schedule (optional)',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF344054),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: isLoading ? null : _selectSchedule,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                    side: const BorderSide(color: Color(0xFFD0D5DD)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    alignment: Alignment.centerLeft,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today, size: 18, color: Color(0xFF276572)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _selectedScheduleId == null
+                              ? 'Select a schedule (optional)'
+                              : 'Schedule selected: $_selectedScheduleId',
+                          style: TextStyle(
+                            color: _selectedScheduleId == null
+                                ? const Color(0xFF667085)
+                                : const Color(0xFF276572),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF667085)),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 24),
 

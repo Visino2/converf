@@ -551,14 +551,17 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
             ),
           );
           debugPrint('Step 3: UpdateTimelineBudget Success');
-          
+
           // If self-contractor was selected, add them as contractor participant
-          if (state.selectedContractorId != null && payload['contractor_id'] != null) {
+          if (state.selectedContractorId != null &&
+              payload['contractor_id'] != null) {
             final authState = ref.read(authProvider);
             if (authState.hasValue && authState.value != null) {
               final currentUserId = authState.value!.user['id'] as String?;
               if (currentUserId == state.selectedContractorId) {
-                debugPrint('Self-contractor detected. Adding as project participant...');
+                debugPrint(
+                  'Self-contractor detected. Adding as project participant...',
+                );
                 try {
                   await apiNotifier.addContractorParticipant(
                     state.projectId!,
@@ -566,13 +569,15 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
                   );
                   debugPrint('Self-contractor participant added successfully');
                 } catch (e) {
-                  debugPrint('Warning: Failed to add self-contractor participant: $e');
+                  debugPrint(
+                    'Warning: Failed to add self-contractor participant: $e',
+                  );
                   // Don't fail the entire wizard if this fails
                 }
               }
             }
           }
-          
+
           notifier.updateStep(4);
         } else if (state.currentStep == 4) {
           await apiNotifier.updateSpecialisations(
@@ -694,5 +699,4 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
       notifier.setLoading(false);
     }
   }
-
 }

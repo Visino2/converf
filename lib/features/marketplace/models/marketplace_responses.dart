@@ -114,7 +114,7 @@ class SubmitBidPayload {
     return {
       'amount': amount,
       'proposal': proposal,
-      if (scheduleId != null) 'schedule_id': scheduleId,
+      'schedule_id': scheduleId,
       if (duration != null) 'duration': duration,
       if (paymentPreference != null) 'payment_preference': paymentPreference,
       if (milestones != null) 'milestones': milestones,

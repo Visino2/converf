@@ -7,34 +7,37 @@ import '../models/project_responses.dart';
 import '../models/project_responsibility.dart';
 import '../repositories/project_repository.dart';
 
+final projectsListProvider = FutureProvider.autoDispose
+    .family<PaginatedProjectsResponse, int>((ref, page) async {
+      final repository = ref.read(projectRepositoryProvider);
+      return repository.fetchProjects(page: page);
+    });
 
+final assignedProjectsProvider = FutureProvider.autoDispose
+    .family<PaginatedProjectsResponse, int>((ref, page) async {
+      final repository = ref.read(projectRepositoryProvider);
+      return repository.fetchAssignedProjects(page: page);
+    });
 
-final projectsListProvider = FutureProvider.autoDispose.family<PaginatedProjectsResponse, int>((ref, page) async {
-  final repository = ref.read(projectRepositoryProvider);
-  return repository.fetchProjects(page: page);
-});
-
-final assignedProjectsProvider = FutureProvider.autoDispose.family<PaginatedProjectsResponse, int>((ref, page) async {
-  final repository = ref.read(projectRepositoryProvider);
-  return repository.fetchAssignedProjects(page: page);
-});
-
-final projectDetailsProvider = FutureProvider.family<ProjectResponse, String>((ref, id) async {
+final projectDetailsProvider = FutureProvider.family<ProjectResponse, String>((
+  ref,
+  id,
+) async {
   final repository = ref.read(projectRepositoryProvider);
   return repository.fetchProjectById(id);
 });
 
-final projectFinancialsProvider = FutureProvider.autoDispose.family<ProjectFinancials, String>((ref, id) async {
-  final repository = ref.read(projectRepositoryProvider);
-  return repository.fetchProjectFinancials(id);
-});
+final projectFinancialsProvider = FutureProvider.autoDispose
+    .family<ProjectFinancials, String>((ref, id) async {
+      final repository = ref.read(projectRepositoryProvider);
+      return repository.fetchProjectFinancials(id);
+    });
 
-final projectResponsibilityProvider = FutureProvider.autoDispose.family<ProjectResponsibilityResponse, String>((ref, id) async {
-  final repository = ref.read(projectRepositoryProvider);
-  return repository.fetchProjectResponsibility(id);
-});
-
-
+final projectResponsibilityProvider = FutureProvider.autoDispose
+    .family<ProjectResponsibilityResponse, String>((ref, id) async {
+      final repository = ref.read(projectRepositoryProvider);
+      return repository.fetchProjectResponsibility(id);
+    });
 
 class ProjectWizardNotifier extends AsyncNotifier<void> {
   late ProjectRepository _repository;
@@ -49,7 +52,7 @@ class ProjectWizardNotifier extends AsyncNotifier<void> {
     try {
       final response = await _repository.startWizard(payload);
       state = const AsyncData(null);
-      
+
       ref.invalidate(projectsListProvider);
       return response;
     } catch (e, st) {
@@ -58,7 +61,10 @@ class ProjectWizardNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<WizardResponse> updateBasicInfo(String projectId, UpdateBasicInfoPayload payload) async {
+  Future<WizardResponse> updateBasicInfo(
+    String projectId,
+    UpdateBasicInfoPayload payload,
+  ) async {
     state = const AsyncLoading();
     try {
       final response = await _repository.updateBasicInfo(projectId, payload);
@@ -71,7 +77,10 @@ class ProjectWizardNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<WizardResponse> updateLocation(String projectId, UpdateLocationPayload payload) async {
+  Future<WizardResponse> updateLocation(
+    String projectId,
+    UpdateLocationPayload payload,
+  ) async {
     state = const AsyncLoading();
     try {
       final response = await _repository.updateLocation(projectId, payload);
@@ -84,10 +93,16 @@ class ProjectWizardNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<WizardResponse> updateTimelineBudget(String projectId, UpdateTimelineBudgetPayload payload) async {
+  Future<WizardResponse> updateTimelineBudget(
+    String projectId,
+    UpdateTimelineBudgetPayload payload,
+  ) async {
     state = const AsyncLoading();
     try {
-      final response = await _repository.updateTimelineBudget(projectId, payload);
+      final response = await _repository.updateTimelineBudget(
+        projectId,
+        payload,
+      );
       state = const AsyncData(null);
       ref.invalidate(projectDetailsProvider(projectId));
       return response;
@@ -97,10 +112,16 @@ class ProjectWizardNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<WizardResponse> updateSpecialisations(String projectId, UpdateSpecialisationsPayload payload) async {
+  Future<WizardResponse> updateSpecialisations(
+    String projectId,
+    UpdateSpecialisationsPayload payload,
+  ) async {
     state = const AsyncLoading();
     try {
-      final response = await _repository.updateSpecialisations(projectId, payload);
+      final response = await _repository.updateSpecialisations(
+        projectId,
+        payload,
+      );
       state = const AsyncData(null);
       ref.invalidate(projectDetailsProvider(projectId));
       return response;
@@ -110,7 +131,10 @@ class ProjectWizardNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<WizardResponse> confirmProject(String projectId, ConfirmProjectPayload payload) async {
+  Future<WizardResponse> confirmProject(
+    String projectId,
+    ConfirmProjectPayload payload,
+  ) async {
     state = const AsyncLoading();
     try {
       final response = await _repository.confirmProject(projectId, payload);
@@ -124,10 +148,16 @@ class ProjectWizardNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<WizardResponse> finalAssignContractor(String projectId, FinalAssignPayload payload) async {
+  Future<WizardResponse> finalAssignContractor(
+    String projectId,
+    FinalAssignPayload payload,
+  ) async {
     state = const AsyncLoading();
     try {
-      final response = await _repository.finalAssignContractor(projectId, payload);
+      final response = await _repository.finalAssignContractor(
+        projectId,
+        payload,
+      );
       state = const AsyncData(null);
       ref.invalidate(projectsListProvider);
       ref.invalidate(projectDetailsProvider(projectId));
@@ -138,7 +168,10 @@ class ProjectWizardNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<void> addContractorParticipant(String projectId, String contractorId) async {
+  Future<void> addContractorParticipant(
+    String projectId,
+    String contractorId,
+  ) async {
     state = const AsyncLoading();
     try {
       await _repository.addContractorParticipant(projectId, contractorId);
@@ -151,8 +184,10 @@ class ProjectWizardNotifier extends AsyncNotifier<void> {
   }
 }
 
-
-final projectWizardProvider = AsyncNotifierProvider<ProjectWizardNotifier, void>(ProjectWizardNotifier.new);
+final projectWizardProvider =
+    AsyncNotifierProvider<ProjectWizardNotifier, void>(
+      ProjectWizardNotifier.new,
+    );
 
 class ProjectSiteNotifier extends AsyncNotifier<void> {
   late ProjectRepository _repository;
@@ -186,4 +221,6 @@ class ProjectSiteNotifier extends AsyncNotifier<void> {
   }
 }
 
-final projectSiteProvider = AsyncNotifierProvider<ProjectSiteNotifier, void>(ProjectSiteNotifier.new);
+final projectSiteProvider = AsyncNotifierProvider<ProjectSiteNotifier, void>(
+  ProjectSiteNotifier.new,
+);

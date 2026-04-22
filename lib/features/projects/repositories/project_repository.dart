@@ -373,7 +373,10 @@ class ProjectRepository {
     return ProjectResponsibilityResponse.fromJson(response.data);
   }
 
-  Future<void> addContractorParticipant(String projectId, String contractorId) async {
+  Future<void> addContractorParticipant(
+    String projectId,
+    String contractorId,
+  ) async {
     debugPrint('--- [REQ] POST /api/v1/projects/$projectId/participants ---');
     debugPrint('Payload: {contractor_id: $contractorId}');
     try {
