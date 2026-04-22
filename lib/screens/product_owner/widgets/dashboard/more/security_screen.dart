@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../features/profile/models/profile_models.dart';
 import '../../../../../features/profile/providers/profile_providers.dart';
 import '../../../../../features/auth/services/biometric_auth_service.dart';
+import 'package:local_auth/local_auth.dart';
 
 class SecurityScreen extends ConsumerStatefulWidget {
   const SecurityScreen({super.key});
@@ -55,63 +56,72 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
   }
 
   Future<void> _toggleBiometricLogin(bool enabled) async {
-    final biometricService = ref.read(biometricAuthServiceProvider);
-    final availability =
-        _biometricAvailability ?? await biometricService.getAvailability();
+    try {
+      final biometricService = ref.read(biometricAuthServiceProvider);
+      final availability =
+          _biometricAvailability ?? await biometricService.getAvailability();
 
-    if (enabled && !availability.canAuthenticate) {
-      if (!mounted) {
+      if (enabled && !availability.canAuthenticate) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(availability.helperText)));
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(availability.helperText)));
-      return;
-    }
 
-    setState(() => _biometricBusy = true);
+      setState(() => _biometricBusy = true);
 
-    bool didEnable = enabled;
-    if (enabled) {
-      didEnable = await biometricService.authenticate(
-        reason:
-            'Use ${availability.preferredLabel} to enable biometric login for Converf.',
+      bool didEnable = enabled;
+      if (enabled) {
+        didEnable = await biometricService.authenticate(
+          reason:
+              'Use ${availability.preferredLabel} to enable biometric login for Converf.',
+        );
+      }
+
+      if (!mounted) return;
+
+      if (enabled && !didEnable) {
+        setState(() => _biometricBusy = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Biometric setup was cancelled. Nothing changed.'),
+          ),
+        );
+        return;
+      }
+
+      await biometricService.setEnabled(enabled);
+      if (!mounted) return;
+      setState(() {
+        _biometricEnabled = enabled;
+        _biometricBusy = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabled
+                ? 'Biometric login is now active on this device.'
+                : 'Biometric login has been turned off.',
+          ),
+        ),
       );
-    }
-
-    if (!mounted) {
-      return;
-    }
-
-    if (enabled && !didEnable) {
-      setState(() => _biometricBusy = false);
+    } catch (e) {
+      debugPrint('[BiometricAuth] Toggle failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _biometricBusy = false;
+        _biometricEnabled = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Biometric setup was cancelled. Nothing changed.'),
+          content: Text(
+            'Biometric authentication is not available on this device.',
+          ),
         ),
       );
-      return;
     }
-
-    await biometricService.setEnabled(enabled);
-    setState(() {
-      _biometricEnabled = enabled;
-      _biometricBusy = false;
-    });
-
-    if (!mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          enabled
-              ? 'Biometric login is now active on this device.'
-              : 'Biometric login has been turned off.',
-        ),
-      ),
-    );
   }
 
   Future<void> _updatePassword() async {
@@ -213,24 +223,37 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                  border: Border.all(
+                    color: (_biometricAvailability?.canAuthenticate ?? false)
+                        ? const Color(0xFFB7E7EA)
+                        : const Color(0xFFE5E7EB),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Container(
-                          width: 42,
-                          height: 42,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFE6F4F1),
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: _biometricEnabled
+                                ? const Color(0xFF276572)
+                                : const Color(0xFFE6F4F1),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
-                            Icons.fingerprint,
-                            color: Color(0xFF276572),
+                          child: Icon(
+                            _biometricAvailability?.availableBiometrics
+                                        .contains(BiometricType.face) ==
+                                    true
+                                ? Icons.face_outlined
+                                : Icons.fingerprint,
+                            color: _biometricEnabled
+                                ? Colors.white
+                                : const Color(0xFF276572),
+                            size: 24,
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -238,18 +261,46 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Biometric Login',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF111827),
-                                ),
+                              Row(
+                                children: [
+                                  const Text(
+                                    'Biometric Login',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF111827),
+                                    ),
+                                  ),
+                                  if (!_biometricLoading &&
+                                      !(_biometricAvailability
+                                              ?.canAuthenticate ??
+                                          false)) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 7,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF2F4F7),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text(
+                                        'Not available',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF667085),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 _biometricLoading
-                                    ? 'Checking your device security options...'
+                                    ? 'Checking device security options...'
                                     : (_biometricAvailability?.helperText ??
                                           'Use biometrics to unlock your app after inactivity.'),
                                 style: const TextStyle(
@@ -261,22 +312,50 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                             ],
                           ),
                         ),
-                        Switch.adaptive(
-                          value: _biometricEnabled,
-                          onChanged: (_biometricLoading || _biometricBusy)
-                              ? null
-                              : _toggleBiometricLogin,
-                          activeThumbColor: const Color(0xFF276572),
-                          activeTrackColor: const Color(0xFFB7E7EA),
-                        ),
+                        const SizedBox(width: 8),
+                        if (_biometricLoading)
+                          const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFF276572),
+                            ),
+                          )
+                        else
+                          Switch.adaptive(
+                            value: _biometricEnabled,
+                            onChanged:
+                                (_biometricBusy ||
+                                    !(_biometricAvailability?.canAuthenticate ??
+                                        false))
+                                ? null
+                                : _toggleBiometricLogin,
+                            activeThumbColor: Colors.white,
+                            activeTrackColor: const Color(0xFF276572),
+                            inactiveThumbColor: Colors.white,
+                            inactiveTrackColor: const Color(0xFFD0D5DD),
+                          ),
                       ],
                     ),
                     if (_biometricBusy) ...[
                       const SizedBox(height: 12),
-                      const LinearProgressIndicator(
-                        minHeight: 3,
-                        color: Color(0xFF276572),
-                        backgroundColor: Color(0xFFE5E7EB),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: const LinearProgressIndicator(
+                          minHeight: 3,
+                          color: Color(0xFF276572),
+                          backgroundColor: Color(0xFFE5E7EB),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Verifying biometrics...',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF276572),
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ],

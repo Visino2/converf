@@ -772,15 +772,10 @@ class _ContractorProjectDetailsScreenState
                           ],
                         ),
                         const SizedBox(height: 12),
-                        Text(
-                          project.description.isNotEmpty
+                        _ExpandableDescription(
+                          description: project.description.isNotEmpty
                               ? project.description
                               : 'No description provided.',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF475467),
-                            height: 1.5,
-                          ),
                         ),
                         const SizedBox(height: 12),
                       ],
@@ -1495,6 +1490,67 @@ class _ContractorProjectDetailsScreenState
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _FinancialModal(projectId: widget.projectId),
+    );
+  }
+}
+
+class _ExpandableDescription extends StatefulWidget {
+  final String description;
+  const _ExpandableDescription({required this.description});
+
+  @override
+  State<_ExpandableDescription> createState() => _ExpandableDescriptionState();
+}
+
+class _ExpandableDescriptionState extends State<_ExpandableDescription> {
+  bool _expanded = false;
+  static const int _maxLines = 4;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AnimatedCrossFade(
+          firstChild: Text(
+            widget.description,
+            maxLines: _maxLines,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF475467),
+              height: 1.5,
+            ),
+          ),
+          secondChild: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Text(
+              widget.description,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF475467),
+                height: 1.5,
+              ),
+            ),
+          ),
+          crossFadeState: _expanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 250),
+        ),
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Text(
+            _expanded ? 'Read less' : 'Read more',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF276572),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class AddOnsSection extends StatelessWidget {
   final AsyncValue<BillingPlansResponse> plansState;
   final AsyncValue<void> actionState;
-  final Future<PaymentIntent> Function(String category, String packKey) onPurchase;
+  final Future<PaymentIntent> Function(String category, String packKey)
+  onPurchase;
   final void Function(String reference) onPendingReference;
   final Future<void> Function(String url) onLaunchPayment;
 
@@ -45,18 +46,23 @@ class AddOnsSection extends StatelessWidget {
 
             plansResp.addonPacks.forEach((category, packs) {
               packs.forEach((key, pack) {
-                allAddons.add(_AddonTile(
-                  category: category,
-                  packKey: key,
-                  pack: pack,
-                  actionState: actionState,
-                  onBuy: () => _handleBuy(context, category, key),
-                ));
+                allAddons.add(
+                  _AddonTile(
+                    category: category,
+                    packKey: key,
+                    pack: pack,
+                    actionState: actionState,
+                    onBuy: () => _handleBuy(context, category, key),
+                  ),
+                );
               });
             });
 
             if (allAddons.isEmpty) {
-              return const Text('No add-ons available.', style: TextStyle(color: Color(0xFF667085)));
+              return const Text(
+                'No add-ons available.',
+                style: TextStyle(color: Color(0xFF667085)),
+              );
             }
 
             return Column(children: allAddons);
@@ -66,7 +72,11 @@ class AddOnsSection extends StatelessWidget {
     );
   }
 
-  Future<void> _handleBuy(BuildContext context, String category, String packKey) async {
+  Future<void> _handleBuy(
+    BuildContext context,
+    String category,
+    String packKey,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final intent = await onPurchase(category, packKey);
@@ -74,9 +84,7 @@ class AddOnsSection extends StatelessWidget {
       await onLaunchPayment(intent.paymentUrl);
     } catch (e) {
       if (!context.mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text('Purchase failed: $e')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Purchase failed: $e')));
     }
   }
 }
@@ -144,8 +152,11 @@ class _AddonTile extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${pack.currency ?? '₦'}${pack.price.toStringAsFixed(0)}',
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF667085)),
+                  '${pack.currency ?? '₦'}${pack.price.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF667085),
+                  ),
                 ),
               ],
             ),
@@ -157,11 +168,17 @@ class _AddonTile extends StatelessWidget {
               side: const BorderSide(color: Color(0xFFD0D5DD)),
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: actionState.isLoading ? null : onBuy,
             child: actionState.isLoading
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Text('Buy'),
           ),
         ],

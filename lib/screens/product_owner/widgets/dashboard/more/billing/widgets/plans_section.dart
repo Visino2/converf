@@ -25,6 +25,7 @@ class PlansSection extends StatefulWidget {
 }
 
 class _PlansSectionState extends State<PlansSection> {
+  String? _loadingPlanId;
   String _getPlanDescription(String planName) {
     final lower = planName.toLowerCase();
     if (lower.contains('free') || lower.contains('basic')) {
@@ -91,148 +92,169 @@ class _PlansSectionState extends State<PlansSection> {
             });
 
             return Column(
-              children: plans.map((plan) {
-                final isCurrent =
-                    (widget.currentSubscription?.planId != null &&
-                        widget.currentSubscription?.planId == plan.id) ||
-                    (widget.currentSubscription?.planName != null &&
-                        widget.currentSubscription!.planName!.toLowerCase() ==
-                            plan.name.toLowerCase());
+              children: [
+                ...plans.map((plan) {
+                  final isCurrent =
+                      (widget.currentSubscription?.planId != null &&
+                          widget.currentSubscription?.planId == plan.id) ||
+                      (widget.currentSubscription?.planName != null &&
+                          widget.currentSubscription!.planName!.toLowerCase() ==
+                              plan.name.toLowerCase());
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: isCurrent
-                          ? const Color(0xFF276572)
-                          : const Color(0xFFE5E7EB),
-                      width: isCurrent ? 2 : 1,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  plan.label.toTitleCase(),
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF111827),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  priceText(plan),
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF276572),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _getPlanDescription(plan.name),
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Color(0xFF475467),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (isCurrent)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFECFDF3),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: const Color(0xFFABEFC6),
-                                ),
-                              ),
-                              child: const Text(
-                                'CURRENT',
-                                style: TextStyle(
-                                  color: Color(0xFF067647),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                        ],
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: isCurrent
+                            ? const Color(0xFF276572)
+                            : const Color(0xFFE5E7EB),
+                        width: isCurrent ? 2 : 1,
                       ),
-                      const SizedBox(height: 16),
-                      const Divider(height: 1, color: Color(0xFFF2F4F7)),
-                      const SizedBox(height: 16),
-                      ...plan.features.entries
-                          .where((e) => e.value)
-                          .map(
-                            (e) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(
-                                    Icons.check_circle,
-                                    size: 16,
-                                    color: Color(0xFF0F973D),
+                                  Text(
+                                    plan.label.toTitleCase(),
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF111827),
+                                    ),
                                   ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      formatFeatureName(e.key),
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        color: Color(0xFF475467),
-                                      ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    priceText(plan),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF276572),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _getPlanDescription(plan.name),
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFF475467),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isCurrent
-                                ? const Color(0xFFF2F4F7)
-                                : const Color(0xFF276572),
-                            foregroundColor: isCurrent
-                                ? const Color(0xFF667085)
-                                : Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                            if (isCurrent)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFECFDF3),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: const Color(0xFFABEFC6),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'CURRENT',
+                                  style: TextStyle(
+                                    color: Color(0xFF067647),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        const Divider(height: 1, color: Color(0xFFF2F4F7)),
+                        const SizedBox(height: 16),
+                        ...plan.features.entries
+                            .where((e) => e.value)
+                            .map(
+                              (e) => Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.check_circle,
+                                      size: 16,
+                                      color: Color(0xFF0F973D),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        formatFeatureName(e.key),
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xFF475467),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            elevation: 0,
-                          ),
-                          onPressed: isCurrent || widget.actionState.isLoading
-                              ? null
-                              : () => widget.onSelectPlan(plan.id),
-                          child: Text(
-                            isCurrent ? 'Current Plan' : 'Choose Plan',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isCurrent
+                                  ? const Color(0xFFF2F4F7)
+                                  : const Color(0xFF276572),
+                              foregroundColor: isCurrent
+                                  ? const Color(0xFF667085)
+                                  : Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            onPressed: isCurrent || _loadingPlanId != null
+                                ? null
+                                : () async {
+                                    setState(() => _loadingPlanId = plan.id);
+                                    try {
+                                      await widget.onSelectPlan(plan.id);
+                                    } finally {
+                                      if (mounted)
+                                        setState(() => _loadingPlanId = null);
+                                    }
+                                  },
+                            child: _loadingPlanId == plan.id
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    isCurrent ? 'Current Plan' : 'Choose Plan',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ],
             );
           },
         ),

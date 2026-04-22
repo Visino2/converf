@@ -39,9 +39,17 @@ class UsageSection extends StatelessWidget {
           _ProgressBar(
             label: 'Team Members',
             used: '${limits.teamMembers ?? 0}',
-            total: '${limits.maxProjects ?? '∞'}',
-            percentage: (limits.teamMembers ?? 0) / (limits.maxProjects ?? 1).toDouble(),
+            total: null,
+            percentage: 0.0,
             icon: Icons.people_outline,
+          ),
+          const SizedBox(height: 20),
+          _ProgressBar(
+            label: 'Total Projects',
+            used: '${limits.maxProjects ?? 0}',
+            total: null,
+            percentage: 0.0,
+            icon: Icons.folder_outlined,
           ),
         ],
       ),
@@ -52,7 +60,7 @@ class UsageSection extends StatelessWidget {
 class _ProgressBar extends StatelessWidget {
   final String label;
   final String used;
-  final String total;
+  final String? total;
   final double percentage;
   final IconData icon;
 
@@ -83,7 +91,7 @@ class _ProgressBar extends StatelessWidget {
             ),
             const Spacer(),
             Text(
-              '$used / $total',
+              total != null ? '$used / $total' : used,
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
@@ -92,18 +100,22 @@ class _ProgressBar extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: percentage.clamp(0.0, 1.0),
-            backgroundColor: const Color(0xFFF2F4F7),
-            valueColor: AlwaysStoppedAnimation<Color>(
-              percentage > 0.9 ? const Color(0xFFD92D20) : const Color(0xFF276572),
+        if (total != null) ...[
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: percentage.clamp(0.0, 1.0),
+              backgroundColor: const Color(0xFFF2F4F7),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                percentage > 0.9
+                    ? const Color(0xFFD92D20)
+                    : const Color(0xFF276572),
+              ),
+              minHeight: 8,
             ),
-            minHeight: 8,
           ),
-        ),
+        ],
       ],
     );
   }

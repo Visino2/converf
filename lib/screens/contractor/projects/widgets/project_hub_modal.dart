@@ -30,6 +30,7 @@ class ProjectHubModal extends ConsumerStatefulWidget {
 
 class _ProjectHubModalState extends ConsumerState<ProjectHubModal> {
   late int _selectedTabIndex;
+  ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -59,6 +60,7 @@ class _ProjectHubModalState extends ConsumerState<ProjectHubModal> {
       maxChildSize: 0.95,
       expand: false,
       builder: (context, scrollController) {
+        _scrollController = scrollController;
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -248,7 +250,10 @@ class _ProjectHubModalState extends ConsumerState<ProjectHubModal> {
     final idx = _selectedTabIndex;
     switch (idx) {
       case 0: // Overview
-        return OverviewModal(projectId: widget.projectId);
+        return OverviewModal(
+          projectId: widget.projectId,
+          scrollController: _scrollController,
+        );
       case 1: // Schedule
         return ScheduleScreen(projectId: widget.projectId, isEmbedded: true);
       case 2: // Field Inspections

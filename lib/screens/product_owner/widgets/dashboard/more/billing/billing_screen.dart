@@ -19,7 +19,8 @@ class BillingScreen extends ConsumerStatefulWidget {
   ConsumerState<BillingScreen> createState() => _BillingScreenState();
 }
 
-class _BillingScreenState extends ConsumerState<BillingScreen> with WidgetsBindingObserver {
+class _BillingScreenState extends ConsumerState<BillingScreen>
+    with WidgetsBindingObserver {
   int _txnPage = 1;
 
   @override
@@ -131,7 +132,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> with WidgetsBindi
               PendingVerificationBanner(
                 reference: pendingRef,
                 actionState: actionState,
-                onVerify: () => ref.read(billingActionProvider.notifier).verify(pendingRef),
+                onVerify: () =>
+                    ref.read(billingActionProvider.notifier).verify(pendingRef),
               ),
               const SizedBox(height: 24),
             ],
@@ -152,15 +154,17 @@ class _BillingScreenState extends ConsumerState<BillingScreen> with WidgetsBindi
                 if (category == 'team_seats') return notifier.buySeats(key);
                 return notifier.buyAiCredits(key);
               },
-              onPendingReference: (reference) =>
-                  ref.read(pendingPaymentReferenceProvider.notifier).setReference(reference),
+              onPendingReference: (reference) => ref
+                  .read(pendingPaymentReferenceProvider.notifier)
+                  .setReference(reference),
               onLaunchPayment: _launchPayment,
             ),
             const SizedBox(height: 32),
             TransactionsSection(
               state: transactionsState,
               currentPage: _txnPage,
-              onRetry: () => ref.invalidate(billingTransactionsProvider(_txnPage)),
+              onRetry: () =>
+                  ref.invalidate(billingTransactionsProvider(_txnPage)),
               onPageChanged: (page) => setState(() => _txnPage = page),
             ),
           ],
@@ -171,15 +175,19 @@ class _BillingScreenState extends ConsumerState<BillingScreen> with WidgetsBindi
 
   Future<void> _startSubscription(String planId) async {
     try {
-      final intent = await ref.read(billingActionProvider.notifier).subscribe(planId);
-      ref.read(pendingPaymentReferenceProvider.notifier).setReference(intent.reference);
+      final intent = await ref
+          .read(billingActionProvider.notifier)
+          .subscribe(planId);
+      ref
+          .read(pendingPaymentReferenceProvider.notifier)
+          .setReference(intent.reference);
       if (!mounted) return;
       await _launchPayment(intent.paymentUrl);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Subscription failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Subscription failed: $e')));
     }
   }
 
@@ -193,12 +201,63 @@ class _BillingScreenState extends ConsumerState<BillingScreen> with WidgetsBindi
       return;
     }
     if (!mounted) return;
-    await Navigator.of(context).push(
+    final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => PaymentWebView(initialUrl: uri),
         fullscreenDialog: true,
       ),
     );
-    _checkPendingPayment();
+
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+
+    // If payment was successful, verify and update plan
+    if (result == true) {
+      try {
+        // Get the pending payment reference
+        final pendingRef = ref.read(pendingPaymentReferenceProvider);
+
+        // Verify payment with backend
+        if (pendingRef != null) {
+          await ref.read(billingActionProvider.notifier).verify(pendingRef);
+        }
+
+        // Show success message
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('✓ Payment completed successfully! Plan updated.'),
+            backgroundColor: Color(0xFF0F973D),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Small delay to let user see the success message
+        await Future.delayed(const Duration(seconds: 1));
+        if (!mounted) return;
+        Navigator.of(context).pop();
+      } catch (e) {
+        if (!mounted) return;
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Payment verified but plan update failed: $e'),
+            backgroundColor: const Color(0xFFD92D20),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } else if (result == false) {
+      // Payment failed or was cancelled
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Payment cancelled or failed. Please try again.'),
+          backgroundColor: Color(0xFFD92D20),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } else {
+      // User cancelled without result
+      _checkPendingPayment();
+    }
   }
 }

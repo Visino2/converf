@@ -65,27 +65,36 @@ class _PaymentWebViewState extends State<PaymentWebView> {
     if (uri == null) return false;
     final host = uri.host.toLowerCase();
     final path = uri.path.toLowerCase();
-    
+
     // Intercept Paystack close/cancel signals
-    if (host.contains('paystack') && (path.contains('close') || path.contains('cancel'))) {
+    if (host.contains('paystack') &&
+        (path.contains('close') || path.contains('cancel'))) {
+      _closeView(success: false);
       return true;
     }
 
     // Intercept backend success/callback patterns to return to app automatically
-    if (path.contains('callback') || 
-        path.contains('success') || 
-        path.contains('verify') || 
+    if (path.contains('callback') ||
+        path.contains('success') ||
+        path.contains('verify') ||
         path.contains('complete')) {
+      _closeView(success: true);
+      return true;
+    }
+
+    // Intercept redirects back to Converf domain (payment success)
+    if (host.contains('converf') || host.contains('api-dev')) {
+      _closeView(success: true);
       return true;
     }
 
     return false;
   }
 
-  void _closeView() {
+  void _closeView({bool success = false}) {
     if (_isClosing) return;
     _isClosing = true;
-    Navigator.of(context).maybePop();
+    Navigator.of(context).maybePop(success);
   }
 
   @override
@@ -111,8 +120,7 @@ class _PaymentWebViewState extends State<PaymentWebView> {
       body: Stack(
         children: [
           WebViewWidget(controller: _controller),
-          if (_isLoading)
-            const LinearProgressIndicator(minHeight: 2),
+          if (_isLoading) const LinearProgressIndicator(minHeight: 2),
         ],
       ),
     );
