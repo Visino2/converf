@@ -15,7 +15,7 @@ Complete API specification for how contractors submit bids and create/submit sch
 {
   "amount": 5000.50,
   "proposal": "I can complete this project in 2 weeks...",
-  "schedule_id": "uuid-optional",
+  "schedule_id": "uuid-required",
   "duration": "2 weeks",
   "payment_preference": "milestone",
   "milestones": [
@@ -486,22 +486,27 @@ Status: 200 OK
 
 ## ⚠️ Key Notes for Mobile App
 
-1. **Self-Contractor Flow**: When contractor is selected as "Self" (user creating project):
+1. **Schedule_ID is REQUIRED**: 
+   - Contractors MUST select/create a schedule before submitting a bid
+   - The `schedule_id` field must be included in `POST /api/v1/projects/{projectId}/bids`
+   - If schedule_id is not provided, the API will return: `"The schedule id field is required."`
+
+2. **Self-Contractor Flow**: When contractor is selected as "Self" (user creating project):
    - Endpoint: `POST /api/v1/projects/{projectId}/schedule`
    - **NOT** a bid-based schedule
    - User is both owner and contractor
 
-2. **Schedule from Bid**: When contractor submits bid, then creates schedule:
-   - First: Submit bid → `POST /api/v1/projects/{projectId}/bids`
+3. **Schedule from Bid**: When contractor submits bid, then creates schedule:
+   - First: Submit bid → `POST /api/v1/projects/{projectId}/bids` (with schedule_id)
    - Then: Create schedule → `POST /api/v1/bids/{bidId}/schedule`
    - Finally: Submit → `POST /api/v1/bids/{bidId}/schedule/submit`
 
-3. **Handling Errors**: 
+4. **Handling Errors**: 
    - Check `response.data['status']` for bid endpoint
    - Bid endpoint returns wrapped response: `{ status, message, data }`
    - Schedule endpoints return data directly
 
-4. **Multipart/Form Data**: 
+5. **Multipart/Form Data**: 
    - If `documentPaths` provided in bid, use `FormData`
    - Otherwise, use JSON payload
 

@@ -12,7 +12,9 @@ import 'package:intl/intl.dart';
 class _CurrencyInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     if (newValue.selection.baseOffset == 0) return newValue;
 
     final text = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
@@ -61,7 +63,8 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
     final amount = double.tryParse(text);
     return amount != null &&
         amount > 0 &&
-        _proposalController.text.trim().length >= 20;
+        _proposalController.text.trim().length >= 20 &&
+        _selectedScheduleId != null;
   }
 
   Future<void> _submitBid() async {
@@ -105,7 +108,16 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
     final result = await FilePicker.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg'],
+      allowedExtensions: [
+        'pdf',
+        'doc',
+        'docx',
+        'xls',
+        'xlsx',
+        'png',
+        'jpg',
+        'jpeg',
+      ],
     );
 
     if (result != null && result.files.isNotEmpty) {
@@ -127,9 +139,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
 
   void _selectSchedule() {
     setState(() {
-      _selectedScheduleId = _selectedScheduleId == null 
-          ? 'schedule-123' 
-          : null;
+      _selectedScheduleId = _selectedScheduleId == null ? 'schedule-123' : null;
     });
   }
 
@@ -229,9 +239,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                 TextField(
                   controller: _bidAmountController,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    _CurrencyInputFormatter(),
-                  ],
+                  inputFormatters: [_CurrencyInputFormatter()],
                   style: const TextStyle(
                     fontSize: 16,
                     color: Color(0xFF101828),
@@ -309,20 +317,32 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                 ),
                 const SizedBox(height: 24),
 
-                // Schedule Selection (Optional)
+                // Schedule Selection (Required)
                 const Text(
-                  'Attach Schedule (optional)',
+                  'Attach Schedule',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF344054),
                   ),
                 ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Required',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFB42318),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 OutlinedButton(
                   onPressed: isLoading ? null : _selectSchedule,
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 14,
+                    ),
                     side: const BorderSide(color: Color(0xFFD0D5DD)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -331,12 +351,16 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_today, size: 18, color: Color(0xFF276572)),
+                      const Icon(
+                        Icons.calendar_today,
+                        size: 18,
+                        color: Color(0xFF276572),
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _selectedScheduleId == null
-                              ? 'Select a schedule (optional)'
+                              ? 'Select a schedule'
                               : 'Schedule selected: $_selectedScheduleId',
                           style: TextStyle(
                             color: _selectedScheduleId == null
@@ -348,7 +372,11 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF667085)),
+                      const Icon(
+                        Icons.arrow_forward_ios,
+                        size: 14,
+                        color: Color(0xFF667085),
+                      ),
                     ],
                   ),
                 ),
@@ -366,7 +394,11 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: isLoading ? null : _pickDocuments,
-                  icon: const Icon(Icons.upload, size: 20, color: Color(0xFF276572)),
+                  icon: const Icon(
+                    Icons.upload,
+                    size: 20,
+                    color: Color(0xFF276572),
+                  ),
                   label: const Text(
                     'Add documents',
                     style: TextStyle(
@@ -375,7 +407,10 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 16,
+                    ),
                     side: const BorderSide(color: Color(0xFFD0D5DD)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -398,14 +433,21 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                       final sizeStr = (size / (1024 * 1024)).toStringAsFixed(2);
 
                       return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           border: Border.all(color: const Color(0xFFE4E7EC)),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.attach_file, size: 18, color: Color(0xFF667185)),
+                            const Icon(
+                              Icons.attach_file,
+                              size: 18,
+                              color: Color(0xFF667185),
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Column(
@@ -432,8 +474,14 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Color(0xFFB42318), size: 20),
-                              onPressed: isLoading ? null : () => _removeDocument(index),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Color(0xFFB42318),
+                                size: 20,
+                              ),
+                              onPressed: isLoading
+                                  ? null
+                                  : () => _removeDocument(index),
                             ),
                           ],
                         ),
@@ -642,5 +690,4 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
       ),
     );
   }
-
 }
