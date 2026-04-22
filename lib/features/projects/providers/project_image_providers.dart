@@ -23,6 +23,21 @@ final projectImagesProvider = FutureProvider.family<List<ProjectImage>, String>(
   },
 );
 
+/// Cover images (thumbnails) derived from the project detail response.
+/// Uses [projectDetailsProvider] so invalidating project details automatically
+/// refreshes cover images without hitting the GPS-images endpoint.
+final projectCoverImagesProvider = FutureProvider.family<List<ProjectImage>, String>(
+  (ref, projectId) async {
+    try {
+      final response = await ref.watch(projectDetailsProvider(projectId).future);
+      return response.data?.coverImages ?? [];
+    } catch (e) {
+      debugPrint('[ProjectCoverImages] Error fetching cover images: $e');
+      return [];
+    }
+  },
+);
+
 class ProjectImageNotifier extends AsyncNotifier<void> {
   late ProjectImageRepository _repository;
   late ProjectRepository _projectRepository;
@@ -140,8 +155,7 @@ class ProjectImageNotifier extends AsyncNotifier<void> {
         {'filePath': filePath, 'uploadedAt': DateTime.now().toIso8601String()},
       );
 
-      // Invalidate in background so next full refresh picks up server state
-      ref.invalidate(projectImagesProvider(projectId));
+      // Invalidate project details so cover images are re-fetched from server
       ref.invalidate(projectDetailsProvider(projectId));
 
       // Return the cover images from the upload response directly
@@ -164,8 +178,7 @@ class ProjectImageNotifier extends AsyncNotifier<void> {
       );
       await _projectRepository.deleteProjectThumbnail(projectId, coverImageId);
       state = const AsyncData(null);
-      // Thoroughly invalidate all related project views to ensure slots are freed up
-      ref.invalidate(projectImagesProvider(projectId));
+      // Invalidate project details so cover images are re-fetched from server
       ref.invalidate(projectDetailsProvider(projectId));
       ref.invalidate(assignedProjectsProvider(1));
       ref.invalidate(projectsListProvider);

@@ -54,7 +54,6 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
         );
         ref.invalidate(projectDetailsProvider(widget.projectId));
         ref.invalidate(projectFinancialsProvider(widget.projectId));
-        ref.invalidate(projectImagesProvider(widget.projectId));
         ref.invalidate(projectScheduleProvider(widget.projectId));
         ref.invalidate(projectBidsProvider);
         ref.invalidate(projectOpenBidsCountProvider(widget.projectId));
@@ -102,8 +101,8 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
   Future<void> _updateThumbnail() async {
     debugPrint('[ProductOwner] Update Thumbnail clicked');
 
-    // Check current image count first
-    final imagesAsync = ref.read(projectImagesProvider(widget.projectId));
+    // Check current cover image count first
+    final imagesAsync = ref.read(projectCoverImagesProvider(widget.projectId));
     final images = imagesAsync.asData?.value ?? [];
 
     // If at 3 images, show deletion interface first
@@ -206,9 +205,8 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Thumbnail updated successfully')),
             );
-            // Refresh both project details and images to show the new thumbnail
+            // Refresh project details — cover images derive from it automatically
             ref.invalidate(projectDetailsProvider(widget.projectId));
-            ref.invalidate(projectImagesProvider(widget.projectId));
           }
         } catch (uploadErr) {
           if (mounted) {
@@ -411,7 +409,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
     final financialsAsync = ref.watch(
       projectFinancialsProvider(widget.projectId),
     );
-    final imagesAsync = ref.watch(projectImagesProvider(widget.projectId));
+    final imagesAsync = ref.watch(projectCoverImagesProvider(widget.projectId));
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -536,7 +534,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                                     width: double.infinity,
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(20),
-                                      color: Colors.white,
+                                      color: const Color(0xFFE4E7EC),
                                     ),
                                     clipBehavior: Clip.antiAlias,
                                     margin: const EdgeInsets.symmetric(
@@ -546,8 +544,20 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                                       fit: StackFit.expand,
                                       children: [
                                         Image.network(
-                                          '${img.fileUrl}${img.fileUrl.contains('?') ? '&' : '?'}t=${DateTime.now().millisecondsSinceEpoch}',
+                                          img.fileUrl,
                                           fit: BoxFit.cover,
+                                          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                                            if (wasSynchronouslyLoaded || frame != null) return child;
+                                            return AnimatedOpacity(
+                                              opacity: 0,
+                                              duration: Duration.zero,
+                                              child: child,
+                                            );
+                                          },
+                                          loadingBuilder: (context, child, progress) {
+                                            if (progress == null) return child;
+                                            return const _ImageSkeleton();
+                                          },
                                           errorBuilder:
                                               (context, error, stackTrace) =>
                                                   _buildHeroPlaceholder(),
@@ -1143,6 +1153,46 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => modal,
+    );
+  }
+}
+
+class _ImageSkeleton extends StatefulWidget {
+  const _ImageSkeleton();
+
+  @override
+  State<_ImageSkeleton> createState() => _ImageSkeletonState();
+}
+
+class _ImageSkeletonState extends State<_ImageSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<Color?> _color;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _color = ColorTween(
+      begin: const Color(0xFFE4E7EC),
+      end: const Color(0xFFF2F4F7),
+    ).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _color,
+      builder: (_, _) => ColoredBox(color: _color.value!),
     );
   }
 }
