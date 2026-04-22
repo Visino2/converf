@@ -515,12 +515,10 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
     WizardStateNotifier notifier,
   ) {
     bool isSelected = state.selectedContractorId == id;
-    final initials = name
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase()
-        .substring(0, 2);
+    final initials = name.split(' ').map((n) => n[0]).join('').toUpperCase();
+    final displayInitials = initials.length > 2
+        ? initials.substring(0, 2)
+        : initials;
 
     return GestureDetector(
       onTap: () => notifier.updateTimelineBudget(selectedContractorId: id),
@@ -547,7 +545,7 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
                   radius: 20,
                   backgroundColor: const Color(0xFF309DAA),
                   child: Text(
-                    initials,
+                    displayInitials,
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
