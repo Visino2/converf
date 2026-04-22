@@ -9,7 +9,6 @@ import '../repositories/auth_repository.dart';
 import '../../../core/auth/session_manager.dart';
 import '../../../core/api/api_client.dart';
 import '../../notifications/services/notification_lifecycle_service.dart';
-import '../../../core/api/pusher_service.dart';
 
 final authProvider = AsyncNotifierProvider<AuthNotifier, AuthResponse?>(
   AuthNotifier.new,
@@ -35,7 +34,7 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
     if (user != null && user.isNotEmpty) {
       final response = AuthResponse.fromSession(token: token, user: user);
       if (!_hasSupportedRole(response)) {
-        await sessionManager.clearSession();
+        await sessionManager.clearSession(notifySessionChange: false);
         return null;
       }
 
@@ -120,7 +119,6 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
     final notificationLifecycle = ref.read(notificationLifecycleProvider);
     final repository = ref.read(authRepositoryProvider);
     final sessionManager = ref.read(sessionManagerProvider);
-    final pusherService = ref.read(pusherServiceProvider);
 
     debugPrint('[AUTH] Updating state to null (trigger redirect)...');
     // 1. Update state immediately to trigger AppRouter redirect
@@ -131,30 +129,39 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
     final token = await sessionManager.getToken();
     debugPrint('[AUTH] Token captured: ${token != null ? '****' : 'null'}');
 
-    // 3. Unregister tokens and fire API logout (fire-and-forget)
-    debugPrint('[AUTH] Unregistering device token...');
-    unawaited(notificationLifecycle.unregisterCurrentDeviceToken());
-
-    // Fire the logout request using the captured token.
-    debugPrint('[AUTH] Calling repository.logout()...');
-    unawaited(
-      repository
-          .logout(token: token)
-          .then((_) {
-            debugPrint('[AUTH] Logout API call successful');
-          })
-          .catchError((e) {
-            debugPrint('[AUTH] Logout API call failed: $e');
-          }),
-    );
-
-    // 4. Clear local session immediately for instant UX
-    debugPrint('[AUTH] Clearing local session...');
-    await sessionManager.clearSession();
-    debugPrint('[AUTH] Session cleared');
+    // 3. Stop app-side realtime work immediately so logout does not race with
+    // active listeners/pollers while the router redirects.
     await notificationLifecycle.handleLoggedOut();
+
+    // 4. Finish server-side cleanup in the background using the captured token.
+    if (token != null && token.isNotEmpty) {
+      unawaited(() async {
+        debugPrint('[AUTH] Unregistering device token...');
+        try {
+          await notificationLifecycle.unregisterCurrentDeviceToken(
+            authToken: token,
+          );
+        } catch (e) {
+          debugPrint('[AUTH] Device token cleanup failed: $e');
+        }
+
+        debugPrint('[AUTH] Calling repository.logout()...');
+        try {
+          await repository.logout(token: token);
+          debugPrint('[AUTH] Logout API call successful');
+        } catch (e) {
+          debugPrint('[AUTH] Logout API call failed: $e');
+        }
+      }());
+    } else {
+      debugPrint('[AUTH] No token available for server-side logout cleanup.');
+    }
+
+    // 5. Clear local session immediately for instant UX
+    debugPrint('[AUTH] Clearing local session...');
+    await sessionManager.clearSession(notifySessionChange: false);
+    debugPrint('[AUTH] Session cleared');
     debugPrint('[AUTH] Logout complete');
-    pusherService.disconnect();
   }
 
   Future<void> forgotPassword(String email) async {
@@ -239,12 +246,12 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
         return;
       }
 
-      await sessionManager.clearSession();
+      await sessionManager.clearSession(notifySessionChange: false);
       state = const AsyncValue.data(null);
       return;
     }
 
-    await sessionManager.saveUser(mergedUser);
+    await sessionManager.saveUser(mergedUser, notifySessionChange: false);
     state = AsyncValue.data(response);
   }
 
@@ -273,15 +280,15 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
       final user = await repository.fetchCurrentUser(cachedUser: cachedUser);
       final response = AuthResponse.fromSession(token: token, user: user);
       if (!_hasSupportedRole(response)) {
-        await sessionManager.clearSession();
+        await sessionManager.clearSession(notifySessionChange: false);
         return null;
       }
 
-      await sessionManager.saveSession(token, user);
+      await sessionManager.saveSession(token, user, notifySessionChange: false);
       return response;
     } on ApiException catch (e) {
       if (e.statusCode == 401) {
-        await sessionManager.clearSession();
+        await sessionManager.clearSession(notifySessionChange: false);
         return null;
       }
       rethrow;
@@ -336,14 +343,20 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
     }
 
     if (!_hasSupportedRole(response)) {
-      await ref.read(sessionManagerProvider).clearSession();
+      await ref
+          .read(sessionManagerProvider)
+          .clearSession(notifySessionChange: false);
       state = const AsyncValue.data(null);
       throw Exception('Your account does not have a supported role.');
     }
 
     await ref
         .read(sessionManagerProvider)
-        .saveSession(response.data!.token, response.data!.user);
+        .saveSession(
+          response.data!.token,
+          response.data!.user,
+          notifySessionChange: false,
+        );
 
     // Auto-mark welcome as seen immediately after login to skip welcome screen
     // This provides smooth navigation: Login → Dashboard (no intermediate screens)
@@ -400,7 +413,7 @@ class WelcomeSeenAction {
 
   Future<void> markAsSeen(String userId) async {
     final sessionManager = _ref.read(sessionManagerProvider);
-    await sessionManager.setWelcomeSeen(userId);
+    await sessionManager.setWelcomeSeen(userId, notifySessionChange: false);
     // Trigger all listeners to re-fetch
     _ref.read(welcomeSeenRefreshProvider.notifier).increment();
   }

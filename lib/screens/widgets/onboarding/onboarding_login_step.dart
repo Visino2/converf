@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/core/config/shared_prefs_provider.dart';
@@ -75,7 +77,7 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
       return;
     }
     final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+    final password = _passwordController.text;
 
     try {
       final authNotifier = ref.read(authProvider.notifier);
@@ -115,13 +117,7 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
           );
         }
       } else if (authState.value?.status == true) {
-        // Login succeeded — show checkmarks!
-        _saveEmail(email);
-        setState(() {
-          _isEmailValid = true;
-          _isPasswordValid = true;
-        });
-
+        unawaited(_saveEmail(email));
         debugPrint('[Login] Success - router will redirect automatically');
       } else if (authState.value?.status == false) {
         setState(
@@ -213,20 +209,6 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
         if (response == null) {
           // User cancelled
           return;
-        }
-
-        // DEBUG: Token was copied to clipboard - notify user to paste and send to backend
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                '✅ Token copied to clipboard — paste and send to backend dev',
-              ),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-              duration: Duration(seconds: 6),
-            ),
-          );
         }
 
         // Success: authProvider state updated → router redirects to dashboard automatically.

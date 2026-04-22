@@ -229,8 +229,9 @@ class _PlansSectionState extends State<PlansSection> {
                                     try {
                                       await widget.onSelectPlan(plan.id);
                                     } finally {
-                                      if (mounted)
+                                      if (mounted) {
                                         setState(() => _loadingPlanId = null);
+                                      }
                                     }
                                   },
                             child: _loadingPlanId == plan.id
@@ -253,7 +254,7 @@ class _PlansSectionState extends State<PlansSection> {
                       ],
                     ),
                   );
-                }).toList(),
+                }),
               ],
             );
           },

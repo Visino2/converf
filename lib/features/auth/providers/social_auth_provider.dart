@@ -224,6 +224,15 @@ class SocialAuthNotifier extends AsyncNotifier<void> {
         }
       }
 
+      if (authResponse.role != UserRole.unknown && authResponse.role != role) {
+        await googleAuthService.signOut();
+        throw Exception(
+          'This Google account is already linked to a '
+          '${_roleLabel(authResponse.role)} account. '
+          'Continue with that role or use a different Google account.',
+        );
+      }
+
       await ref
           .read(authProvider.notifier)
           .persistAuthenticatedResponse(authResponse);
@@ -236,6 +245,17 @@ class SocialAuthNotifier extends AsyncNotifier<void> {
       state = AsyncError(e, st);
       rethrow;
     }
+  }
+}
+
+String _roleLabel(UserRole role) {
+  switch (role) {
+    case UserRole.projectOwner:
+      return 'Project Owner';
+    case UserRole.contractor:
+      return 'Contractor';
+    case UserRole.unknown:
+      return 'different';
   }
 }
 

@@ -42,8 +42,8 @@ class _OnboardingAcceptInvitationStepState
 
     await ref.read(authProvider.notifier).acceptInvitation(
           token: widget.token,
-          password: _passwordController.text.trim(),
-          passwordConfirmation: _confirmPasswordController.text.trim(),
+          password: _passwordController.text,
+          passwordConfirmation: _confirmPasswordController.text,
         );
 
     if (mounted) {

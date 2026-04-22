@@ -137,6 +137,18 @@ class ProjectWizardNotifier extends AsyncNotifier<void> {
       rethrow;
     }
   }
+
+  Future<void> addContractorParticipant(String projectId, String contractorId) async {
+    state = const AsyncLoading();
+    try {
+      await _repository.addContractorParticipant(projectId, contractorId);
+      state = const AsyncData(null);
+      ref.invalidate(projectDetailsProvider(projectId));
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
+  }
 }
 
 

@@ -27,15 +27,26 @@ class SessionManager {
 
   static Stream<int> get sessionChanges => _sessionChangesController.stream;
 
-  Future<void> saveSession(String token, Map<String, dynamic> user) async {
+  Future<void> saveSession(
+    String token,
+    Map<String, dynamic> user, {
+    bool notifySessionChange = true,
+  }) async {
     await _prefs.setString(_tokenKey, token);
     await _prefs.setString(_userKey, jsonEncode(user));
-    _notifySessionChanged();
+    if (notifySessionChange) {
+      _notifySessionChanged();
+    }
   }
 
-  Future<void> saveUser(Map<String, dynamic> user) async {
+  Future<void> saveUser(
+    Map<String, dynamic> user, {
+    bool notifySessionChange = true,
+  }) async {
     await _prefs.setString(_userKey, jsonEncode(user));
-    _notifySessionChanged();
+    if (notifySessionChange) {
+      _notifySessionChanged();
+    }
   }
 
   Future<String?> getToken() async {
@@ -54,11 +65,15 @@ class SessionManager {
     return null;
   }
 
-  Future<void> clearSession() async {
+  Future<void> clearSession({bool notifySessionChange = true}) async {
+    final hadSessionData =
+        _prefs.containsKey(_tokenKey) || _prefs.containsKey(_userKey);
     await _prefs.remove(_tokenKey);
     await _prefs.remove(_userKey);
     // Note: we intentionally keep welcome flags so returning users still skip welcome screens.
-    _notifySessionChanged();
+    if (notifySessionChange && hadSessionData) {
+      _notifySessionChanged();
+    }
   }
 
   Future<bool> hasSession() async {
@@ -78,12 +93,17 @@ class SessionManager {
     return _prefs.getBool('$_welcomePrefix$userId') ?? false;
   }
 
-  Future<void> setWelcomeSeen(String userId) async {
+  Future<void> setWelcomeSeen(
+    String userId, {
+    bool notifySessionChange = true,
+  }) async {
     if (userId.isEmpty) {
       return;
     }
     await _prefs.setBool('$_welcomePrefix$userId', true);
-    _notifySessionChanged();
+    if (notifySessionChange) {
+      _notifySessionChanged();
+    }
   }
 
   void _notifySessionChanged() {

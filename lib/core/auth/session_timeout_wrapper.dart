@@ -24,6 +24,7 @@ class SessionTimeoutWrapper extends ConsumerStatefulWidget {
 
 class _SessionTimeoutWrapperState extends ConsumerState<SessionTimeoutWrapper>
     with WidgetsBindingObserver {
+  late final ProviderSubscription<dynamic> _authSubscription;
   Timer? _timer;
   DateTime? _lastActivityAt;
   bool _isAuthenticated = false;
@@ -39,6 +40,18 @@ class _SessionTimeoutWrapperState extends ConsumerState<SessionTimeoutWrapper>
     final sessionManager = ref.read(sessionManagerProvider);
     _hadPersistedSessionOnLaunch = sessionManager.hasSessionSync();
     WidgetsBinding.instance.addObserver(this);
+    _authSubscription = ref.listenManual<AsyncValue<AuthResponse?>>(
+      authProvider,
+      (_, next) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          unawaited(_handleAuthStateChanged(next.valueOrNull));
+        });
+      },
+      fireImmediately: true,
+    );
   }
 
   void _startTimer([Duration? remaining]) {
@@ -254,18 +267,6 @@ class _SessionTimeoutWrapperState extends ConsumerState<SessionTimeoutWrapper>
 
   @override
   Widget build(BuildContext context) {
-    final currentAuthState = ref.watch(authProvider).valueOrNull;
-    ref.listen<AsyncValue<AuthResponse?>>(authProvider, (previous, next) {
-      unawaited(_handleAuthStateChanged(next.valueOrNull));
-    });
-
-    final currentIsAuthenticated = currentAuthState?.isAuthenticated ?? false;
-    if (currentIsAuthenticated != _isAuthenticated) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        unawaited(_handleAuthStateChanged(currentAuthState));
-      });
-    }
-
     return Listener(
       onPointerDown: _resetTimer,
       onPointerMove: _resetTimer,
@@ -291,6 +292,7 @@ class _SessionTimeoutWrapperState extends ConsumerState<SessionTimeoutWrapper>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _authSubscription.close();
     _timer?.cancel();
     super.dispose();
   }

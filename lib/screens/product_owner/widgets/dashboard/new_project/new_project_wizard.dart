@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:converf/features/projects/models/project.dart';
 import 'package:converf/features/projects/providers/project_providers.dart';
 import 'package:converf/features/projects/models/project_payloads.dart';
+import 'package:converf/features/auth/providers/auth_provider.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/new_project/models/new_project_state.dart';
 import 'providers/wizard_provider.dart';
 import 'steps/step_type.dart';
@@ -550,6 +551,28 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
             ),
           );
           debugPrint('Step 3: UpdateTimelineBudget Success');
+          
+          // If self-contractor was selected, add them as contractor participant
+          if (state.selectedContractorId != null && payload['contractor_id'] != null) {
+            final authState = ref.read(authProvider);
+            if (authState.hasValue && authState.value != null) {
+              final currentUserId = authState.value!.user['id'] as String?;
+              if (currentUserId == state.selectedContractorId) {
+                debugPrint('Self-contractor detected. Adding as project participant...');
+                try {
+                  await apiNotifier.addContractorParticipant(
+                    state.projectId!,
+                    state.selectedContractorId!,
+                  );
+                  debugPrint('Self-contractor participant added successfully');
+                } catch (e) {
+                  debugPrint('Warning: Failed to add self-contractor participant: $e');
+                  // Don't fail the entire wizard if this fails
+                }
+              }
+            }
+          }
+          
           notifier.updateStep(4);
         } else if (state.currentStep == 4) {
           await apiNotifier.updateSpecialisations(

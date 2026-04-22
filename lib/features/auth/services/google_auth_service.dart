@@ -46,11 +46,8 @@ class GoogleAuthService {
         '165586994124-ehinqf0siepk2ioifu13kkv3oc901t9f.apps.googleusercontent.com',
   );
 
-  /// Returns the expected client ID for the current platform.
-  /// On iOS: uses iOS client ID
-  /// On Android: uses Android client ID
-  /// On other platforms: uses Web client ID as fallback
-  String get expectedServerClientId {
+  /// Returns the native OAuth client configured for the current platform.
+  String get expectedPlatformClientId {
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return _androidClientId;
@@ -60,6 +57,10 @@ class GoogleAuthService {
         return _webClientId;
     }
   }
+
+  /// Native Google Sign-In returns an ID token whose audience matches the
+  /// configured Web OAuth client when `serverClientId` is used.
+  String get expectedTokenAudience => _webClientId;
 
   late final GoogleSignIn _googleSignIn;
 
@@ -85,7 +86,9 @@ class GoogleAuthService {
   Future<String?> signIn() async {
     try {
       debugPrint(
-        '[GoogleSignIn] signIn() called on ${defaultTargetPlatform.name} with serverClientId=$expectedServerClientId.',
+        '[GoogleSignIn] signIn() called on ${defaultTargetPlatform.name} '
+        'with platformClientId=$expectedPlatformClientId '
+        'and serverClientId=$_webClientId.',
       );
       // Clear any previous session to ensure the "Choose Account" popup appears
       if (await _googleSignIn.isSignedIn()) {
@@ -108,9 +111,6 @@ class GoogleAuthService {
         throw Exception('Failed to obtain Google ID Token.');
       }
 
-      // Copy token to clipboard so it can be shared with backend for debugging
-      await Clipboard.setData(ClipboardData(text: idToken));
-      debugPrint('[GoogleSignIn] ✅ ID token copied to clipboard.');
       logIdTokenClaims(idToken);
       return idToken;
     } catch (e, st) {
@@ -185,10 +185,10 @@ class GoogleAuthService {
       'exp=${claims.expiresAt?.toIso8601String() ?? 'unknown'}',
     );
 
-    if (claims.audience != null && claims.audience != expectedServerClientId) {
+    if (claims.audience != null && claims.audience != expectedTokenAudience) {
       debugPrint(
         '[GoogleSignIn] Token audience differs from expected client ID. '
-        'token aud=${claims.audience}, expected=$expectedServerClientId',
+        'token aud=${claims.audience}, expected=$expectedTokenAudience',
       );
     }
   }

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/config/shared_prefs_provider.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/api/pusher_service.dart';
 import '../../../core/ui/app_scaffold_messenger.dart';
 import '../../auth/models/auth_response.dart';
@@ -57,6 +58,7 @@ class NotificationLifecycleService {
   String? _activeUserId;
   String? _lastHandledRealtimeMessageId;
   Timer? _notificationPoller;
+  Future<void>? _stoppingRealtimeSubscriptions;
 
   NotificationLifecycleService(this._ref);
 
@@ -150,7 +152,7 @@ class NotificationLifecycleService {
     return true;
   }
 
-  Future<void> unregisterCurrentDeviceToken() async {
+  Future<void> unregisterCurrentDeviceToken({String? authToken}) async {
     final store = _ref.read(deviceTokenStoreProvider);
     final registeredToken = await store.getRegisteredToken();
     if (registeredToken == null || registeredToken.isEmpty) {
@@ -159,7 +161,17 @@ class NotificationLifecycleService {
 
     final repository = _ref.read(notificationRepositoryProvider);
     try {
-      await repository.unregisterDeviceToken(registeredToken);
+      await repository.unregisterDeviceToken(
+        registeredToken,
+        authToken: authToken,
+      );
+    } on ApiException catch (e) {
+      if (e.statusCode != 401) {
+        rethrow;
+      }
+      debugPrint(
+        '[Notifications] Device token cleanup skipped because the session is already unauthenticated.',
+      );
     } finally {
       await store.clearRegisteredToken();
     }
@@ -289,11 +301,41 @@ class NotificationLifecycleService {
     }
   }
 
-  Future<void> _stopRealtimeMessageSubscriptions() async {
-    for (final subscription in _messageSubscriptions) {
-      await subscription.cancel();
+  Future<void> _stopRealtimeMessageSubscriptions() {
+    final inFlightStop = _stoppingRealtimeSubscriptions;
+    if (inFlightStop != null) {
+      return inFlightStop;
     }
+
+    final stopFuture = _doStopRealtimeMessageSubscriptions();
+    _stoppingRealtimeSubscriptions = stopFuture.whenComplete(() {
+      if (identical(_stoppingRealtimeSubscriptions, stopFuture)) {
+        _stoppingRealtimeSubscriptions = null;
+      }
+    });
+
+    return _stoppingRealtimeSubscriptions!;
+  }
+
+  Future<void> _doStopRealtimeMessageSubscriptions() async {
+    if (_messageSubscriptions.isEmpty) {
+      return;
+    }
+
+    final subscriptions = List<StreamSubscription<dynamic>>.from(
+      _messageSubscriptions,
+    );
     _messageSubscriptions.clear();
+
+    for (final subscription in subscriptions) {
+      try {
+        await subscription.cancel();
+      } catch (e) {
+        debugPrint(
+          '[Notifications] Ignoring realtime subscription cleanup error: $e',
+        );
+      }
+    }
   }
 
   void _startNotificationPolling() {

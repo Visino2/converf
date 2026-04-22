@@ -1226,7 +1226,8 @@ class _ContractorProjectDetailsScreenState
             setState(() => _optimisticThumbnailPath = null);
           }
 
-          String errorMsg = uploadErr.toString().replaceAll('Exception: ', '');
+          final errorMsg = uploadErr.toString().replaceAll('Exception: ', '');
+          if (!mounted) return;
 
           // Specific handling for site coordinates not configured
           if (errorMsg.contains('site coordinates') ||

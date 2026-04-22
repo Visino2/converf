@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import 'package:converf/core/ui/app_navigation.dart';
 import 'package:converf/features/ai_credits/providers/ai_credits_provider.dart';
+import 'package:converf/features/auth/models/auth_response.dart';
+import 'package:converf/features/auth/providers/auth_provider.dart';
+import 'package:converf/features/auth/utils/auth_flow.dart';
+import 'package:converf/features/billing/models/billing_models.dart';
 import 'package:converf/features/billing/providers/billing_providers.dart';
 import 'widgets/add_ons_section.dart';
 import 'widgets/ai_credits_section.dart';
@@ -38,14 +44,14 @@ class _BillingScreenState extends ConsumerState<BillingScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _checkPendingPayment();
+      _refreshPendingPaymentState();
     }
   }
 
-  void _checkPendingPayment() {
+  void _refreshPendingPaymentState() {
     final pendingRef = ref.read(pendingPaymentReferenceProvider);
     if (pendingRef != null) {
-      ref.read(billingActionProvider.notifier).verify(pendingRef);
+      _refreshBillingData();
     }
   }
 
@@ -178,16 +184,66 @@ class _BillingScreenState extends ConsumerState<BillingScreen>
       final intent = await ref
           .read(billingActionProvider.notifier)
           .subscribe(planId);
-      ref
-          .read(pendingPaymentReferenceProvider.notifier)
-          .setReference(intent.reference);
+
+      if (intent.requiresPayment) {
+        ref
+            .read(pendingPaymentReferenceProvider.notifier)
+            .setReference(intent.reference);
+        if (!mounted) return;
+        await _launchPayment(intent.paymentUrl);
+        return;
+      }
+
       if (!mounted) return;
-      await _launchPayment(intent.paymentUrl);
+      await _completePlanChange(intent);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Subscription failed: $e')));
+    }
+  }
+
+  Future<void> _completePlanChange(PaymentIntent intent) async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      if (intent.hasReference) {
+        ref
+            .read(pendingPaymentReferenceProvider.notifier)
+            .setReference(intent.reference);
+        await ref.read(billingActionProvider.notifier).verify(intent.reference);
+      } else {
+        ref.read(pendingPaymentReferenceProvider.notifier).clear();
+        await _refreshBillingData();
+      }
+
+      if (!mounted) return;
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            intent.message?.trim().isNotEmpty == true
+                ? intent.message!
+                : 'Plan updated successfully.',
+          ),
+          backgroundColor: const Color(0xFF0F973D),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      await Future.delayed(const Duration(milliseconds: 900));
+      if (!mounted) return;
+      _navigateToDashboardHome();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Plan update failed: $e'),
+          backgroundColor: const Color(0xFFD92D20),
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
 
@@ -200,30 +256,41 @@ class _BillingScreenState extends ConsumerState<BillingScreen>
       );
       return;
     }
+
+    final pendingReference = ref.read(pendingPaymentReferenceProvider);
+    debugPrint(
+      '[Billing] launching payment webview for '
+      '${pendingReference ?? 'no-reference'} -> $url',
+    );
+
     if (!mounted) return;
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => PaymentWebView(initialUrl: uri),
+        builder: (_) =>
+            PaymentWebView(initialUrl: uri, reference: pendingReference),
         fullscreenDialog: true,
       ),
     );
 
     if (!mounted) return;
 
+    debugPrint('[Billing] payment webview closed with result=$result');
+
     final messenger = ScaffoldMessenger.of(context);
 
     // If payment was successful, verify and update plan
     if (result == true) {
       try {
-        // Get the pending payment reference
         final pendingRef = ref.read(pendingPaymentReferenceProvider);
 
-        // Verify payment with backend
         if (pendingRef != null) {
           await ref.read(billingActionProvider.notifier).verify(pendingRef);
+        } else {
+          await _refreshBillingData();
         }
 
-        // Show success message
+        await _refreshBillingData();
+
         messenger.showSnackBar(
           const SnackBar(
             content: Text('✓ Payment completed successfully! Plan updated.'),
@@ -232,19 +299,22 @@ class _BillingScreenState extends ConsumerState<BillingScreen>
           ),
         );
 
-        // Small delay to let user see the success message
         await Future.delayed(const Duration(seconds: 1));
         if (!mounted) return;
-        Navigator.of(context).pop();
-      } catch (e) {
+        _navigateToDashboardHome();
+      } catch (_) {
+        await _refreshBillingData();
         if (!mounted) return;
         messenger.showSnackBar(
-          SnackBar(
-            content: Text('Payment verified but plan update failed: $e'),
-            backgroundColor: const Color(0xFFD92D20),
-            duration: const Duration(seconds: 3),
+          const SnackBar(
+            content: Text('Payment received. Refreshing your dashboard now.'),
+            backgroundColor: Color(0xFF0F973D),
+            duration: Duration(seconds: 3),
           ),
         );
+        await Future.delayed(const Duration(seconds: 1));
+        if (!mounted) return;
+        _navigateToDashboardHome();
       }
     } else if (result == false) {
       // Payment failed or was cancelled
@@ -257,7 +327,35 @@ class _BillingScreenState extends ConsumerState<BillingScreen>
       );
     } else {
       // User cancelled without result
-      _checkPendingPayment();
+      _refreshPendingPaymentState();
+    }
+  }
+
+  Future<void> _refreshBillingData() async {
+    ref.invalidate(billingSubscriptionProvider);
+    ref.invalidate(billingTransactionsProvider);
+    ref.invalidate(billingPlansProvider);
+    ref.invalidate(aiCreditsProvider);
+
+    try {
+      await ref.read(billingSubscriptionProvider.future);
+    } catch (_) {
+      // Let the UI show the latest state it can fetch.
+    }
+  }
+
+  void _navigateToDashboardHome() {
+    final role = ref.read(authProvider).asData?.value?.role;
+    final target = dashboardLocationForRole(
+      role ?? UserRole.projectOwner,
+      tab: 'dashboard',
+    );
+
+    appNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+
+    final navContext = appNavigatorKey.currentContext;
+    if (target != null && navContext != null) {
+      GoRouter.of(navContext).go(target);
     }
   }
 }

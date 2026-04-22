@@ -28,7 +28,7 @@ class PendingVerificationBanner extends StatelessWidget {
           const SizedBox(width: 12),
           const Expanded(
             child: Text(
-              'Awaiting payment confirmation...',
+              'Payment is still being confirmed. If you already completed checkout, refresh your plan now.',
               style: TextStyle(
                 fontSize: 14,
                 color: Color(0xFF276572),
@@ -42,11 +42,20 @@ class PendingVerificationBanner extends StatelessWidget {
               backgroundColor: const Color(0xFF276572),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
             ),
             child: actionState.isLoading
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Verify Now', style: TextStyle(fontSize: 12)),
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Refresh Plan', style: TextStyle(fontSize: 12)),
           ),
         ],
       ),

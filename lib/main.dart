@@ -60,8 +60,18 @@ void main() async {
   );
 }
 
-class ConverfApp extends ConsumerWidget {
+class ConverfApp extends ConsumerStatefulWidget {
   const ConverfApp({super.key});
+
+  @override
+  ConsumerState<ConverfApp> createState() => _ConverfAppState();
+}
+
+class _ConverfAppState extends ConsumerState<ConverfApp> {
+  late final ProviderSubscription<dynamic> _authSubscription;
+  late final ProviderSubscription<dynamic> _verificationSubscription;
+  bool _servicesInitialized = false;
+  bool _notificationSyncScheduled = false;
 
   static final _theme = ThemeData(
     colorScheme: ColorScheme.fromSeed(seedColor: AppColors.brand),
@@ -70,19 +80,59 @@ class ConverfApp extends ConsumerWidget {
   );
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.watch(routerProvider);
-    final authState = ref.watch(authProvider);
-    final verificationState = ref.watch(emailVerificationStatusProvider);
+  void initState() {
+    super.initState();
+    _authSubscription = ref.listenManual(
+      authProvider,
+      (_, __) => _scheduleNotificationLifecycleSync(),
+      fireImmediately: true,
+    );
+    _verificationSubscription = ref.listenManual(
+      emailVerificationStatusProvider,
+      (_, __) => _scheduleNotificationLifecycleSync(),
+    );
 
-    unawaited(ref.read(authAppLinksServiceProvider).initialize(router));
-    unawaited(ref.read(firebaseMessagingServiceProvider).initialize(router));
-    ref.read(networkSyncServiceProvider); // Initialize sync service
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _servicesInitialized) {
+        return;
+      }
+      _servicesInitialized = true;
+
+      final router = ref.read(routerProvider);
+      unawaited(ref.read(authAppLinksServiceProvider).initialize(router));
+      unawaited(ref.read(firebaseMessagingServiceProvider).initialize(router));
+      ref.read(networkSyncServiceProvider);
+    });
+  }
+
+  void _scheduleNotificationLifecycleSync() {
+    if (_notificationSyncScheduled) {
+      return;
+    }
+    _notificationSyncScheduled = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notificationSyncScheduled = false;
+      if (!mounted) {
+        return;
+      }
+      _syncNotificationLifecycle();
+    });
+  }
+
+  void _syncNotificationLifecycle() {
+    final authState = ref.read(authProvider);
+    final verificationState = ref.read(emailVerificationStatusProvider);
     unawaited(
       ref
           .read(notificationLifecycleProvider)
           .syncForAuthState(authState, verificationState: verificationState),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
       title: 'Converf',
@@ -97,5 +147,12 @@ class ConverfApp extends ConsumerWidget {
         );
       },
     );
+  }
+
+  @override
+  void dispose() {
+    _authSubscription.close();
+    _verificationSubscription.close();
+    super.dispose();
   }
 }

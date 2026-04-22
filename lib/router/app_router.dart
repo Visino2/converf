@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/ui/app_navigation.dart';
 import '../screens/splash_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/product_owner/product_owner_dashboard_screen.dart';
@@ -23,16 +24,44 @@ import '../screens/contractor/projects/contractor_project_details_screen.dart';
 final routerRefreshProvider = Provider((ref) => RouterRefreshNotifier(ref));
 
 class RouterRefreshNotifier extends ChangeNotifier {
+  bool _refreshScheduled = false;
+  bool _disposed = false;
+
   RouterRefreshNotifier(Ref ref) {
-    ref.listen(authProvider, (_, _) => notifyListeners());
-    ref.listen(emailVerificationStatusProvider, (_, _) => notifyListeners());
-    ref.listen(welcomeSeenRefreshProvider, (_, _) => notifyListeners());
+    ref.listen(authProvider, (_, _) => _scheduleRefresh());
+    ref.listen(emailVerificationStatusProvider, (_, _) => _scheduleRefresh());
+    ref.listen(welcomeSeenRefreshProvider, (_, _) => _scheduleRefresh());
+  }
+
+  void _scheduleRefresh() {
+    if (_refreshScheduled || _disposed) {
+      return;
+    }
+    _refreshScheduled = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(Duration.zero, () {
+        _refreshScheduled = false;
+        if (_disposed) {
+          return;
+        }
+        notifyListeners();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }
+
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = ref.watch(routerRefreshProvider);
 
   return GoRouter(
+    navigatorKey: appNavigatorKey,
     initialLocation: onboardingRoute,
     refreshListenable: refreshNotifier,
     redirect: (context, state) {
@@ -74,12 +103,12 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (verificationState.isLoading) {
         // Stay on current route while checking verification status to prevent flickering
-        return null; 
+        return null;
       }
 
       final verificationStatus =
           verificationState.asData?.value ?? EmailVerificationStatus.unknown;
-      
+
       // Verification Gate: only force verification if EXPLICITLY unverified.
       // We allow 'unknown' to proceed to the dashboard, relying on the dashboard
       // API calls to fail if the user is truly blocked by the backend.
@@ -130,12 +159,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/owner-dashboard',
         name: 'owner-dashboard',
-        builder: (context, state) => const ProductOwnerDashboardScreen(),
+        builder: (context, state) => ProductOwnerDashboardScreen(
+          initialIndex: _ownerDashboardTabIndex(
+            state.uri.queryParameters['tab'],
+          ),
+        ),
       ),
       GoRoute(
         path: '/contractor-dashboard',
         name: 'contractor-dashboard',
-        builder: (context, state) => const ContractorDashboardScreen(),
+        builder: (context, state) => ContractorDashboardScreen(
+          initialIndex: _contractorDashboardTabIndex(
+            state.uri.queryParameters['tab'],
+          ),
+        ),
       ),
       GoRoute(
         path: '/onboarding',
@@ -256,3 +293,31 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+int _ownerDashboardTabIndex(String? tab) {
+  switch (tab?.trim().toLowerCase()) {
+    case 'projects':
+      return 1;
+    case 'team':
+      return 2;
+    case 'more':
+      return 3;
+    case 'dashboard':
+    default:
+      return 0;
+  }
+}
+
+int _contractorDashboardTabIndex(String? tab) {
+  switch (tab?.trim().toLowerCase()) {
+    case 'projects':
+      return 1;
+    case 'marketplace':
+      return 2;
+    case 'tools':
+      return 3;
+    case 'dashboard':
+    default:
+      return 0;
+  }
+}

@@ -43,6 +43,21 @@ String? dashboardRouteForRole(UserRole role) {
   }
 }
 
+String? dashboardLocationForRole(UserRole role, {String? tab}) {
+  final route = dashboardRouteForRole(role);
+  final normalizedTab = tab?.trim() ?? '';
+
+  if (route == null) {
+    return null;
+  }
+
+  if (normalizedTab.isEmpty) {
+    return route;
+  }
+
+  return '$route?${Uri(queryParameters: {'tab': normalizedTab}).query}';
+}
+
 String onboardingLocation({bool login = false}) {
   if (!login) {
     return onboardingRoute;

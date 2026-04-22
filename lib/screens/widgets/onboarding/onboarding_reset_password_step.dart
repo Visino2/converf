@@ -58,8 +58,8 @@ class _OnboardingResetPasswordStepState
     }
     final email = _emailController.text.trim();
     final token = _tokenController.text.trim();
-    final password = _passwordController.text.trim();
-    final confirmPassword = _confirmPasswordController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
 
     await ref
         .read(authProvider.notifier)

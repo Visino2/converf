@@ -10,7 +10,9 @@ import '../../features/auth/models/email_verification_status.dart';
 import '../../features/auth/providers/email_verification_provider.dart';
 
 class ContractorDashboardScreen extends ConsumerStatefulWidget {
-  const ContractorDashboardScreen({super.key});
+  const ContractorDashboardScreen({super.key, this.initialIndex = 0});
+
+  final int initialIndex;
 
   @override
   ConsumerState<ContractorDashboardScreen> createState() =>
@@ -19,19 +21,29 @@ class ContractorDashboardScreen extends ConsumerStatefulWidget {
 
 class _ContractorDashboardScreenState
     extends ConsumerState<ContractorDashboardScreen> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
 
   late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.initialIndex;
     _pages = [
       ContractorDashboardContent(onNavigateToProjects: () => _onItemTapped(1)),
       const ContractorProjectsScreen(),
       const MarketplaceScreen(showBackButton: false),
       const ToolsScreen(),
     ];
+  }
+
+  @override
+  void didUpdateWidget(covariant ContractorDashboardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialIndex != widget.initialIndex &&
+        _selectedIndex != widget.initialIndex) {
+      _selectedIndex = widget.initialIndex;
+    }
   }
 
   void _onItemTapped(int index) {

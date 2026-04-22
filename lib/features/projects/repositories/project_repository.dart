@@ -372,4 +372,19 @@ class ProjectRepository {
     }
     return ProjectResponsibilityResponse.fromJson(response.data);
   }
+
+  Future<void> addContractorParticipant(String projectId, String contractorId) async {
+    debugPrint('--- [REQ] POST /api/v1/projects/$projectId/participants ---');
+    debugPrint('Payload: {contractor_id: $contractorId}');
+    try {
+      await _apiClient.post(
+        '/api/v1/projects/$projectId/participants',
+        data: {'contractor_id': contractorId},
+      );
+      debugPrint('--- [RES] 200 OK - Contractor participant added ---');
+    } catch (e) {
+      debugPrint('--- [ERROR] Failed to add contractor participant: $e ---');
+      rethrow;
+    }
+  }
 }
