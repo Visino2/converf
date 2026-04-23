@@ -325,9 +325,25 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
           final errStr = err.toString().toLowerCase();
           // Only show error messages that aren't about contractor assignment
           if (!errStr.contains('not the assigned contractor')) {
-            String message = 'Error: $err';
+            String message = err.toString();
+            // Remove 'Exception: ' prefix if present
+            if (message.startsWith('Exception: ')) {
+              message = message.substring(10);
+            }
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(message), backgroundColor: Colors.red),
+              SnackBar(
+                content: Text(
+                  message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                backgroundColor: const Color(0xFFDC2626), // Darker red
+                duration: const Duration(seconds: 5),
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(16),
+              ),
             );
           }
         },
@@ -414,11 +430,31 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
     );
 
     if (widget.isEmbedded) {
-      return Column(
-        children: [
-          Expanded(child: content),
-          ...?(bottomBar == null ? null : [bottomBar]),
-        ],
+      return Scaffold(
+        backgroundColor: const Color(0xFFF9FAFB),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios,
+              color: Colors.black,
+              size: 20,
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text(
+            'Create Schedule',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          centerTitle: true,
+        ),
+        body: content,
+        bottomNavigationBar: bottomBar,
       );
     }
 
@@ -572,7 +608,9 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
               const SizedBox(height: 16),
               _buildAddPhaseButton(schedule),
             ],
-            const SizedBox(height: 32),
+            const SizedBox(
+              height: 100,
+            ), // Extra padding for submit bar at bottom
           ],
         ),
       ),
@@ -988,7 +1026,12 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
 
   Widget _buildSubmitBar(Schedule schedule) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        16,
+        20,
+        MediaQuery.of(context).padding.bottom + 16,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -999,22 +1042,28 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
           ),
         ],
       ),
-      child: ElevatedButton(
-        onPressed: () => _confirmSubmitSchedule(schedule),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF276572),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
+      child: SizedBox(
+        width: double.infinity,
+        height: 54,
+        child: ElevatedButton(
+          onPressed: () => _confirmSubmitSchedule(schedule),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF276572),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
+            ),
           ),
-          minimumSize: const Size(double.infinity, 54),
-        ),
-        child: const Text(
-          'Submit Schedule for Approval',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
+          child: const FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              'Submit Schedule for Approval',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
           ),
         ),
       ),
@@ -1045,31 +1094,36 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
             .createScheduleFromProject(widget.projectId!, notes);
       }
 
-      // Invalidate the provider to fetch the newly created schedule
-      if (widget.projectId != null && mounted) {
-        // Give a brief delay for the API to process
-        await Future.delayed(const Duration(milliseconds: 500));
+      // After creating the schedule, return the ID immediately
+      if (!mounted) return;
 
-        // Fetch the updated schedule
-        final scheduleAsync = ref.watch(
-          projectScheduleProvider(widget.projectId!),
-        );
-        scheduleAsync.whenData((schedule) {
-          if (mounted && widget.isEmbedded) {
-            // Return the schedule ID back to the caller
-            Navigator.pop(context, schedule.id);
+      if (widget.projectId != null && widget.isEmbedded) {
+        if (createdSchedule != null) {
+          // Return the created schedule ID immediately
+          Navigator.pop(context, createdSchedule.id);
+        } else {
+          // If created via bidId, give a brief delay and return
+          await Future.delayed(const Duration(milliseconds: 300));
+          if (mounted) {
+            Navigator.pop(context);
           }
-        });
-      } else if (createdSchedule != null && mounted && widget.isEmbedded) {
+        }
+      } else if (createdSchedule != null && widget.isEmbedded) {
         // For standalone schedules, return the created schedule ID immediately
         Navigator.pop(context, createdSchedule.id);
       }
     } catch (e) {
       if (mounted) {
+        String errorMsg = e.toString();
+        if (errorMsg.contains('403') || errorMsg.contains('unauthorized')) {
+          errorMsg =
+              'Submit your bid first, then add a schedule from bid details.';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error creating schedule: $e'),
+            content: Text('Error: $errorMsg'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -1120,10 +1174,16 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMsg = e.toString();
+        if (errorMsg.contains('403') || errorMsg.contains('unauthorized')) {
+          errorMsg =
+              'Submit your bid first, then add a schedule from bid details.';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error creating schedule: $e'),
+            content: Text('Error: $errorMsg'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }

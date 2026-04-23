@@ -141,15 +141,15 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Create Schedule'),
+        title: const Text('Add Schedule'),
         content: const Text(
-          'You need to create a schedule before submitting your bid.',
+          'You can add a schedule now, but schedules must be created after you submit your bid.\n\nYou can submit your bid first and add a schedule later from the bid details.',
           style: TextStyle(fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Skip for Now'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -159,7 +159,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                 MaterialPageRoute(
                   builder: (_) => ScheduleScreen(
                     projectId: widget.projectId,
-                    isEmbedded: false,
+                    isEmbedded: true,
                   ),
                 ),
               );
@@ -169,7 +169,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                 });
               }
             },
-            child: const Text('Add Schedule (Optional)'),
+            child: const Text('Try to Add Schedule'),
           ),
         ],
       ),

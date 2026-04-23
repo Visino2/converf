@@ -87,8 +87,16 @@ class _SchedulePhaseDialogState extends State<SchedulePhaseDialog> {
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF276572),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
           ),
-          child: const Text('Save'),
+          child: const Text(
+            'Save',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
         ),
       ],
     );

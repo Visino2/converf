@@ -106,8 +106,9 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
                     ),
                     lastDate: DateTime(2100),
                   );
-                  if (date != null)
+                  if (date != null) {
                     notifier.updateTimelineBudget(endDate: date);
+                  }
                 },
               ),
             ),
@@ -316,8 +317,9 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
                     state.startDate?.subtract(const Duration(days: 1)) ??
                     DateTime(2100),
               );
-              if (date != null)
+              if (date != null) {
                 notifier.updateTimelineBudget(biddingDeadline: date);
+              }
             },
           ),
         ],

@@ -84,12 +84,12 @@ class _ConverfAppState extends ConsumerState<ConverfApp> {
     super.initState();
     _authSubscription = ref.listenManual(
       authProvider,
-      (_, __) => _scheduleNotificationLifecycleSync(),
+      (_, _) => _scheduleNotificationLifecycleSync(),
       fireImmediately: true,
     );
     _verificationSubscription = ref.listenManual(
       emailVerificationStatusProvider,
-      (_, __) => _scheduleNotificationLifecycleSync(),
+      (_, _) => _scheduleNotificationLifecycleSync(),
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {

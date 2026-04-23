@@ -1690,11 +1690,14 @@ class _FinancialModal extends ConsumerWidget {
                           final errStr = error.toString().toLowerCase();
                           bool isNotFound = false;
                           if (error is ApiException &&
-                              error.statusCode == 404) {
+                              (error.statusCode == 404 ||
+                                  error.statusCode == 403)) {
                             isNotFound = true;
                           }
                           if (errStr.contains('404') ||
-                              errStr.contains('no query results')) {
+                              errStr.contains('403') ||
+                              errStr.contains('no query results') ||
+                              errStr.contains('unauthorized')) {
                             isNotFound = true;
                           }
 
