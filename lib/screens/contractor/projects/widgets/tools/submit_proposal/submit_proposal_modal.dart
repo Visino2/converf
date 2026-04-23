@@ -138,11 +138,35 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
   }
 
   void _selectSchedule() {
-    setState(() {
-      _selectedScheduleId = _selectedScheduleId == null
-          ? 'schedule-uuid-${DateTime.now().millisecondsSinceEpoch}'
-          : null;
-    });
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select a Schedule'),
+        content: const Text(
+          'Create a new schedule for this bid, or use an existing one.',
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Navigate to schedule creation
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ScheduleScreen(projectId: widget.projectId),
+                ),
+              );
+            },
+            child: const Text('Create New Schedule'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -313,8 +337,8 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                   ),
                   label: Text(
                     _selectedScheduleId == null
-                        ? 'Select a schedule'
-                        : 'Schedule selected: ${_selectedScheduleId!.substring(0, 8)}',
+                        ? 'Create a schedule'
+                        : 'Schedule: ${_selectedScheduleId!.substring(0, 8)}...',
                     style: const TextStyle(
                       color: Color(0xFF276572),
                       fontWeight: FontWeight.w600,
