@@ -877,14 +877,37 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
     final notes = await _showNotesDialog();
     if (notes == null) return;
 
-    if (widget.bidId != null) {
-      await ref
-          .read(scheduleActionProvider.notifier)
-          .createScheduleFromBid(widget.bidId!, notes, projectId: widget.projectId);
-    } else if (widget.projectId != null) {
-      await ref
-          .read(scheduleActionProvider.notifier)
-          .createScheduleFromProject(widget.projectId!, notes);
+    try {
+      if (widget.bidId != null) {
+        await ref
+            .read(scheduleActionProvider.notifier)
+            .createScheduleFromBid(widget.bidId!, notes, projectId: widget.projectId);
+      } else if (widget.projectId != null) {
+        await ref
+            .read(scheduleActionProvider.notifier)
+            .createScheduleFromProject(widget.projectId!, notes);
+      }
+
+      // Invalidate the provider to fetch the newly created schedule
+      if (widget.projectId != null && mounted) {
+        // Give a brief delay for the API to process
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // Fetch the updated schedule
+        final scheduleAsync = ref.watch(projectScheduleProvider(widget.projectId!));
+        scheduleAsync.whenData((schedule) {
+          if (mounted && widget.isEmbedded) {
+            // Return the schedule ID back to the caller
+            Navigator.pop(context, schedule.id);
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error creating schedule: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -911,17 +934,25 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
           ref.invalidate(projectScheduleProvider(widget.projectId!));
         }
 
-        // 3. Immediately push to library import
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ScheduleLibraryImportScreen(
-              scheduleId: schedule!.id,
-              projectId: widget.projectId,
-              bidId: widget.bidId,
+        // If this is embedded (called from bid submission), return the schedule ID
+        if (widget.isEmbedded) {
+          Navigator.pop(context, schedule.id);
+          return;
+        }
+
+        // 3. Otherwise proceed to library import
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ScheduleLibraryImportScreen(
+                scheduleId: schedule!.id,
+                projectId: widget.projectId,
+                bidId: widget.bidId,
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

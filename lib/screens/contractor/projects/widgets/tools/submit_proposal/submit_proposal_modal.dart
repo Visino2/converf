@@ -141,9 +141,9 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select a Schedule'),
+        title: const Text('Create Schedule'),
         content: const Text(
-          'Create a new schedule for this bid, or use an existing one.',
+          'You need to create a schedule before submitting your bid.',
           style: TextStyle(fontSize: 14),
         ),
         actions: [
@@ -154,15 +154,26 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
           ElevatedButton(
             onPressed: () {
               // Navigate to schedule creation
+              // Pass projectId so schedule can be created for this project
               Navigator.pop(context);
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => ScheduleScreen(projectId: widget.projectId),
+                  builder: (_) => ScheduleScreen(
+                    projectId: widget.projectId,
+                    isEmbedded: true, // Signal that we're in bid submission flow
+                  ),
                 ),
-              );
+              ).then((scheduleId) {
+                // After schedule is created, get the schedule ID back
+                if (scheduleId != null && scheduleId is String) {
+                  setState(() {
+                    _selectedScheduleId = scheduleId;
+                  });
+                }
+              });
             },
-            child: const Text('Create New Schedule'),
+            child: const Text('Create Schedule'),
           ),
         ],
       ),
