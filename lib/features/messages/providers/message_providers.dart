@@ -13,7 +13,7 @@ final projectMessagesProvider = StreamProvider.autoDispose.family<List<Message>,
     'project.message.sent',
     '.project.message.sent',
   };
-  
+
   // Initial fetch
   try {
     await repository.markMessagesRead(projectId);
@@ -23,41 +23,67 @@ final projectMessagesProvider = StreamProvider.autoDispose.family<List<Message>,
   yield currentMessages;
 
   final controller = StreamController<List<Message>>();
-  
-  final channel = await pusherService.subscribeToProject(projectId);
-  final subscriptions = <StreamSubscription<dynamic>>[];
 
-  for (final eventName in eventNames) {
-    final subscription = channel.bind(eventName).listen((event) {
-      final data = event.data;
-      if (data != null && data is Map) {
-        try {
-          if (data['message'] != null) {
-            final messageMap = Map<String, dynamic>.from(data['message']);
-            final newMessage = Message.fromJson(messageMap);
-            if (!currentMessages.any((m) => m.id == newMessage.id)) {
-              currentMessages = [...currentMessages, newMessage];
-              ref.invalidate(notificationsProvider(false));
-              ref.invalidate(notificationsProvider(true));
-              ref.invalidate(unreadNotificationsCountProvider);
-              if (!controller.isClosed) {
-                controller.add(currentMessages);
+  void updateMessages(List<Message> updated) {
+    currentMessages = updated;
+    ref.invalidate(notificationsProvider(false));
+    ref.invalidate(notificationsProvider(true));
+    ref.invalidate(unreadNotificationsCountProvider);
+    if (!controller.isClosed) controller.add(currentMessages);
+  }
+
+  // Pusher real-time subscription
+  final subscriptions = <StreamSubscription<dynamic>>[];
+  bool pusherConnected = false;
+  try {
+    final channel = await pusherService.subscribeToProject(projectId);
+    pusherConnected = true;
+    for (final eventName in eventNames) {
+      final subscription = channel.bind(eventName).listen((event) {
+        final data = event.data;
+        if (data != null && data is Map) {
+          try {
+            if (data['message'] != null) {
+              final messageMap = Map<String, dynamic>.from(data['message'] as Map);
+              final newMessage = Message.fromJson(messageMap);
+              if (!currentMessages.any((m) => m.id == newMessage.id)) {
+                updateMessages([...currentMessages, newMessage]);
               }
             }
+          } catch (e) {
+            debugPrint("[projectMessagesProvider] Error: $e");
           }
-        } catch (e) {
-          debugPrint("[projectMessagesProvider] Error: $e");
         }
-      }
-    });
-    subscriptions.add(subscription);
+      });
+      subscriptions.add(subscription);
+    }
+  } catch (e) {
+    debugPrint("[projectMessagesProvider] Pusher unavailable, using polling: $e");
+    pusherConnected = false;
   }
+
+  // Polling fallback — runs every 8 seconds when Pusher is unavailable,
+  // or every 15 seconds as a safety net when Pusher is connected.
+  final pollInterval = pusherConnected
+      ? const Duration(seconds: 15)
+      : const Duration(seconds: 8);
+  final pollTimer = Timer.periodic(pollInterval, (_) async {
+    try {
+      final latest = await repository.fetchProjectMessages(projectId);
+      final existingIds = currentMessages.map((m) => m.id).toSet();
+      final hasNew = latest.any((m) => !existingIds.contains(m.id));
+      if (hasNew) {
+        updateMessages(latest);
+      }
+    } catch (_) {}
+  });
 
   ref.onDispose(() {
     for (final subscription in subscriptions) {
       subscription.cancel();
     }
     pusherService.unsubscribe('private-project.$projectId');
+    pollTimer.cancel();
     controller.close();
   });
 

@@ -29,6 +29,7 @@ class HelpSupportScreen extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

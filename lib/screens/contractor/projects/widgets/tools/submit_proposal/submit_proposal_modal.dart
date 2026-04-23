@@ -91,7 +91,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
       if (mounted) {
         setState(() {
           _isSuccess = true;
-          _submittedBidId = response.data?.id ?? 'N/A';
+          _submittedBidId = response.data?.id;
         });
       }
     } catch (e) {
@@ -139,7 +139,9 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
 
   void _selectSchedule() {
     setState(() {
-      _selectedScheduleId = _selectedScheduleId == null ? 'schedule-123' : null;
+      _selectedScheduleId = _selectedScheduleId == null
+          ? 'schedule-uuid-${DateTime.now().millisecondsSinceEpoch}'
+          : null;
     });
   }
 
@@ -204,7 +206,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    const Text(
                       'Enter your bid amount and proposal.',
                       style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
                     ),
@@ -223,10 +225,14 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
         // Scrollable Body
         Flexible(
           child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Amount
                 const Text(
                   'Your bid amount',
                   style: TextStyle(
@@ -273,10 +279,63 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
-
                 const SizedBox(height: 24),
 
-                // Proposal Section
+                // Attach Schedule
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Attach Schedule',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF344054),
+                      ),
+                    ),
+                    const Text(
+                      'Required',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFB42318),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: isLoading ? null : _selectSchedule,
+                  icon: const Icon(
+                    Icons.calendar_today,
+                    size: 18,
+                    color: Color(0xFF276572),
+                  ),
+                  label: Text(
+                    _selectedScheduleId == null
+                        ? 'Select a schedule'
+                        : 'Schedule selected: ${_selectedScheduleId!.substring(0, 8)}',
+                    style: const TextStyle(
+                      color: Color(0xFF276572),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 16,
+                    ),
+                    side: const BorderSide(color: Color(0xFFD0D5DD)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    minimumSize: const Size(double.infinity, 48),
+                    alignment: Alignment.centerLeft,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Proposal
                 const Text(
                   'Proposal',
                   style: TextStyle(
@@ -288,9 +347,9 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: _proposalController,
-                  maxLines: 8,
+                  maxLines: 6,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     color: Color(0xFF101828),
                   ),
                   decoration: InputDecoration(
@@ -314,71 +373,6 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                     ),
                   ),
                   onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 24),
-
-                // Schedule Selection (Required)
-                const Text(
-                  'Attach Schedule',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF344054),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Required',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFFB42318),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: isLoading ? null : _selectSchedule,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 14,
-                    ),
-                    side: const BorderSide(color: Color(0xFFD0D5DD)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    alignment: Alignment.centerLeft,
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_today,
-                        size: 18,
-                        color: Color(0xFF276572),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _selectedScheduleId == null
-                              ? 'Select a schedule'
-                              : 'Schedule selected: $_selectedScheduleId',
-                          style: TextStyle(
-                            color: _selectedScheduleId == null
-                                ? const Color(0xFF667085)
-                                : const Color(0xFF276572),
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const Icon(
-                        Icons.arrow_forward_ios,
-                        size: 14,
-                        color: Color(0xFF667085),
-                      ),
-                    ],
-                  ),
                 ),
                 const SizedBox(height: 24),
 
@@ -489,7 +483,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                     },
                   ),
                 ],
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 const Text(
                   'Up to 5 files, 10MB each. Allowed: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, JPEG.',
                   style: TextStyle(fontSize: 12, color: Color(0xFF667085)),
@@ -500,6 +494,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
         ),
 
         // Footer
+        const Divider(height: 1, color: Color(0xFFF2F4F7)),
         Padding(
           padding: const EdgeInsets.all(24.0),
           child: Row(
@@ -571,7 +566,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: const BoxDecoration(
-              color: Color(0xFF16A34A), // Vibrant green from screenshot
+              color: Color(0xFF099137),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.check, size: 48, color: Colors.white),
@@ -622,39 +617,46 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
             style: TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
           ),
           const SizedBox(height: 48),
-          // Submit Schedule Button (Primary)
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Close modal
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ScheduleScreen(projectId: widget.projectId),
+
+          // Submit Schedule (creates schedule linked to this specific bid)
+          if (_submittedBidId != null)
+            ElevatedButton(
+              onPressed: () {
+                final bidId = _submittedBidId!;
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ScheduleScreen(
+                      bidId: bidId,
+                      projectId: widget.projectId,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF276572),
+                minimumSize: const Size(double.infinity, 56),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF276572),
-              minimumSize: const Size(double.infinity, 56),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                elevation: 0,
               ),
-              elevation: 0,
-            ),
-            child: const Text(
-              'Submit Schedule',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+              child: const Text(
+                'Submit Schedule',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ),
-          ),
           const SizedBox(height: 12),
-          // Go to My Bids Button (Outlined with Arrow Icon)
+
+          // Go to My Bids
           OutlinedButton(
             onPressed: () {
-              Navigator.pop(context); // Close modal
+              Navigator.pop(context);
               Navigator.push(
                 context,
                 MaterialPageRoute(

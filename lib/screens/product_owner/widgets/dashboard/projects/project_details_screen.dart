@@ -452,6 +452,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
           return ExcludeSemantics(
             child: SafeArea(
               child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

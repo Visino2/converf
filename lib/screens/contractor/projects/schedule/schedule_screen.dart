@@ -93,6 +93,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
 
   Widget _buildScheduleSkeleton() {
     return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -388,6 +389,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
         return ref.refresh(projectScheduleProvider(widget.projectId!).future);
       },
       child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -878,7 +880,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
     if (widget.bidId != null) {
       await ref
           .read(scheduleActionProvider.notifier)
-          .createScheduleFromBid(widget.bidId!, notes);
+          .createScheduleFromBid(widget.bidId!, notes, projectId: widget.projectId);
     } else if (widget.projectId != null) {
       await ref
           .read(scheduleActionProvider.notifier)

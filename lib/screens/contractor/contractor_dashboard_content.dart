@@ -160,8 +160,8 @@ class _ContractorHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final unreadCount = ref.watch(unreadNotificationsCountProvider).asData?.value ?? 0;
-    final unreadMessageCount = ref.watch(unreadMessageNotificationsCountProvider).asData?.value ?? 0;
+    final unreadCount = ref.watch(unreadNotificationsCountProvider);
+    final unreadMessageCount = ref.watch(unreadMessageNotificationsCountProvider);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -305,8 +305,8 @@ class _ContractorDashboardBodyState extends ConsumerState<_ContractorDashboardBo
       onRefresh: () async {
         ref.invalidate(assignedProjectsProvider(1));
         ref.invalidate(dashboardStatsProvider);
-        ref.invalidate(unreadNotificationsCountProvider);
-        ref.invalidate(unreadMessageNotificationsCountProvider);
+        ref.invalidate(notificationsProvider(true));
+        ref.invalidate(notificationsProvider(false));
       },
       color: const Color(0xFF2A8090),
       child: SingleChildScrollView(
@@ -374,7 +374,7 @@ class _ContractorMetricsGrid extends ConsumerWidget {
               mainAxisSpacing: 16,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: 1.25,
+              childAspectRatio: 1.4,
               children: [
                 _buildMetricCard(
                   'Active Tasks',
@@ -489,7 +489,7 @@ class _ContractorMetricsGrid extends ConsumerWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -506,26 +506,21 @@ class _ContractorMetricsGrid extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    shape: BoxShape.circle,
-                  ),
-                  child: SvgPicture.asset(
-                    iconPath,
-                    width: 24,
-                    height: 24,
-                    colorFilter: ColorFilter.mode(
-                      iconColor,
-                      BlendMode.srcIn,
-                    ),
-                  ),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: bgColor,
+                shape: BoxShape.circle,
+              ),
+              child: SvgPicture.asset(
+                iconPath,
+                width: 20,
+                height: 20,
+                colorFilter: ColorFilter.mode(
+                  iconColor,
+                  BlendMode.srcIn,
                 ),
-              ],
+              ),
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,12 +528,14 @@ class _ContractorMetricsGrid extends ConsumerWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF667085),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   value,
                   style: const TextStyle(

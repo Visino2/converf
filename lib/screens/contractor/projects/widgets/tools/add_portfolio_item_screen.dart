@@ -145,6 +145,7 @@ class _AddPortfolioItemScreenState extends ConsumerState<AddPortfolioItemScreen>
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

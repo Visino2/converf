@@ -44,8 +44,6 @@ class _NotificationCenterScreenState
         debugPrint('[Notifications] Auto-refreshing notifications...');
         ref.invalidate(notificationsProvider(false));
         ref.invalidate(notificationsProvider(true));
-        ref.invalidate(unreadNotificationsCountProvider);
-        ref.invalidate(unreadMessageNotificationsCountProvider);
       }
     });
   }
@@ -309,6 +307,7 @@ class _NotificationCenterScreenState
         await ref.read(notificationsProvider(_showUnreadOnly).future);
       },
       child: ListView.separated(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         itemCount: notifications.length,
         separatorBuilder: (context, index) => const SizedBox(height: 12),
@@ -499,6 +498,7 @@ class _NotificationCenterScreenState
         final sections = _buildPreferenceSections(role, settings);
 
         return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

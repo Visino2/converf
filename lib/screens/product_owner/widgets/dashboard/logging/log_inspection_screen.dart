@@ -106,6 +106,7 @@ class _LogInspectionScreenState extends ConsumerState<LogInspectionScreen> {
         centerTitle: true,
       ),
       body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,

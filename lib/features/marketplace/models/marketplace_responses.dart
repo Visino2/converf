@@ -87,26 +87,12 @@ class SubmitBidPayload {
   final double amount;
   final String proposal;
   final String? scheduleId;
-  final String? duration;
-  final String? paymentPreference;
-  final List<Map<String, dynamic>>? milestones;
-  final List<String>? teamMembers;
-  final List<String>? equipment;
-  final List<String>? portfolioProjects;
-  final List<Map<String, dynamic>>? certifications;
   final List<String>? documentPaths;
 
   const SubmitBidPayload({
     required this.amount,
     required this.proposal,
     this.scheduleId,
-    this.duration,
-    this.paymentPreference,
-    this.milestones,
-    this.teamMembers,
-    this.equipment,
-    this.portfolioProjects,
-    this.certifications,
     this.documentPaths,
   });
 
@@ -115,13 +101,7 @@ class SubmitBidPayload {
       'amount': amount,
       'proposal': proposal,
       'schedule_id': scheduleId,
-      if (duration != null) 'duration': duration,
-      if (paymentPreference != null) 'payment_preference': paymentPreference,
-      if (milestones != null) 'milestones': milestones,
-      if (teamMembers != null) 'team_members': teamMembers,
-      if (equipment != null) 'equipment': equipment,
-      if (portfolioProjects != null) 'portfolio_projects': portfolioProjects,
-      if (certifications != null) 'certifications': certifications,
+      if (documentPaths != null) 'documents': documentPaths,
     };
   }
 }

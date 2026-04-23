@@ -87,6 +87,7 @@ class ToolsScreen extends ConsumerWidget {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

@@ -86,6 +86,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen>
         centerTitle: true,
       ),
       body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

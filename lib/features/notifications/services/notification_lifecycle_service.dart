@@ -274,8 +274,6 @@ class NotificationLifecycleService {
 
       _ref.invalidate(notificationsProvider(false));
       _ref.invalidate(notificationsProvider(true));
-      _ref.invalidate(unreadNotificationsCountProvider);
-      _ref.invalidate(unreadMessageNotificationsCountProvider);
 
       final senderName = [
         message.sender?.firstName ?? '',
@@ -344,8 +342,6 @@ class NotificationLifecycleService {
     _notificationPoller = Timer.periodic(const Duration(seconds: 30), (_) {
       _ref.invalidate(notificationsProvider(false));
       _ref.invalidate(notificationsProvider(true));
-      _ref.invalidate(unreadNotificationsCountProvider);
-      _ref.invalidate(unreadMessageNotificationsCountProvider);
     });
   }
 

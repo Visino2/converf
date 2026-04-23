@@ -207,6 +207,7 @@ class _MessageDetailsScreenState extends ConsumerState<MessageDetailsScreen> {
 
                 return ListView(
                   controller: _scrollController,
+                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                   padding: const EdgeInsets.all(16.0),
                   children: [
                     if (_searchQuery.isEmpty)

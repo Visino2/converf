@@ -144,6 +144,10 @@ class _ContractorProjectDetailsScreenState
           // But usually we want to check if the CURRENT user is that contractor.
 
           return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
@@ -1523,15 +1527,12 @@ class _ExpandableDescriptionState extends State<_ExpandableDescription> {
               height: 1.5,
             ),
           ),
-          secondChild: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Text(
-              widget.description,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF475467),
-                height: 1.5,
-              ),
+          secondChild: Text(
+            widget.description,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF475467),
+              height: 1.5,
             ),
           ),
           crossFadeState: _expanded

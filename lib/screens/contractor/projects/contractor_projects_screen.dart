@@ -192,6 +192,7 @@ class _ContractorProjectsScreenState
     }
 
     return ListView.separated(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       padding: EdgeInsets.zero,
       cacheExtent: 500,
       itemCount: projects.length,

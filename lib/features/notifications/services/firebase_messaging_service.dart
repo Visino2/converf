@@ -214,7 +214,5 @@ class FirebaseMessagingService {
   void _invalidateNotificationCaches() {
     _ref.invalidate(notificationsProvider(false));
     _ref.invalidate(notificationsProvider(true));
-    _ref.invalidate(unreadNotificationsCountProvider);
-    _ref.invalidate(unreadMessageNotificationsCountProvider);
   }
 }

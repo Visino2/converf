@@ -97,6 +97,7 @@ class _ContractorProfileScreenState
 
   Widget _buildContent(UserProfile profile) {
     return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

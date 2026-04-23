@@ -195,6 +195,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
         centerTitle: true,
       ),
       body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
         child: Form(
           key: _formKey,

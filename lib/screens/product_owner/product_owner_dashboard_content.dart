@@ -298,10 +298,8 @@ class _DashboardHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final unreadCount =
-        ref.watch(unreadNotificationsCountProvider).asData?.value ?? 0;
-    final unreadMessageCount =
-        ref.watch(unreadMessageNotificationsCountProvider).asData?.value ?? 0;
+    final unreadCount = ref.watch(unreadNotificationsCountProvider);
+    final unreadMessageCount = ref.watch(unreadMessageNotificationsCountProvider);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -201,6 +201,7 @@ class _ProfileInformationScreenState
           _syncFromProfile(profile);
           final serverError = _formError ?? (actionState.hasError ? actionState.error.toString() : null);
           return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
             child: Form(
               key: _formKey,
