@@ -15,17 +15,30 @@ class ScheduleRepository {
 
   // --- ACTIVITIES ---
 
-  Future<List<ScheduleActivity>> getActivities(String scheduleId, String phaseId) async {
-    final response = await _apiClient.get('/api/v1/schedules/$scheduleId/phases/$phaseId/activities');
+  Future<List<ScheduleActivity>> getActivities(
+    String scheduleId,
+    String phaseId,
+  ) async {
+    final response = await _apiClient.get(
+      '/api/v1/schedules/$scheduleId/phases/$phaseId/activities',
+    );
     if (response.data is List) {
-      return (response.data as List).map((e) => ScheduleActivity.fromJson(e)).toList();
+      return (response.data as List)
+          .map((e) => ScheduleActivity.fromJson(e))
+          .toList();
     } else if (response.data is Map && response.data['data'] is List) {
-      return (response.data['data'] as List).map((e) => ScheduleActivity.fromJson(e)).toList();
+      return (response.data['data'] as List)
+          .map((e) => ScheduleActivity.fromJson(e))
+          .toList();
     }
     throw Exception("Invalid response format from server");
   }
 
-  Future<ScheduleActivity> createActivity(String scheduleId, String phaseId, Map<String, dynamic> data) async {
+  Future<ScheduleActivity> createActivity(
+    String scheduleId,
+    String phaseId,
+    Map<String, dynamic> data,
+  ) async {
     final response = await _apiClient.post(
       '/api/v1/schedules/$scheduleId/phases/$phaseId/activities',
       data: data,
@@ -38,30 +51,50 @@ class ScheduleRepository {
     throw Exception("Invalid response format from server");
   }
 
-  Future<void> updateActivity(String scheduleId, String phaseId, String activityId, Map<String, dynamic> data) async {
+  Future<void> updateActivity(
+    String scheduleId,
+    String phaseId,
+    String activityId,
+    Map<String, dynamic> data,
+  ) async {
     await _apiClient.patch(
       '/api/v1/schedules/$scheduleId/phases/$phaseId/activities/$activityId',
       data: data,
     );
   }
 
-  Future<void> deleteActivity(String scheduleId, String phaseId, String activityId) async {
-    await _apiClient.delete('/api/v1/schedules/$scheduleId/phases/$phaseId/activities/$activityId');
+  Future<void> deleteActivity(
+    String scheduleId,
+    String phaseId,
+    String activityId,
+  ) async {
+    await _apiClient.delete(
+      '/api/v1/schedules/$scheduleId/phases/$phaseId/activities/$activityId',
+    );
   }
 
   // --- PHASES ---
 
   Future<List<SchedulePhase>> getPhases(String scheduleId) async {
-    final response = await _apiClient.get('/api/v1/schedules/$scheduleId/phases');
+    final response = await _apiClient.get(
+      '/api/v1/schedules/$scheduleId/phases',
+    );
     if (response.data is List) {
-      return (response.data as List).map((e) => SchedulePhase.fromJson(e)).toList();
+      return (response.data as List)
+          .map((e) => SchedulePhase.fromJson(e))
+          .toList();
     } else if (response.data is Map && response.data['data'] is List) {
-      return (response.data['data'] as List).map((e) => SchedulePhase.fromJson(e)).toList();
+      return (response.data['data'] as List)
+          .map((e) => SchedulePhase.fromJson(e))
+          .toList();
     }
     throw Exception("Invalid response format from server");
   }
 
-  Future<SchedulePhase> createPhase(String scheduleId, Map<String, dynamic> data) async {
+  Future<SchedulePhase> createPhase(
+    String scheduleId,
+    Map<String, dynamic> data,
+  ) async {
     final response = await _apiClient.post(
       '/api/v1/schedules/$scheduleId/phases',
       data: data,
@@ -73,7 +106,11 @@ class ScheduleRepository {
     throw Exception("Invalid response format from server");
   }
 
-  Future<void> updatePhase(String scheduleId, String phaseId, Map<String, dynamic> data) async {
+  Future<void> updatePhase(
+    String scheduleId,
+    String phaseId,
+    Map<String, dynamic> data,
+  ) async {
     await _apiClient.patch(
       '/api/v1/schedules/$scheduleId/phases/$phaseId',
       data: data,
@@ -86,12 +123,13 @@ class ScheduleRepository {
 
   // --- SCHEDULE CREATION & VIEWING ---
 
-  Future<Schedule> createScheduleFromBid(String bidId, String contractorNotes) async {
+  Future<Schedule> createScheduleFromBid(
+    String bidId,
+    String contractorNotes,
+  ) async {
     final response = await _apiClient.post(
       '/api/v1/bids/$bidId/schedule',
-      data: {
-        'contractor_notes': contractorNotes,
-      },
+      data: {'contractor_notes': contractorNotes},
     );
     if (response.data is Map<String, dynamic>) {
       final map = response.data['data'] ?? response.data;
@@ -100,19 +138,25 @@ class ScheduleRepository {
     throw Exception("Invalid response format from server");
   }
 
-  Future<void> submitScheduleFromBid(String bidId, String contractorNotes) async {
+  Future<void> submitScheduleFromBid(
+    String bidId,
+    String contractorNotes,
+  ) async {
     await _apiClient.post(
       '/api/v1/bids/$bidId/schedule/submit',
       data: {'contractor_notes': contractorNotes},
     );
   }
 
-  Future<Schedule> createScheduleFromProject(String projectId, String contractorNotes) async {
+  /// Create a draft schedule for a project before bidding
+  /// Endpoint: POST /api/v1/projects/{projectId}/schedule/pre-bid
+  Future<Schedule> createScheduleFromProject(
+    String projectId,
+    String contractorNotes,
+  ) async {
     final response = await _apiClient.post(
-      '/api/v1/projects/$projectId/schedule',
-      data: {
-        'contractor_notes': contractorNotes,
-      },
+      '/api/v1/projects/$projectId/schedule/pre-bid',
+      data: {'contractor_notes': contractorNotes},
     );
     if (response.data is Map<String, dynamic>) {
       final map = response.data['data'] ?? response.data;
@@ -131,7 +175,9 @@ class ScheduleRepository {
   }
 
   Future<Schedule> getProjectScheduleDetail(String projectId) async {
-    final response = await _apiClient.get('/api/v1/projects/$projectId/schedule');
+    final response = await _apiClient.get(
+      '/api/v1/projects/$projectId/schedule',
+    );
     if (response.data is Map<String, dynamic>) {
       final map = response.data['data'] ?? response.data;
       return Schedule.fromJson(map);
@@ -139,15 +185,15 @@ class ScheduleRepository {
     throw Exception("Invalid response format from server");
   }
 
-
   // --- SCHEDULE ACTIONS ---
 
-  Future<void> importTemplates(String scheduleId, List<ScheduleImportSelection> selections) async {
+  Future<void> importTemplates(
+    String scheduleId,
+    List<ScheduleImportSelection> selections,
+  ) async {
     await _apiClient.post(
       '/api/v1/schedules/$scheduleId/import',
-      data: {
-        'selections': selections.map((s) => s.toJson()).toList(),
-      },
+      data: {'selections': selections.map((s) => s.toJson()).toList()},
     );
   }
 

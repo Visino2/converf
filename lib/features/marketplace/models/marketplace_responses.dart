@@ -100,7 +100,7 @@ class SubmitBidPayload {
     return {
       'amount': amount,
       'proposal': proposal,
-      'schedule_id': scheduleId,
+      if (scheduleId != null) 'schedule_id': scheduleId,
       if (documentPaths != null) 'documents': documentPaths,
     };
   }

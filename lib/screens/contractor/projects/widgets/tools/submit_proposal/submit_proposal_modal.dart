@@ -63,8 +63,8 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
     final amount = double.tryParse(text);
     return amount != null &&
         amount > 0 &&
-        _proposalController.text.trim().length >= 20 &&
-        _selectedScheduleId != null;
+        _proposalController.text.trim().length >= 20;
+    // Note: Schedule is optional for initial bid submission
   }
 
   Future<void> _submitBid() async {
@@ -152,28 +152,24 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              // Navigate to schedule creation
-              // Pass projectId so schedule can be created for this project
+            onPressed: () async {
               Navigator.pop(context);
-              Navigator.push(
+              final scheduleId = await Navigator.push<String>(
                 context,
                 MaterialPageRoute(
                   builder: (_) => ScheduleScreen(
                     projectId: widget.projectId,
-                    isEmbedded: true, // Signal that we're in bid submission flow
+                    isEmbedded: false,
                   ),
                 ),
-              ).then((scheduleId) {
-                // After schedule is created, get the schedule ID back
-                if (scheduleId != null && scheduleId is String) {
-                  setState(() {
-                    _selectedScheduleId = scheduleId;
-                  });
-                }
-              });
+              );
+              if (scheduleId != null) {
+                setState(() {
+                  _selectedScheduleId = scheduleId;
+                });
+              }
             },
-            child: const Text('Create Schedule'),
+            child: const Text('Add Schedule (Optional)'),
           ),
         ],
       ),
