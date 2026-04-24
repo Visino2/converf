@@ -1,18 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../features/projects/models/project.dart';
+import '../../../../../features/projects/providers/project_summary_providers.dart';
 import 'project_details_screen.dart';
 import '../new_project_modal.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class ProjectCard extends StatelessWidget {
+class ProjectCard extends ConsumerWidget {
   final Project project;
   final bool hasAlert;
 
   const ProjectCard({super.key, required this.project, this.hasAlert = false});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summaryAsync = ref.watch(projectSummaryProvider(project.id));
+    
+    return summaryAsync.when(
+      data: (summary) => _buildProjectCard(context, summary.progressValue),
+      loading: () => _buildProjectCard(context, 0),
+      error: (err, stack) => _buildProjectCard(context, 0),
+    );
+  }
+
+  Widget _buildProjectCard(BuildContext context, int progressPercentage) {
     return GestureDetector(
       onTap: () {
         if (project.status == ProjectStatus.draft || project.currentStep < 5) {
@@ -228,10 +240,7 @@ class ProjectCard extends StatelessWidget {
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(4),
                               child: LinearProgressIndicator(
-                                value: (project.currentStep / 6).clamp(
-                                  0.0,
-                                  1.0,
-                                ),
+                                value: progressPercentage / 100,
                                 minHeight: 8,
                                 backgroundColor: Colors.white,
                                 valueColor: const AlwaysStoppedAnimation<Color>(
