@@ -127,7 +127,7 @@ class WizardResponse {
       status: json['status'] as bool? ?? false,
       message: json['message'] as String? ?? '',
       id: id,
-      currentStep: _parseNum(data?['current_step'] ?? json['current_step'])?.toInt() ?? 1,
+      currentStep: _parseNum(data?['current_step'] ?? json['current_step'])?.toInt() ?? 0,
       project: data?['project'] != null ? Project.fromJson(data!['project'] as Map<String, dynamic>) : null,
     );
   }
