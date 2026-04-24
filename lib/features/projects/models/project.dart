@@ -412,7 +412,7 @@ class Project {
       constructionType: json['construction_type']?.toString() ?? '',
       status: ProjectStatus.fromString(json['status']?.toString() ?? ''),
       currentStep:
-          _parseNum(json['current_step'], 'current_step')?.toInt() ?? 1,
+          _parseNum(json['current_step'], 'current_step')?.toInt() ?? 0,
       isBookmarked: json['is_bookmarked'] == true,
       budget: json['budget']?.toString() ?? '0',
       currency: json['currency']?.toString() ?? '',
