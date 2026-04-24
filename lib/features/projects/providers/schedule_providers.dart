@@ -49,14 +49,16 @@ class ScheduleNotifier extends AsyncNotifier<void> {
     _repository = ref.read(scheduleRepositoryProvider);
   }
 
-  Future<void> createScheduleFromBid(String bidId, String contractorNotes, {String? projectId}) async {
+  Future<Schedule?> createScheduleFromBid(String bidId, String contractorNotes, {String? projectId}) async {
     state = const AsyncLoading();
     try {
-      await _repository.createScheduleFromBid(bidId, contractorNotes);
+      final schedule = await _repository.createScheduleFromBid(bidId, contractorNotes);
       state = const AsyncData(null);
       if (projectId != null) ref.invalidate(projectScheduleProvider(projectId));
+      return schedule;
     } catch (e, st) {
       state = AsyncError(e, st);
+      return null;
     }
   }
 

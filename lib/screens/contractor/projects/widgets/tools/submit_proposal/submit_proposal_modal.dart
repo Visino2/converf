@@ -63,8 +63,8 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
     final amount = double.tryParse(text);
     return amount != null &&
         amount > 0 &&
-        _proposalController.text.trim().length >= 20;
-    // Note: Schedule is optional for initial bid submission
+        _proposalController.text.trim().length >= 20 &&
+        _selectedScheduleId != null;
   }
 
   Future<void> _submitBid() async {
@@ -143,13 +143,13 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
       builder: (context) => AlertDialog(
         title: const Text('Add Schedule'),
         content: const Text(
-          'You can add a schedule now, but schedules must be created after you submit your bid.\n\nYou can submit your bid first and add a schedule later from the bid details.',
+          'Create your schedule now. It will be linked to your bid when you submit.',
           style: TextStyle(fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Skip for Now'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -169,7 +169,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                 });
               }
             },
-            child: const Text('Try to Add Schedule'),
+            child: const Text('Create Schedule'),
           ),
         ],
       ),
@@ -335,35 +335,94 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: isLoading ? null : _selectSchedule,
-                  icon: const Icon(
-                    Icons.calendar_today,
-                    size: 18,
-                    color: Color(0xFF276572),
-                  ),
-                  label: Text(
-                    _selectedScheduleId == null
-                        ? 'Create a schedule'
-                        : 'Schedule: ${_selectedScheduleId!.substring(0, 8)}...',
-                    style: const TextStyle(
-                      color: Color(0xFF276572),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
+                if (_selectedScheduleId != null)
+                  Container(
                     padding: const EdgeInsets.symmetric(
-                      vertical: 12,
                       horizontal: 16,
+                      vertical: 14,
                     ),
-                    side: const BorderSide(color: Color(0xFFD0D5DD)),
-                    shape: RoundedRectangleBorder(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF6EE7B7)),
                     ),
-                    minimumSize: const Size(double.infinity, 48),
-                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.check_circle,
+                          color: Color(0xFF059669),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Schedule attached',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF065F46),
+                                ),
+                              ),
+                              Text(
+                                'Your schedule is ready and will be submitted with your bid.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF047857),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: isLoading ? null : _selectSchedule,
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'Change',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF276572),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  OutlinedButton.icon(
+                    onPressed: isLoading ? null : _selectSchedule,
+                    icon: const Icon(
+                      Icons.calendar_today,
+                      size: 18,
+                      color: Color(0xFF276572),
+                    ),
+                    label: const Text(
+                      'Create a schedule',
+                      style: TextStyle(
+                        color: Color(0xFF276572),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 16,
+                      ),
+                      side: const BorderSide(color: Color(0xFFD0D5DD)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      minimumSize: const Size(double.infinity, 48),
+                      alignment: Alignment.centerLeft,
+                    ),
                   ),
-                ),
                 const SizedBox(height: 24),
 
                 // Proposal
@@ -589,7 +648,8 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
   }
 
   Widget _buildSuccessScreen() {
-    return Padding(
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
       child: Column(
         mainAxisSize: MainAxisSize.min,

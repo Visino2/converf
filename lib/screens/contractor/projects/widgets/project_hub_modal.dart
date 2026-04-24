@@ -255,7 +255,11 @@ class _ProjectHubModalState extends ConsumerState<ProjectHubModal> {
           scrollController: _scrollController,
         );
       case 1: // Schedule
-        return ScheduleScreen(projectId: widget.projectId, isEmbedded: true);
+        return ScheduleScreen(
+          projectId: widget.projectId,
+          isEmbedded: true,
+          returnIdOnCreate: false,
+        );
       case 2: // Field Inspections
         return FieldInspectionsModal(
           projectId: widget.projectId,

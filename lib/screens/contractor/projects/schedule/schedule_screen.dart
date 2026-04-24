@@ -62,13 +62,17 @@ class ScheduleScreen extends ConsumerStatefulWidget {
   final String? projectId;
   final String? bidId;
   final bool isEmbedded;
+  /// When true, pops with the created schedule ID after creation (bid-submission flow).
+  /// When false, refreshes in place (self-contractor hub flow).
+  final bool returnIdOnCreate;
 
   const ScheduleScreen({
     super.key,
     this.projectId,
     this.bidId,
     this.isEmbedded = false,
-  });
+    bool? returnIdOnCreate,
+  }) : returnIdOnCreate = returnIdOnCreate ?? isEmbedded;
 
   @override
   ConsumerState<ScheduleScreen> createState() => _ScheduleScreenState();
@@ -77,12 +81,13 @@ class ScheduleScreen extends ConsumerStatefulWidget {
 class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
   String? _expandedPhaseId;
   Timer? _refreshTimer;
+  // Holds the schedule immediately after creation so the UI shows the editor
+  // right away, even if the provider re-fetch fails (e.g. 403 for pre-bid flow).
+  Schedule? _justCreatedSchedule;
 
   @override
   void initState() {
     super.initState();
-    // Removed aggressive auto-refresh timer which was causing
-    // infinite skeleton loops on poor connections.
   }
 
   @override
@@ -351,21 +356,47 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
       );
     });
 
+    Widget? barFor(Schedule s) {
+      if (isOwner) {
+        return s.status == 'submitted' ? _buildOwnerApprovalBar(s) : null;
+      }
+      return ['draft', 'revision_requested', 'resubmitted']
+              .contains(s.status.toLowerCase())
+          ? _buildSubmitBar(s)
+          : null;
+    }
+
     final content = scheduleAsync.when(
-      loading: () => scheduleAsync.hasValue
-          ? _buildScheduleContent(scheduleAsync.value!, isOwner)
-          : _buildScheduleSkeleton(),
+      loading: () {
+        if (_justCreatedSchedule != null) {
+          return _buildScheduleContent(_justCreatedSchedule!, isOwner);
+        }
+        return scheduleAsync.hasValue
+            ? _buildScheduleContent(scheduleAsync.value!, isOwner)
+            : _buildScheduleSkeleton();
+      },
       error: (error, _) {
+        // Show the locally created schedule immediately — avoids "no schedule"
+        // flash when the provider re-fetch returns 403 (pre-bid flow).
+        if (_justCreatedSchedule != null) {
+          return _buildScheduleContent(_justCreatedSchedule!, isOwner);
+        }
+
         final errStr = error.toString().toLowerCase();
         bool isNotFound = false;
 
         if (error is ApiException) {
           if (error.statusCode == 404) isNotFound = true;
+          if (error.statusCode == 403) isNotFound = true;
         }
 
         if (errStr.contains('404') ||
             errStr.contains('no query results') ||
             errStr.contains('not found')) {
+          isNotFound = true;
+        }
+
+        if (errStr.contains('unauthorized') || errStr.contains('403')) {
           isNotFound = true;
         }
 
@@ -394,39 +425,25 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
           ),
         );
       },
-      data: (schedule) => _buildScheduleContent(schedule, isOwner),
+      data: (schedule) {
+        // Provider loaded real data — clear the local copy
+        if (_justCreatedSchedule != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _justCreatedSchedule = null);
+          });
+        }
+        return _buildScheduleContent(schedule, isOwner);
+      },
     );
 
     final bottomBar = scheduleAsync.when(
-      data: (schedule) {
-        if (isOwner) {
-          if (schedule.status == 'submitted') {
-            return _buildOwnerApprovalBar(schedule);
-          }
-          return null;
-        }
-        return ([
-              'draft',
-              'revision_requested',
-              'resubmitted',
-            ].contains(schedule.status.toLowerCase()))
-            ? _buildSubmitBar(schedule)
-            : null;
+      data: barFor,
+      loading: () {
+        if (_justCreatedSchedule != null) return barFor(_justCreatedSchedule!);
+        return scheduleAsync.hasValue ? barFor(scheduleAsync.value!) : null;
       },
-      loading: () => scheduleAsync.hasValue
-          ? (isOwner
-                ? (scheduleAsync.value!.status == 'submitted'
-                      ? _buildOwnerApprovalBar(scheduleAsync.value!)
-                      : null)
-                : ([
-                        'draft',
-                        'revision_requested',
-                        'resubmitted',
-                      ].contains(scheduleAsync.value!.status.toLowerCase())
-                      ? _buildSubmitBar(scheduleAsync.value!)
-                      : null))
-          : null,
-      error: (err, stack) => null,
+      error: (e, s) =>
+          _justCreatedSchedule != null ? barFor(_justCreatedSchedule!) : null,
     );
 
     if (widget.isEmbedded) {
@@ -483,75 +500,135 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
   }
 
   Widget _buildNoScheduleView() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(32.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 40),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0F9FF),
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFBAE6FD), width: 2),
+            ),
+            child: const Icon(
               Icons.calendar_today_outlined,
-              size: 64,
-              color: Color(0xFF98A2B3),
+              size: 56,
+              color: Color(0xFF276572),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'No Schedule Found',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF101828),
-              ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'No Schedule Yet',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF101828),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'You need to create a schedule for this project to track activities and milestones.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Create a schedule to plan your project phases, activities, and milestones.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Color(0xFF667085), height: 1.5),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFEAECF0)),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _createInitialSchedule,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF276572),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'How it works',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF344054),
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                minimumSize: const Size(double.infinity, 54),
-              ),
-              child: const Text(
-                'Create Blank Schedule',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+                const SizedBox(height: 10),
+                _buildStepHint('1', 'Create a blank schedule or import from library'),
+                const SizedBox(height: 6),
+                _buildStepHint('2', 'Add phases and activities'),
+                const SizedBox(height: 6),
+                _buildStepHint('3', 'Submit for approval when ready'),
+              ],
             ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _createFromLibrary,
-              icon: const Icon(Icons.library_books_outlined, size: 20),
-              label: const Text(
-                'Use Library Template',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                minimumSize: const Size(double.infinity, 54),
-                side: const BorderSide(color: Color(0xFF276572), width: 1.5),
-                foregroundColor: const Color(0xFF276572),
-              ),
+          ),
+          const SizedBox(height: 28),
+          ElevatedButton(
+            onPressed: _createInitialSchedule,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF276572),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              minimumSize: const Size(double.infinity, 54),
             ),
-          ],
-        ),
+            child: const Text(
+              'Create Blank Schedule',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _createFromLibrary,
+            icon: const Icon(Icons.library_books_outlined, size: 20),
+            label: const Text(
+              'Use Library Template',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              minimumSize: const Size(double.infinity, 54),
+              side: const BorderSide(color: Color(0xFF276572), width: 1.5),
+              foregroundColor: const Color(0xFF276572),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
       ),
+    );
+  }
+
+  Widget _buildStepHint(String number, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          decoration: const BoxDecoration(
+            color: Color(0xFF276572),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              number,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF475467)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1080,7 +1157,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
       Schedule? createdSchedule;
 
       if (widget.bidId != null) {
-        await ref
+        createdSchedule = await ref
             .read(scheduleActionProvider.notifier)
             .createScheduleFromBid(
               widget.bidId!,
@@ -1088,29 +1165,26 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
               projectId: widget.projectId,
             );
       } else if (widget.projectId != null) {
-        // Use the pre-bid endpoint: POST /api/v1/projects/{projectId}/schedule/pre-bid
-        createdSchedule = await ref
-            .read(scheduleRepositoryProvider)
-            .createScheduleFromProject(widget.projectId!, notes);
+        // returnIdOnCreate = true  → bid-submission pre-bid flow
+        // returnIdOnCreate = false → self-contractor hub flow (direct endpoint)
+        createdSchedule = widget.returnIdOnCreate
+            ? await ref
+                  .read(scheduleRepositoryProvider)
+                  .createScheduleFromProject(widget.projectId!, notes)
+            : await ref
+                  .read(scheduleRepositoryProvider)
+                  .createScheduleForProject(widget.projectId!, notes);
       }
 
-      // After creating the schedule, return the ID immediately
       if (!mounted) return;
 
-      if (widget.projectId != null && widget.isEmbedded) {
-        if (createdSchedule != null) {
-          // Return the created schedule ID immediately
-          Navigator.pop(context, createdSchedule.id);
-        } else {
-          // If created via bidId, give a brief delay and return
-          await Future.delayed(const Duration(milliseconds: 300));
-          if (mounted) {
-            Navigator.pop(context);
-          }
+      if (createdSchedule != null) {
+        // Show the schedule editor immediately without waiting for the provider.
+        setState(() => _justCreatedSchedule = createdSchedule);
+        // Also refresh the provider in the background so real data loads.
+        if (widget.projectId != null) {
+          ref.invalidate(projectScheduleProvider(widget.projectId!));
         }
-      } else if (createdSchedule != null && widget.isEmbedded) {
-        // For standalone schedules, return the created schedule ID immediately
-        Navigator.pop(context, createdSchedule.id);
       }
     } catch (e) {
       if (mounted) {
@@ -1135,32 +1209,26 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
     if (notes == null) return;
 
     try {
-      // 1. Create the schedule record using the pre-bid endpoint
       Schedule? schedule;
       if (widget.bidId != null) {
         schedule = await ref
             .read(scheduleRepositoryProvider)
             .createScheduleFromBid(widget.bidId!, notes);
       } else if (widget.projectId != null) {
-        // Use the pre-bid endpoint: POST /api/v1/projects/{projectId}/schedule/pre-bid
-        schedule = await ref
-            .read(scheduleRepositoryProvider)
-            .createScheduleFromProject(widget.projectId!, notes);
+        schedule = widget.returnIdOnCreate
+            ? await ref
+                  .read(scheduleRepositoryProvider)
+                  .createScheduleFromProject(widget.projectId!, notes)
+            : await ref
+                  .read(scheduleRepositoryProvider)
+                  .createScheduleForProject(widget.projectId!, notes);
       }
 
       if (mounted && schedule != null) {
-        // 2. Refresh local state
+        setState(() => _justCreatedSchedule = schedule);
         if (widget.projectId != null) {
           ref.invalidate(projectScheduleProvider(widget.projectId!));
         }
-
-        // If this is embedded (called from bid submission), return the schedule ID
-        if (widget.isEmbedded) {
-          Navigator.pop(context, schedule.id);
-          return;
-        }
-
-        // 3. Otherwise proceed to library import
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1422,8 +1490,10 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
             ),
           ),
           ElevatedButton(
-            onPressed: () {
-              ref
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              nav.pop(); // close dialog
+              await ref
                   .read(scheduleActionProvider.notifier)
                   .submitSchedule(
                     schedule.id,
@@ -1431,7 +1501,11 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
                     widget.bidId,
                     controller.text,
                   );
-              Navigator.pop(context);
+              // Bid-submission flow: return the submitted schedule ID to the
+              // proposal modal so it can be included in the bid payload.
+              if (widget.returnIdOnCreate && mounted) {
+                nav.pop(schedule.id);
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF276572),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dio/dio.dart';
@@ -48,6 +49,8 @@ class MarketplaceRepository {
   }
 
   Future<BidResponse> submitBid(String projectId, SubmitBidPayload payload) async {
+    debugPrint('[MarketplaceRepo] >>> POST /api/v1/projects/$projectId/bids');
+    debugPrint('[MarketplaceRepo] Payload: ${payload.toJson()}');
     dynamic data;
     if (payload.documentPaths != null && payload.documentPaths!.isNotEmpty) {
       final formData = FormData.fromMap(payload.toJson());
@@ -62,18 +65,25 @@ class MarketplaceRepository {
       data = payload.toJson();
     }
 
-    final response = await _apiClient.post(
-      '/api/v1/projects/$projectId/bids',
-      data: data,
-    );
-    if (response.data is! Map<String, dynamic>) {
+    try {
+      final response = await _apiClient.post(
+        '/api/v1/projects/$projectId/bids',
+        data: data,
+      );
+      debugPrint('[MarketplaceRepo] <<< ${response.statusCode} POST /bids');
+      if (response.data is! Map<String, dynamic>) {
         throw Exception("Invalid response format from server");
+      }
+      final responseData = response.data as Map<String, dynamic>;
+      debugPrint('[MarketplaceRepo] Response status: ${responseData['status']}, message: ${responseData['message']}');
+      if (responseData['status'] == false) {
+        throw Exception(responseData['message'] ?? 'Failed to submit bid');
+      }
+      return BidResponse.fromJson(responseData);
+    } catch (e) {
+      debugPrint('[MarketplaceRepo] !!! Bid submission error: $e');
+      rethrow;
     }
-    final responseData = response.data as Map<String, dynamic>;
-    if (responseData['status'] == false) {
-       throw Exception(responseData['message'] ?? 'Failed to submit bid');
-    }
-    return BidResponse.fromJson(responseData);
   }
 
   Future<PaginatedBidsResponse> fetchProjectBids(String projectId, {int page = 1}) async {

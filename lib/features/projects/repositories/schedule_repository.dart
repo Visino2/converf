@@ -148,7 +148,7 @@ class ScheduleRepository {
     );
   }
 
-  /// Create a draft schedule for a project before bidding
+  /// Create a draft schedule for a project before bidding (bid-submission flow).
   /// Endpoint: POST /api/v1/projects/{projectId}/schedule/pre-bid
   Future<Schedule> createScheduleFromProject(
     String projectId,
@@ -156,6 +156,23 @@ class ScheduleRepository {
   ) async {
     final response = await _apiClient.post(
       '/api/v1/projects/$projectId/schedule/pre-bid',
+      data: {'contractor_notes': contractorNotes},
+    );
+    if (response.data is Map<String, dynamic>) {
+      final map = response.data['data'] ?? response.data;
+      return Schedule.fromJson(map);
+    }
+    throw Exception("Invalid response format from server");
+  }
+
+  /// Create a schedule for an already-assigned project (self-contractor flow).
+  /// Endpoint: POST /api/v1/projects/{projectId}/schedule
+  Future<Schedule> createScheduleForProject(
+    String projectId,
+    String contractorNotes,
+  ) async {
+    final response = await _apiClient.post(
+      '/api/v1/projects/$projectId/schedule',
       data: {'contractor_notes': contractorNotes},
     );
     if (response.data is Map<String, dynamic>) {

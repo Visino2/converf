@@ -101,7 +101,6 @@ class SubmitBidPayload {
       'amount': amount,
       'proposal': proposal,
       if (scheduleId != null) 'schedule_id': scheduleId,
-      if (documentPaths != null) 'documents': documentPaths,
     };
   }
 }

@@ -394,14 +394,14 @@ final welcomeSeenRefreshProvider =
     );
 
 /// Tracks whether a given user has already seen the welcome screen.
-final welcomeSeenProvider = FutureProvider.family<bool, String>((
-  ref,
-  userId,
-) async {
-  // Watch the refresh provider so we can manually trigger a re-fetch
+/// Synchronous read — _prefs.getBool is already in-memory, no async needed.
+/// This avoids an isLoading flash that would leave the router stuck on the
+/// login route after sign-in (nobody re-triggers the router when the Future
+/// resolves, so isLoading → null redirect → user stuck on login).
+final welcomeSeenProvider = Provider.family<bool, String>((ref, userId) {
   ref.watch(welcomeSeenRefreshProvider);
   final sessionManager = ref.read(sessionManagerProvider);
-  return sessionManager.hasSeenWelcome(userId);
+  return sessionManager.hasSeenWelcomeSync(userId);
 });
 
 /// A service to handle the welcome seen logic reactively.

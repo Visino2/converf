@@ -122,10 +122,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final rawUserId = user?.data?.user['id'];
       final userId = rawUserId == null ? '' : rawUserId.toString();
       if (userId.isNotEmpty) {
-        final welcomeSeen = ref.read(welcomeSeenProvider(userId));
-        if (welcomeSeen.isLoading) return null;
-
-        final hasSeen = welcomeSeen.value ?? false;
+        final hasSeen = ref.read(welcomeSeenProvider(userId));
         if (!hasSeen && locationPath != '/welcome') return '/welcome';
         if (hasSeen && locationPath == '/welcome') return dashboardRoute;
       }

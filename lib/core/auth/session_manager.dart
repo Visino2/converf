@@ -86,11 +86,13 @@ class SessionManager {
     return token != null && token.isNotEmpty;
   }
 
-  Future<bool> hasSeenWelcome(String userId) async {
-    if (userId.isEmpty) {
-      return true; // default to seen to avoid blocking navigation
-    }
+  bool hasSeenWelcomeSync(String userId) {
+    if (userId.isEmpty) return true;
     return _prefs.getBool('$_welcomePrefix$userId') ?? false;
+  }
+
+  Future<bool> hasSeenWelcome(String userId) async {
+    return hasSeenWelcomeSync(userId);
   }
 
   Future<void> setWelcomeSeen(
