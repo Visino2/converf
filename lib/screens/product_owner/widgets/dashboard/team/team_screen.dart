@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../../../features/team/providers/team_providers.dart';
 import '../../../../../../features/team/models/team_member.dart';
+import '../../../../../../features/billing/providers/billing_providers.dart';
+import '../../../../../../screens/widgets/modals/upgrade_plan_modal.dart';
 
 import 'add_team_modal.dart';
 import 'team_member_detail_sheet.dart';
@@ -109,7 +111,17 @@ class _TeamScreenState extends ConsumerState<TeamScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.add_circle_outline, color: Color(0xFF276572), size: 28),
-            onPressed: () {
+            onPressed: () async {
+              final subState = ref.read(billingSubscriptionProvider);
+              final maxMembers = subState.asData?.value.limits?.teamMembers;
+              final currentCount = teamMembersAsync.asData?.value.data.length ?? 0;
+
+              if (maxMembers != null && currentCount >= maxMembers) {
+                if (context.mounted) await showUpgradePlanModal(context);
+                return;
+              }
+
+              if (!context.mounted) return;
               showModalBottomSheet(
                 context: context,
                 isScrollControlled: true,

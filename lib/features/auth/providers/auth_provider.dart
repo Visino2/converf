@@ -57,7 +57,10 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
         debugPrint(
           '[AUTH] Signup response: status=${response.status}, message=${response.message}',
         );
-        final authData = await persistAuthenticatedResponse(response);
+        // Force email_verified_at to null so the router always redirects to
+        // verification after signup (mirrors web app goToVerification behaviour).
+        final safeResponse = _withUnverifiedEmail(response);
+        final authData = await persistAuthenticatedResponse(safeResponse);
         debugPrint('[AUTH] Contractor signup successful, token persisted');
         return authData;
       } catch (e, stack) {
@@ -66,6 +69,18 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
         rethrow;
       }
     });
+  }
+
+  /// Returns a copy of [response] with email_verified_at set to null.
+  AuthResponse _withUnverifiedEmail(AuthResponse response) {
+    if (response.data == null) return response;
+    final user = Map<String, dynamic>.from(response.data!.user)
+      ..['email_verified_at'] = null;
+    return AuthResponse.fromSession(
+      token: response.data!.token,
+      user: user,
+      message: response.message,
+    );
   }
 
   Future<void> login(String email, String password) async {
@@ -96,14 +111,15 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       try {
-        debugPrint('[AUTH] Getting repository...');
         final repository = ref.read(authRepositoryProvider);
-        debugPrint('[AUTH] Calling repository.registerOwner()...');
         final response = await repository.registerOwner(request);
-        debugPrint(
-          '[AUTH] Signup response: status=${response.status}, message=${response.message}',
-        );
+        debugPrint('[AUTH] Signup response: status=${response.status}');
         final authData = await persistAuthenticatedResponse(response);
+        // Flag this as a new signup so the dashboard shows the welcome popup
+        final userId = authData.data?.user['id']?.toString() ?? '';
+        if (userId.isNotEmpty) {
+          await ref.read(sessionManagerProvider).setNewSignup(userId);
+        }
         debugPrint('[AUTH] Owner signup successful, token persisted');
         return authData;
       } catch (e, stack) {

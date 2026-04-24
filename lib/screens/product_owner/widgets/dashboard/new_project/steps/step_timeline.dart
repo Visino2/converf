@@ -243,53 +243,59 @@ class _StepTimelineState extends ConsumerState<StepTimeline> {
           iconPath: 'assets/images/Plate.svg',
         ),
         const SizedBox(height: 16),
-        Row(
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.5,
           children: [
-            Expanded(
-              child: AssignmentOption(
-                type: 'direct',
-                title: 'Assign\nDirectly',
-                imagePath: 'assets/images/group-1.svg',
-                isSelected: state.assignmentMethod == 'direct',
-                onTap: () =>
-                    notifier.updateTimelineBudget(assignmentMethod: 'direct'),
-              ),
+            AssignmentOption(
+              type: 'direct',
+              title: 'Assign\nDirectly',
+              imagePath: 'assets/images/group-1.svg',
+              isSelected: state.assignmentMethod == 'direct',
+              onTap: () =>
+                  notifier.updateTimelineBudget(assignmentMethod: 'direct'),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: AssignmentOption(
-                type: 'tender',
-                title: 'Post to\nTender',
-                imagePath: 'assets/images/projects.svg',
-                isSelected: state.assignmentMethod == 'tender',
-                onTap: () {
-                  notifier.updateTimelineBudget(
-                    assignmentMethod: 'tender',
-                    selectedContractorId: null,
-                  );
-                  // Automatically set a sensible bidding deadline if none exists
-                  if (state.biddingDeadline == null &&
-                      state.startDate != null) {
-                    notifier.updateTimelineBudget(
-                      biddingDeadline: state.startDate?.subtract(
-                        const Duration(days: 1),
-                      ),
-                    );
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: AssignmentOption(
-                type: 'decide_later',
-                title: 'Decide\nLater',
-                imagePath: 'assets/images/Calendar-1.svg',
-                isSelected: state.assignmentMethod == 'decide_later',
-                onTap: () => notifier.updateTimelineBudget(
-                  assignmentMethod: 'decide_later',
+            AssignmentOption(
+              type: 'tender',
+              title: 'Post to\nTender',
+              imagePath: 'assets/images/projects.svg',
+              isSelected: state.assignmentMethod == 'tender',
+              onTap: () {
+                notifier.updateTimelineBudget(
+                  assignmentMethod: 'tender',
                   selectedContractorId: null,
-                ),
+                );
+                if (state.biddingDeadline == null && state.startDate != null) {
+                  notifier.updateTimelineBudget(
+                    biddingDeadline: state.startDate?.subtract(
+                      const Duration(days: 1),
+                    ),
+                  );
+                }
+              },
+            ),
+            AssignmentOption(
+              type: 'decide_later',
+              title: 'Decide\nLater',
+              imagePath: 'assets/images/Calendar-1.svg',
+              isSelected: state.assignmentMethod == 'decide_later',
+              onTap: () => notifier.updateTimelineBudget(
+                assignmentMethod: 'decide_later',
+                selectedContractorId: null,
+              ),
+            ),
+            AssignmentOption(
+              type: 'self_managed',
+              title: 'Self\nManage',
+              imagePath: 'assets/images/edit-profile.svg',
+              isSelected: state.assignmentMethod == 'self_managed',
+              onTap: () => notifier.updateTimelineBudget(
+                assignmentMethod: 'self_managed',
+                selectedContractorId: null,
               ),
             ),
           ],

@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:converf/core/ui/app_navigation.dart';
 import 'package:converf/features/ai_credits/providers/ai_credits_provider.dart';
-import 'package:converf/features/auth/models/auth_response.dart';
-import 'package:converf/features/auth/providers/auth_provider.dart';
-import 'package:converf/features/auth/utils/auth_flow.dart';
 import 'package:converf/features/billing/models/billing_models.dart';
 import 'package:converf/features/billing/providers/billing_providers.dart';
 import 'widgets/add_ons_section.dart';
@@ -232,10 +227,6 @@ class _BillingScreenState extends ConsumerState<BillingScreen>
           duration: const Duration(seconds: 2),
         ),
       );
-
-      await Future.delayed(const Duration(milliseconds: 900));
-      if (!mounted) return;
-      _navigateToDashboardHome();
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
@@ -299,23 +290,16 @@ class _BillingScreenState extends ConsumerState<BillingScreen>
             duration: Duration(seconds: 2),
           ),
         );
-
-        await Future.delayed(const Duration(seconds: 1));
-        if (!mounted) return;
-        _navigateToDashboardHome();
       } catch (_) {
         await _refreshBillingData();
         if (!mounted) return;
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('Payment received. Refreshing your dashboard now.'),
+            content: Text('Payment received. Your plan has been updated.'),
             backgroundColor: Color(0xFF0F973D),
             duration: Duration(seconds: 3),
           ),
         );
-        await Future.delayed(const Duration(seconds: 1));
-        if (!mounted) return;
-        _navigateToDashboardHome();
       }
     } else if (result == false) {
       // Payment failed or was cancelled
@@ -345,18 +329,5 @@ class _BillingScreenState extends ConsumerState<BillingScreen>
     }
   }
 
-  void _navigateToDashboardHome() {
-    final role = ref.read(authProvider).asData?.value?.role;
-    final target = dashboardLocationForRole(
-      role ?? UserRole.projectOwner,
-      tab: 'dashboard',
-    );
-
-    appNavigatorKey.currentState?.popUntil((route) => route.isFirst);
-
-    final navContext = appNavigatorKey.currentContext;
-    if (target != null && navContext != null) {
-      GoRouter.of(navContext).go(target);
-    }
-  }
 }
+

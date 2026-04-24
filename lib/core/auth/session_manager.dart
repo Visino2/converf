@@ -21,6 +21,7 @@ class SessionManager {
   static const String _tokenKey = 'token';
   static const String _userKey = 'user';
   static const String _welcomePrefix = 'welcome_seen_';
+  static const String _newSignupPrefix = 'new_signup_';
   static final StreamController<int> _sessionChangesController =
       StreamController<int>.broadcast();
   static int _sessionVersion = 0;
@@ -84,6 +85,21 @@ class SessionManager {
   bool hasSessionSync() {
     final token = getTokenSync();
     return token != null && token.isNotEmpty;
+  }
+
+  bool isNewSignupSync(String userId) {
+    if (userId.isEmpty) return false;
+    return _prefs.getBool('$_newSignupPrefix$userId') ?? false;
+  }
+
+  Future<void> setNewSignup(String userId) async {
+    if (userId.isEmpty) return;
+    await _prefs.setBool('$_newSignupPrefix$userId', true);
+  }
+
+  Future<void> clearNewSignup(String userId) async {
+    if (userId.isEmpty) return;
+    await _prefs.remove('$_newSignupPrefix$userId');
   }
 
   bool hasSeenWelcomeSync(String userId) {

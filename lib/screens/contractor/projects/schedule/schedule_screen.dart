@@ -62,6 +62,7 @@ class ScheduleScreen extends ConsumerStatefulWidget {
   final String? projectId;
   final String? bidId;
   final bool isEmbedded;
+
   /// When true, pops with the created schedule ID after creation (bid-submission flow).
   /// When false, refreshes in place (self-contractor hub flow).
   final bool returnIdOnCreate;
@@ -223,7 +224,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
             _buildOptionCard(
               icon: Icons.create_new_folder_outlined,
               title: 'Create from Scratch',
-              subtitle: 'Start with a blank schedule',
+              subtitle: 'Start with a new schedule',
               onTap: _createInitialSchedule,
             ),
             const SizedBox(height: 16),
@@ -360,8 +361,11 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
       if (isOwner) {
         return s.status == 'submitted' ? _buildOwnerApprovalBar(s) : null;
       }
-      return ['draft', 'revision_requested', 'resubmitted']
-              .contains(s.status.toLowerCase())
+      return [
+            'draft',
+            'revision_requested',
+            'resubmitted',
+          ].contains(s.status.toLowerCase())
           ? _buildSubmitBar(s)
           : null;
     }
@@ -533,7 +537,11 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
           const Text(
             'Create a schedule to plan your project phases, activities, and milestones.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Color(0xFF667085), height: 1.5),
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF667085),
+              height: 1.5,
+            ),
           ),
           const SizedBox(height: 24),
           Container(
@@ -555,7 +563,7 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                _buildStepHint('1', 'Create a blank schedule or import from library'),
+                _buildStepHint('1', 'Create a schedule or import from library'),
                 const SizedBox(height: 6),
                 _buildStepHint('2', 'Add phases and activities'),
                 const SizedBox(height: 6),
@@ -569,12 +577,17 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF276572),
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
               minimumSize: const Size(double.infinity, 54),
             ),
             child: const Text(
-              'Create Blank Schedule',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              'Create Schedule',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -587,7 +600,9 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
             ),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
               minimumSize: const Size(double.infinity, 54),
               side: const BorderSide(color: Color(0xFF276572), width: 1.5),
               foregroundColor: const Color(0xFF276572),
@@ -811,13 +826,34 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
                             color: Color(0xFF111827),
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${phase.activitiesCount} Activities',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF667085),
-                          ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Text(
+                              '${phase.activitiesCount} Activities',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF667085),
+                              ),
+                            ),
+                            if (phase.budgetAmount != null) ...[
+                              const Text(
+                                ' • ',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF667085),
+                                ),
+                              ),
+                              Text(
+                                '₦${NumberFormat('#,##0.00').format(phase.budgetAmount)}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF276572),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ],
                     ),
@@ -1021,36 +1057,68 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          Row(
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
             children: [
-              if (activity.deadline != null) ...[
-                const Icon(
-                  Icons.calendar_today,
-                  size: 12,
-                  color: Color(0xFF667085),
+              if (activity.deadline != null)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 12,
+                      color: Color(0xFF667085),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      DateFormat(
+                        'MMM d, y',
+                      ).format(DateTime.parse(activity.deadline!)),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF667085),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  DateFormat(
-                    'MMM d, y',
-                  ).format(DateTime.parse(activity.deadline!)),
-                  style: const TextStyle(
-                    fontSize: 12,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.timer_outlined,
+                    size: 12,
                     color: Color(0xFF667085),
                   ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${activity.standardDurationDays ?? 0} days',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF667085),
+                    ),
+                  ),
+                ],
+              ),
+              if (activity.budgetAmount != null)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.attach_money,
+                      size: 12,
+                      color: Color(0xFF276572),
+                    ),
+                    Text(
+                      '₦${NumberFormat('#,##0.00').format(activity.budgetAmount)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF276572),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-              ],
-              const Icon(
-                Icons.timer_outlined,
-                size: 12,
-                color: Color(0xFF667085),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${activity.standardDurationDays ?? 0} days',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF667085)),
-              ),
             ],
           ),
           if (activity.assignedTo != null) ...[
