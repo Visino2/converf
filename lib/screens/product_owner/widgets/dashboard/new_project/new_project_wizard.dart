@@ -548,20 +548,6 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
             debugPrint(
               'Step 3: Already saved, checking if assignment changed...',
             );
-            // If "decide_later", complete the project now without Steps 5-6
-            if (state.assignmentMethod == 'decide_later') {
-              debugPrint(
-                'Step 3: "Decide Later" selected - completing project immediately',
-              );
-              notifier.setSuccess(true);
-              return;
-            }
-            // If assignment method changed from decide_later to something else, we need to update it
-            // Allow re-saving if changing from a previously saved state
-            debugPrint(
-              'Step 3: Already saved but may need to update assignment method',
-            );
-            // Fall through to allow API call
           }
           await apiNotifier.updateTimelineBudget(
             state.projectId!,
@@ -619,24 +605,13 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
             }
           }
 
-          // If "decide_later", complete the project immediately without Steps 5-6
-          if (state.assignmentMethod == 'decide_later') {
-            debugPrint(
-              'Step 3: "Decide Later" selected - completing project immediately',
-            );
-            notifier.setSuccess(true);
-            return;
-          }
-
-          // Validate that assignment method is set to a real value before advancing
-          if (state.assignmentMethod == null ||
-              state.assignmentMethod!.isEmpty) {
-            throw Exception('Please select an assignment method');
-          }
-
+          // Continue to step 4 for all assignment methods (including decide_later)
           notifier.updateStep(4);
         } else if (state.currentStep == 4) {
-          if (state.maxSavedStep >= 4) {
+          // When transitioning from decide_later to a real assignment method,
+          // we need to call updateSpecialisations even if already saved at step 4
+          if (state.maxSavedStep >= 4 &&
+              state.assignmentMethod != 'decide_later') {
             debugPrint('Step 4: Already saved, advancing locally.');
             notifier.updateStep(5);
             return;
