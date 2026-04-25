@@ -28,67 +28,106 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
     final currentPlanId = widget.currentSubscription.planId;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
+        constraints: const BoxConstraints(maxWidth: 540, maxHeight: 720),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 50,
+              offset: const Offset(0, 25),
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(24),
+            // Premium Header with Gradient
+            Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF309DAA), Color(0xFF1E6B75)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Change Plan',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF111827),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Upgrade Your Plan',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Unlock more features and maximize your potential',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: Colors.white.withOpacity(0.85),
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF3F4F6),
-                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
                             Icons.close,
-                            size: 20,
-                            color: Color(0xFF4B5563),
+                            size: 24,
+                            color: Colors.white,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Select a new plan to upgrade or downgrade your subscription',
-                    style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
-                  ),
                 ],
               ),
             ),
-            const Divider(height: 1, color: Color(0xFFF2F4F7)),
 
-            // Plan Selection
-            SizedBox(
-              height: 350,
+            // Plan Selection List
+            Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      'Available Plans',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     ...widget.plans.map((plan) {
                       final isCurrentPlan = plan.id == currentPlanId;
                       final isSelected = _selectedPlanId == plan.id;
@@ -100,24 +139,24 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
                                 setState(() => _selectedPlanId = plan.id);
                               },
                         child: Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(16),
+                          margin: const EdgeInsets.only(bottom: 14),
                           decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
                             border: Border.all(
                               color: isSelected
-                                  ? const Color(0xFF276572)
+                                  ? const Color(0xFF309DAA)
                                   : isCurrentPlan
                                   ? const Color(0xFFABEFC6)
                                   : const Color(0xFFE5E7EB),
-                              width: isSelected || isCurrentPlan ? 2 : 1,
+                              width: isSelected || isCurrentPlan ? 2.5 : 1.5,
                             ),
-                            borderRadius: BorderRadius.circular(12),
                             color: isCurrentPlan
                                 ? const Color(0xFFFCFCFD)
                                 : isSelected
                                 ? const Color(0xFFF0F9FF)
                                 : Colors.white,
                           ),
+                          padding: const EdgeInsets.all(16),
                           child: Row(
                             children: [
                               if (!isCurrentPlan)
@@ -127,12 +166,15 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
                                   onChanged: (value) {
                                     setState(() => _selectedPlanId = value);
                                   },
-                                  activeColor: const Color(0xFF276572),
+                                  activeColor: const Color(0xFF309DAA),
+                                  fillColor: MaterialStateProperty.all(
+                                    const Color(0xFF309DAA),
+                                  ),
                                 )
                               else
                                 Padding(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
+                                    horizontal: 8,
                                   ),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
@@ -156,7 +198,7 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
                                     ),
                                   ),
                                 ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,18 +217,18 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
                                           )
                                           .join(' '),
                                       style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
                                         color: Color(0xFF111827),
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: 6),
                                     Text(
                                       priceText(plan),
                                       style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF276572),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF309DAA),
                                       ),
                                     ),
                                   ],
@@ -197,6 +239,7 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
                         ),
                       );
                     }).toList(),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
@@ -204,7 +247,7 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
 
             const Divider(height: 1, color: Color(0xFFF2F4F7)),
 
-            // Footer
+            // Footer Buttons
             Padding(
               padding: const EdgeInsets.all(24),
               child: Row(
@@ -212,8 +255,11 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
                   Expanded(
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFD0D5DD)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: const BorderSide(
+                          color: Color(0xFFD0D5DD),
+                          width: 1.5,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -225,18 +271,19 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
                         'Cancel',
                         style: TextStyle(
                           color: Color(0xFF4B5563),
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF276572),
+                        backgroundColor: const Color(0xFF309DAA),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -253,13 +300,16 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
-                                strokeWidth: 2,
+                                strokeWidth: 2.5,
                                 color: Colors.white,
                               ),
                             )
                           : const Text(
                               'Confirm Change',
-                              style: TextStyle(fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
                             ),
                     ),
                   ),
