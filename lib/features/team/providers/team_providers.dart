@@ -35,6 +35,27 @@ class TeamNotifier extends AsyncNotifier<void> {
       // Invalidate relevant queries
       ref.invalidate(teamMembersProvider);
     } catch (e, st) {
+      // Check if the error is due to user already having an account
+      final errorStr = e.toString().toLowerCase();
+      final isExistingMemberError = errorStr.contains('already has an account') ||
+          errorStr.contains('already exists') ||
+          errorStr.contains('already a member') ||
+          errorStr.contains('email already') ||
+          errorStr.contains('user already') ||
+          errorStr.contains('account already');
+      
+      if (isExistingMemberError) {
+        // Fallback: add existing member directly
+        try {
+          await _repository.addExistingMember(payload);
+          state = const AsyncData(null);
+          ref.invalidate(teamMembersProvider);
+          return;
+        } catch (fallbackError, fallbackSt) {
+          state = AsyncError(fallbackError, fallbackSt);
+          rethrow;
+        }
+      }
       state = AsyncError(e, st);
       rethrow;
     }
