@@ -545,7 +545,9 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
           notifier.updateStep(3);
         } else if (state.currentStep == 3) {
           if (state.maxSavedStep >= 3) {
-            debugPrint('Step 3: Already saved, advancing locally.');
+            debugPrint(
+              'Step 3: Already saved, checking if assignment changed...',
+            );
             // If "decide_later", complete the project now without Steps 5-6
             if (state.assignmentMethod == 'decide_later') {
               debugPrint(
@@ -554,8 +556,12 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
               notifier.setSuccess(true);
               return;
             }
-            notifier.updateStep(4);
-            return;
+            // If assignment method changed from decide_later to something else, we need to update it
+            // Allow re-saving if changing from a previously saved state
+            debugPrint(
+              'Step 3: Already saved but may need to update assignment method',
+            );
+            // Fall through to allow API call
           }
           await apiNotifier.updateTimelineBudget(
             state.projectId!,
@@ -620,6 +626,12 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
             );
             notifier.setSuccess(true);
             return;
+          }
+
+          // Validate that assignment method is set to a real value before advancing
+          if (state.assignmentMethod == null ||
+              state.assignmentMethod!.isEmpty) {
+            throw Exception('Please select an assignment method');
           }
 
           notifier.updateStep(4);
