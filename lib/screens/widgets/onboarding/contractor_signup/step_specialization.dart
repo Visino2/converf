@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 class ContractorSpecializationStep extends StatefulWidget {
@@ -43,6 +44,103 @@ class _ContractorSpecializationStepState
   bool _isConfirmPasswordValid = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+
+  void _showTermsModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Expanded(
+                  child: Text(
+                    'Terms of Service',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'By using Converf, you agree to our Terms of Service. '
+                'You are responsible for maintaining the confidentiality of your account '
+                'and for all activities that occur under your account. '
+                'Converf reserves the right to modify these terms at any time.',
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 14, height: 1.5),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPrivacyModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Expanded(
+                  child: Text(
+                    'Privacy Policy',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Converf is committed to protecting your privacy. '
+                'We collect information you provide directly to us and use it to '
+                'operate, maintain, and improve our services. '
+                'We do not sell your personal information to third parties.',
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 14, height: 1.5),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFieldLabel(String label) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -338,20 +436,22 @@ class _ContractorSpecializationStepState
                 const TextSpan(
                   text: 'Yes, I understand and agree to the Converf ',
                 ),
-                const TextSpan(
+                TextSpan(
                   text: 'Terms of Service',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Color(0xFF276572),
                     fontWeight: FontWeight.w500,
                   ),
+                  recognizer: TapGestureRecognizer()..onTap = _showTermsModal,
                 ),
                 const TextSpan(text: ', including the '),
-                const TextSpan(
+                TextSpan(
                   text: 'Privacy Policy.',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Color(0xFF276572),
                     fontWeight: FontWeight.w500,
                   ),
+                  recognizer: TapGestureRecognizer()..onTap = _showPrivacyModal,
                 ),
               ],
             ),
@@ -455,8 +555,8 @@ class _ContractorSpecializationStepState
             onToggleVisibility: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
             isValid: _isConfirmPasswordValid,
             validator: (v) {
-              if (v != widget.passwordController.text) return 'Passwords do not match';
               if (v == null || v.isEmpty) return 'Confirm password';
+              if (v != widget.passwordController.text) return 'Passwords do not match';
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!_isConfirmPasswordValid) setState(() => _isConfirmPasswordValid = true);
               });

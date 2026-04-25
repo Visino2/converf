@@ -39,16 +39,24 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
   bool _isPasswordValid = false;
 
   String? _selectedCountry = 'Nigeria';
+  late final TextEditingController _countryController;
   bool _agreedToTerms = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   String? _emailBackendError;
 
   @override
+  void initState() {
+    super.initState();
+    _countryController = TextEditingController(text: _selectedCountry ?? '');
+  }
+
+  @override
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
+    _countryController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -382,6 +390,7 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
                       onTap: () {
                         setState(() {
                           _selectedCountry = country;
+                          _countryController.text = country;
                         });
                         Navigator.pop(context);
                       },
@@ -503,18 +512,14 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
                 const SizedBox(height: 12),
                 _buildTextField(
                   'Country',
-                  _selectedCountry ?? 'Select Country',
-                  controller: TextEditingController(
-                    text: _selectedCountry ?? '',
-                  ),
+                  'Select Country',
+                  controller: _countryController,
                   readOnly: true,
                   onTap: _showCountryPicker,
                   validator: (v) {
                     if (_selectedCountry == null) return 'Select country';
                     return null;
                   },
-                  onToggleVisibility: null,
-                  isPassword: false,
                 ),
                 const SizedBox(height: 12),
                 _buildTextField(
@@ -549,48 +554,16 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
                     () => _obscureConfirmPassword = !_obscureConfirmPassword,
                   ),
                   validator: (v) {
-                    if (v != _passwordController.text) {
-                      return 'Passwords do not match';
-                    }
                     if (v == null || v.isEmpty) {
                       return 'Confirm password';
+                    }
+                    if (v != _passwordController.text) {
+                      return 'Passwords do not match';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF276572),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: 0,
-                    ),
-                    onPressed: authState.isLoading ? null : _handleSignup,
-                    child: authState.isLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            'Signup',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 16),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -648,6 +621,38 @@ class _OnboardingSignupStepState extends ConsumerState<OnboardingSignupStep> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF276572),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: authState.isLoading ? null : _handleSignup,
+                    child: authState.isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Signup',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
                 ),
                 const SizedBox(height: 32),
               ],

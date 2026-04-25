@@ -1361,9 +1361,13 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
   }
 
   void _addPhase(Schedule schedule) {
+    final nextOrder = schedule.phases.isEmpty
+        ? 1
+        : schedule.phases.map((p) => p.order).reduce((a, b) => a > b ? a : b) + 1;
     showDialog(
       context: context,
       builder: (context) => SchedulePhaseDialog(
+        defaultOrder: nextOrder,
         onSave: (data) => ref
             .read(scheduleActionProvider.notifier)
             .createPhase(

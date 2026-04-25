@@ -51,23 +51,25 @@ class PaginatedProjectsResponse {
     PaginationMeta? metaData;
 
     if (dataField is Map<String, dynamic>) {
-       if (dataField.containsKey('data')) {
-         dataList = dataField['data'] as List<dynamic>? ?? [];
-       }
-       metaData = dataField['meta'] != null 
+      if (dataField.containsKey('data')) {
+        dataList = dataField['data'] as List<dynamic>? ?? [];
+      }
+      metaData = dataField['meta'] != null
           ? PaginationMeta.fromJson(dataField['meta'] as Map<String, dynamic>)
           : null;
     } else if (dataField is List<dynamic>) {
-       dataList = dataField;
-       metaData = json['meta'] != null 
-          ? PaginationMeta.fromJson(json['meta'] as Map<String, dynamic>) 
+      dataList = dataField;
+      metaData = json['meta'] != null
+          ? PaginationMeta.fromJson(json['meta'] as Map<String, dynamic>)
           : null;
     }
-    
+
     return PaginatedProjectsResponse(
       status: json['status'] as bool? ?? false,
       message: json['message'] as String? ?? '',
-      data: dataList.map((e) => Project.fromJson(e as Map<String, dynamic>)).toList(),
+      data: dataList
+          .map((e) => Project.fromJson(e as Map<String, dynamic>))
+          .toList(),
       meta: metaData,
     );
   }
@@ -78,17 +80,15 @@ class ProjectResponse {
   final String message;
   final Project? data;
 
-  ProjectResponse({
-    required this.status,
-    required this.message,
-    this.data,
-  });
+  ProjectResponse({required this.status, required this.message, this.data});
 
   factory ProjectResponse.fromJson(Map<String, dynamic> json) {
     return ProjectResponse(
       status: json['status'] as bool? ?? false,
       message: json['message'] as String? ?? '',
-      data: json['data'] != null ? Project.fromJson(json['data'] as Map<String, dynamic>) : null,
+      data: json['data'] != null
+          ? Project.fromJson(json['data'] as Map<String, dynamic>)
+          : null,
     );
   }
 }
@@ -109,26 +109,32 @@ class WizardResponse {
   });
 
   factory WizardResponse.fromJson(Map<String, dynamic> json) {
-    final data = json['data'] is Map<String, dynamic> ? json['data'] as Map<String, dynamic> : null;
-    
+    final data = json['data'] is Map<String, dynamic>
+        ? json['data'] as Map<String, dynamic>
+        : null;
+
     // Look for ID in multiple possible locations
-    final String id = (
-      data?['id'] ?? 
-      data?['project_id'] ?? 
-      data?['uuid'] ?? 
-      (data?['project'] as Map?)?['id'] ??
-      json['id'] ?? 
-      json['project_id'] ?? 
-      json['uuid'] ?? 
-      ''
-    ).toString();
+    final String id =
+        (data?['id'] ??
+                data?['project_id'] ??
+                data?['uuid'] ??
+                (data?['project'] as Map?)?['id'] ??
+                json['id'] ??
+                json['project_id'] ??
+                json['uuid'] ??
+                '')
+            .toString();
 
     return WizardResponse(
       status: json['status'] as bool? ?? false,
       message: json['message'] as String? ?? '',
       id: id,
-      currentStep: _parseNum(data?['current_step'] ?? json['current_step'])?.toInt() ?? 0,
-      project: data?['project'] != null ? Project.fromJson(data!['project'] as Map<String, dynamic>) : null,
+      currentStep:
+          _parseNum(data?['current_step'] ?? json['current_step'])?.toInt() ??
+          0,
+      project: data?['project'] != null
+          ? Project.fromJson(data!['project'] as Map<String, dynamic>)
+          : null,
     );
   }
 }

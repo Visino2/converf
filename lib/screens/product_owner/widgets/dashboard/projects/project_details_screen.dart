@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:converf/core/media/app_image_picker.dart';
 import '../../../../../features/projects/providers/project_providers.dart';
+import '../../../../../features/phases/providers/phase_providers.dart';
 import '../../../../../features/projects/providers/project_image_providers.dart';
 import '../../../../../features/projects/models/project_image.dart';
 import '../../../../../features/marketplace/providers/marketplace_providers.dart';
@@ -410,6 +411,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
       projectFinancialsProvider(widget.projectId),
     );
     final imagesAsync = ref.watch(projectCoverImagesProvider(widget.projectId));
+    final phasesAsync = ref.watch(phasesProvider(widget.projectId));
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -441,12 +443,68 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
         ],
       ),
       body: projectAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('DEBUG ERROR: $error')),
+        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+        error: (error, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Color(0xFF667085)),
+                const SizedBox(height: 16),
+                const Text(
+                  'Unable to load project',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF101828)),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Something went wrong. Please try again.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(projectDetailsProvider(widget.projectId)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF276572),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Try Again'),
+                ),
+              ],
+            ),
+          ),
+        ),
         data: (projectData) {
           final project = projectData.data;
           if (project == null) {
-            return const Center(child: Text('DEBUG: PROJECT DATA IS NULL'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.folder_open_outlined, size: 48, color: Color(0xFF667085)),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Project not found',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF101828)),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => ref.invalidate(projectDetailsProvider(widget.projectId)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF276572),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
 
           return ExcludeSemantics(
@@ -710,10 +768,23 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: _buildStatCard(
-                            'OVERALL PROGRESS',
-                            '68%',
-                            progress: 0.68,
+                          child: phasesAsync.when(
+                            data: (phasesResponse) {
+                              final phases = phasesResponse.data;
+                              final pct = phases.isEmpty
+                                  ? 0
+                                  : ((phases.where((p) => p.status == 'completed').length /
+                                          phases.length) *
+                                      100)
+                                      .round();
+                              return _buildStatCard(
+                                'OVERALL PROGRESS',
+                                '$pct%',
+                                progress: pct / 100,
+                              );
+                            },
+                            loading: () => _buildStatCard('OVERALL PROGRESS', '...'),
+                            error: (err, st) => _buildStatCard('OVERALL PROGRESS', '0%', progress: 0),
                           ),
                         ),
                         const SizedBox(width: 12),

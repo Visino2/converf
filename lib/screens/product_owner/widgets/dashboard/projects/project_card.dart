@@ -16,7 +16,7 @@ class ProjectCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(projectSummaryProvider(project.id));
-    
+
     return summaryAsync.when(
       data: (summary) => _buildProjectCard(context, summary.progressValue),
       loading: () => _buildProjectCard(context, 0),

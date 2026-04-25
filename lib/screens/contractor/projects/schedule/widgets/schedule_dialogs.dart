@@ -5,8 +5,6 @@ import 'package:converf/features/projects/models/schedule.dart';
 import 'package:converf/features/projects/providers/project_team_providers.dart';
 import 'package:intl/intl.dart';
 
-// ─── Shared helpers ────────────────────────────────────────────────────────
-
 const _teal = Color(0xFF276572);
 const _border = Color(0xFFD0D5DD);
 const _labelColor = Color(0xFF344054);
@@ -136,9 +134,15 @@ Future<String?> _pickDate(BuildContext context, {String? current}) async {
 
 class SchedulePhaseDialog extends StatefulWidget {
   final SchedulePhase? phase;
+  final int defaultOrder;
   final Function(Map<String, dynamic>) onSave;
 
-  const SchedulePhaseDialog({super.key, this.phase, required this.onSave});
+  const SchedulePhaseDialog({
+    super.key,
+    this.phase,
+    this.defaultOrder = 1,
+    required this.onSave,
+  });
 
   @override
   State<SchedulePhaseDialog> createState() => _SchedulePhaseDialogState();
@@ -146,6 +150,7 @@ class SchedulePhaseDialog extends StatefulWidget {
 
 class _SchedulePhaseDialogState extends State<SchedulePhaseDialog> {
   final _nameController = TextEditingController();
+  final _orderController = TextEditingController();
   final _budgetController = TextEditingController();
   String? _startDate;
   String? _endDate;
@@ -155,17 +160,21 @@ class _SchedulePhaseDialogState extends State<SchedulePhaseDialog> {
     super.initState();
     if (widget.phase != null) {
       _nameController.text = widget.phase!.name;
+      _orderController.text = widget.phase!.order.toString();
       _startDate = widget.phase!.startDate;
       _endDate = widget.phase!.endDate;
       if (widget.phase!.budgetAmount != null) {
         _budgetController.text = _formatAmount(widget.phase!.budgetAmount!);
       }
+    } else {
+      _orderController.text = widget.defaultOrder.toString();
     }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _orderController.dispose();
     _budgetController.dispose();
     super.dispose();
   }
@@ -263,6 +272,13 @@ class _SchedulePhaseDialogState extends State<SchedulePhaseDialog> {
                   ),
                   const SizedBox(height: 16),
                   TextField(
+                    controller: _orderController,
+                    decoration: _fieldDecoration('Order', hint: 'e.g., 1'),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
                     controller: _budgetController,
                     decoration: _fieldDecoration(
                       'Budget Amount (₦)',
@@ -341,8 +357,10 @@ class _SchedulePhaseDialogState extends State<SchedulePhaseDialog> {
                   child: ElevatedButton(
                     onPressed: () {
                       if (_nameController.text.trim().isEmpty) return;
+                      final order = int.tryParse(_orderController.text) ?? 1;
                       widget.onSave({
                         'name': _nameController.text.trim(),
+                        'order': order,
                         if (_startDate != null) 'start_date': _startDate,
                         if (_endDate != null) 'end_date': _endDate,
                         if (_budgetController.text.isNotEmpty)
@@ -564,7 +582,7 @@ class _ScheduleActivityDialogState
                   const SizedBox(height: 16),
                   teamAsync.when(
                     data: (team) => DropdownButtonFormField<String>(
-                      value: _selectedAssigneeId,
+                      initialValue: _selectedAssigneeId,
                       decoration: _fieldDecoration('Assign To (Optional)'),
                       items: [
                         const DropdownMenuItem(
@@ -582,7 +600,7 @@ class _ScheduleActivityDialogState
                           setState(() => _selectedAssigneeId = val),
                     ),
                     loading: () => const LinearProgressIndicator(color: _teal),
-                    error: (_, __) => const SizedBox.shrink(),
+                    error: (err, st) => const SizedBox.shrink(),
                   ),
                   const SizedBox(height: 12),
                   _CheckRow(
