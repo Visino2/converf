@@ -19,8 +19,18 @@ class CancelSubscriptionDialog extends StatelessWidget {
   String _formatDate(DateTime? date) {
     if (date == null) return '';
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final month = months[date.month - 1];
     return '$month ${date.day}, ${date.year}';
@@ -28,7 +38,9 @@ class CancelSubscriptionDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final expiryText = expiryDate != null ? _formatDate(expiryDate) : 'immediately';
+    final expiryText = expiryDate != null
+        ? _formatDate(expiryDate)
+        : 'immediately';
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -40,7 +52,7 @@ class CancelSubscriptionDialog extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 50,
               offset: const Offset(0, 25),
             ),
@@ -85,7 +97,7 @@ class CancelSubscriptionDialog extends StatelessWidget {
                             'We hate to see you go!',
                             style: TextStyle(
                               fontSize: 15,
-                              color: Colors.white.withOpacity(0.85),
+                              color: Colors.white.withValues(alpha: 0.85),
                               fontWeight: FontWeight.w400,
                             ),
                           ),
@@ -97,7 +109,7 @@ class CancelSubscriptionDialog extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
@@ -193,7 +205,9 @@ class CancelSubscriptionDialog extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildFeatureItem('Advanced project management features'),
+                          _buildFeatureItem(
+                            'Advanced project management features',
+                          ),
                           _buildFeatureItem('Priority support & guidance'),
                           _buildFeatureItem('AI advisory credits'),
                           _buildFeatureItem('Extra storage & team members'),
@@ -209,9 +223,7 @@ class CancelSubscriptionDialog extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: const Color(0xFFF3F4F6),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFFE5E7EB),
-                        ),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
                       ),
                       child: Row(
                         children: [
@@ -292,7 +304,9 @@ class CancelSubscriptionDialog extends StatelessWidget {
                     OutlinedButton(
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(
-                            color: Color(0xFFD0D5DD), width: 1.5),
+                          color: Color(0xFFD0D5DD),
+                          width: 1.5,
+                        ),
                         foregroundColor: const Color(0xFF4B5563),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(

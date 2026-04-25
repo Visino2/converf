@@ -192,21 +192,22 @@ class _SubscriptionCardSectionState extends State<SubscriptionCardSection> {
                                   : () {
                                       showDialog(
                                         context: context,
-                                        builder: (_) =>
-                                            CancelSubscriptionDialog(
-                                              planName: sub.planName ?? 'Plan',
-                                              expiryDate: sub.renewsAt,
-                                              onGoBack: () =>
-                                                  Navigator.pop(context),
-                                              onConfirmCancel: () async {
-                                                await widget.onCancel();
-                                                if (mounted) {
-                                                  Navigator.pop(context);
-                                                }
-                                              },
-                                              isLoading:
-                                                  widget.actionState.isLoading,
-                                            ),
+                                        builder: (_) => CancelSubscriptionDialog(
+                                          planName: sub.planName ?? 'Plan',
+                                          expiryDate: sub.renewsAt,
+                                          onGoBack: () =>
+                                              Navigator.pop(context),
+                                          onConfirmCancel: () async {
+                                            final navContext = context;
+                                            await widget.onCancel();
+                                            if (mounted) {
+                                              // ignore: use_build_context_synchronously
+                                              Navigator.pop(navContext);
+                                            }
+                                          },
+                                          isLoading:
+                                              widget.actionState.isLoading,
+                                        ),
                                       );
                                     },
                               child: const Text('Cancel'),

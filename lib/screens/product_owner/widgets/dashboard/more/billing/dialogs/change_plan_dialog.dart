@@ -37,7 +37,7 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 50,
               offset: const Offset(0, 25),
             ),
@@ -84,7 +84,7 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
                               'Unlock more features and maximize your potential',
                               style: TextStyle(
                                 fontSize: 15,
-                                color: Colors.white.withOpacity(0.85),
+                                color: Colors.white.withValues(alpha: 0.85),
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
@@ -96,7 +96,7 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
                         child: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
@@ -128,117 +128,8 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    ...widget.plans.map((plan) {
-                      final isCurrentPlan = plan.id == currentPlanId;
-                      final isSelected = _selectedPlanId == plan.id;
-
-                      return GestureDetector(
-                        onTap: isCurrentPlan
-                            ? null
-                            : () {
-                                setState(() => _selectedPlanId = plan.id);
-                              },
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 14),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: isSelected
-                                  ? const Color(0xFF309DAA)
-                                  : isCurrentPlan
-                                  ? const Color(0xFFABEFC6)
-                                  : const Color(0xFFE5E7EB),
-                              width: isSelected || isCurrentPlan ? 2.5 : 1.5,
-                            ),
-                            color: isCurrentPlan
-                                ? const Color(0xFFFCFCFD)
-                                : isSelected
-                                ? const Color(0xFFF0F9FF)
-                                : Colors.white,
-                          ),
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              if (!isCurrentPlan)
-                                Radio<String>(
-                                  value: plan.id,
-                                  groupValue: _selectedPlanId,
-                                  onChanged: (value) {
-                                    setState(() => _selectedPlanId = value);
-                                  },
-                                  activeColor: const Color(0xFF309DAA),
-                                  fillColor: MaterialStateProperty.all(
-                                    const Color(0xFF309DAA),
-                                  ),
-                                )
-                              else
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                  ),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFECFDF3),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: const Color(0xFFABEFC6),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      'Current',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF067647),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      plan.label
-                                          .replaceAll('_', ' ')
-                                          .split(' ')
-                                          .map(
-                                            (word) => word.isEmpty
-                                                ? ''
-                                                : word[0].toUpperCase() +
-                                                      (word.length > 1
-                                                          ? word.substring(1)
-                                                          : ''),
-                                          )
-                                          .join(' '),
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF111827),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      priceText(plan),
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF309DAA),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                    for (final plan in widget.plans)
+                      _buildPlanCard(plan, currentPlanId),
                     const SizedBox(height: 8),
                   ],
                 ),
@@ -311,6 +202,113 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
                                 fontSize: 15,
                               ),
                             ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlanCard(BillingPlan plan, String? currentPlanId) {
+    final isCurrentPlan = plan.id == currentPlanId;
+    final isSelected = _selectedPlanId == plan.id;
+
+    return GestureDetector(
+      onTap: isCurrentPlan
+          ? null
+          : () {
+              setState(() => _selectedPlanId = plan.id);
+            },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF309DAA)
+                : isCurrentPlan
+                ? const Color(0xFFABEFC6)
+                : const Color(0xFFE5E7EB),
+            width: isSelected || isCurrentPlan ? 2.5 : 1.5,
+          ),
+          color: isCurrentPlan
+              ? const Color(0xFFFCFCFD)
+              : isSelected
+              ? const Color(0xFFF0F9FF)
+              : Colors.white,
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            if (!isCurrentPlan)
+              // ignore: deprecated_member_use
+              Radio<String>(
+                value: plan.id,
+                // ignore: deprecated_member_use
+                groupValue: _selectedPlanId,
+                // ignore: deprecated_member_use
+                onChanged: (value) {
+                  setState(() => _selectedPlanId = value);
+                },
+                activeColor: const Color(0xFF309DAA),
+                fillColor: WidgetStateProperty.all(const Color(0xFF309DAA)),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF3),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFABEFC6)),
+                  ),
+                  child: const Text(
+                    'Current',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF067647),
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    plan.label
+                        .replaceAll('_', ' ')
+                        .split(' ')
+                        .map(
+                          (word) => word.isEmpty
+                              ? ''
+                              : word[0].toUpperCase() +
+                                    (word.length > 1 ? word.substring(1) : ''),
+                        )
+                        .join(' '),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    priceText(plan),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF309DAA),
                     ),
                   ),
                 ],
