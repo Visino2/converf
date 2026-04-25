@@ -25,6 +25,9 @@ class NewProjectWizard extends ConsumerStatefulWidget {
 }
 
 class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
+  final ScrollController _scrollController = ScrollController();
+  int _renderedStep = -1;
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +56,7 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     debugPrint('NewProjectWizard: disposed');
     super.dispose();
   }
@@ -80,187 +84,188 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
       );
     }
 
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
-          ),
-        ),
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
-        ),
-        child: Material(
-          // Added Material for standard widget behavior
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Drag Handle
-              const SizedBox(height: 12),
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE4E7EC),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
+    // Scroll to top whenever the step changes — done here (in build) so it
+    // fires every time we rebuild for a new step without needing a listener.
+    if (state.currentStep != _renderedStep) {
+      _renderedStep = state.currentStep;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(0);
+        }
+      });
+    }
 
-              // Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Create New Project',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF111827),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Step ${state.currentStep + 1} of 6',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF6B7280),
-                          ),
-                        ),
-                      ],
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF3F4F6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          size: 20,
-                          color: Color(0xFF4B5563),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    // Use a tight SizedBox so Column / Expanded always have a definite height.
+    // Container(maxHeight) gives loose constraints which can make Expanded
+    // collapse to zero on certain frames, causing the blank-step bug.
+    final double modalHeight = MediaQuery.of(context).size.height * 0.9;
+    final double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
-              // Progress Bar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: ClipRRect(
+    return SizedBox(
+      height: modalHeight,
+      child: Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+        child: Column(
+          children: [
+            // Drag Handle
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE4E7EC),
                   borderRadius: BorderRadius.circular(2),
-                  child: LinearProgressIndicator(
-                    value: (state.currentStep + 1) / 6,
-                    backgroundColor: const Color(0xFFF3F4F6),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF309DAA),
-                    ),
-                    minHeight: 4,
-                  ),
                 ),
               ),
+            ),
 
-              // Step Content
-              Flexible(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.all(24),
-                  child: _buildStepContent(state.currentStep),
-                ),
-              ),
-
-              // Footer
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  24,
-                  16,
-                  24,
-                  MediaQuery.of(context).padding.bottom + 24,
-                ),
-                child: Row(
-                  children: [
-                    if (state.currentStep > 0)
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: state.isLoading
-                              ? null
-                              : () =>
-                                    notifier.updateStep(state.currentStep - 1),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                          child: const Text(
-                            'Back',
-                            style: TextStyle(
-                              color: Color(0xFF4B5563),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Create New Project',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF111827),
                         ),
                       ),
-                    if (state.currentStep > 0) const SizedBox(width: 16),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Step ${state.currentStep + 1} of 6',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF3F4F6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 20,
+                        color: Color(0xFF4B5563),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Progress Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value: (state.currentStep + 1) / 6,
+                  backgroundColor: const Color(0xFFF3F4F6),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    Color(0xFF309DAA),
+                  ),
+                  minHeight: 4,
+                ),
+              ),
+            ),
+
+            // Step Content — no ValueKey here; tight SizedBox above ensures
+            // Expanded always has a definite height, preventing blank frames.
+            Expanded(
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + keyboardHeight),
+                child: _buildStepContent(state.currentStep),
+              ),
+            ),
+
+            // Footer
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                16,
+                24,
+                MediaQuery.of(context).padding.bottom + 24,
+              ),
+              child: Row(
+                children: [
+                  if (state.currentStep > 0)
                     Expanded(
-                      child: ElevatedButton(
-                        onPressed: (_isStepValid(state) && !state.isLoading)
-                            ? () => _handleNext(context, ref)
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF276572),
+                      child: OutlinedButton(
+                        onPressed: state.isLoading
+                            ? null
+                            : () => notifier.updateStep(state.currentStep - 1),
+                        style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
-                          elevation: 0,
                         ),
-                        child: state.isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Text(
-                                state.currentStep == 5
-                                    ? 'Confirm & Create'
-                                    : 'Continue',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                        child: const Text(
+                          'Back',
+                          style: TextStyle(
+                            color: Color(0xFF4B5563),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  if (state.currentStep > 0) const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: (_isStepValid(state) && !state.isLoading)
+                          ? () => _handleNext(context, ref)
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF276572),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: state.isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              state.currentStep == 5
+                                  ? 'Confirm & Create'
+                                  : 'Continue',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -312,6 +317,9 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
             state.budget.isEmpty ||
             state.assignmentMethod == null) {
           isValid = false;
+        } else if (state.assignmentMethod == 'decide_later') {
+          // "Decide Later" is always valid - no additional requirements
+          isValid = true;
         } else if (state.assignmentMethod == 'direct' &&
             state.selectedContractorId == null) {
           isValid = false;
@@ -445,6 +453,12 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
           }
 
           notifier.setProjectId(res.id);
+          notifier.setMaxSavedStep(1);
+        } else if (state.maxSavedStep >= 1) {
+          // Already saved — skip re-calling the API and just advance.
+          debugPrint(
+            'Step 1: Already saved (maxSavedStep=${state.maxSavedStep}), advancing locally.',
+          );
         } else {
           // PATCH: send ALL fields to satisfy backend validation
           final payload = _buildFullPayload(state, 1);
@@ -477,6 +491,7 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
             ),
           );
           debugPrint('Step 1: UpdateBasicInfo Success');
+          notifier.setMaxSavedStep(1);
         }
         notifier.updateStep(2);
       } else {
@@ -493,6 +508,11 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
         debugPrint('Step ${state.currentStep} PATCH payload: $payload');
 
         if (state.currentStep == 2) {
+          if (state.maxSavedStep >= 2) {
+            debugPrint('Step 2: Already saved, advancing locally.');
+            notifier.updateStep(3);
+            return;
+          }
           await apiNotifier.updateLocation(
             state.projectId!,
             UpdateLocationPayload(
@@ -521,8 +541,22 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
             ),
           );
           debugPrint('Step 2: UpdateLocation Success');
+          notifier.setMaxSavedStep(2);
           notifier.updateStep(3);
         } else if (state.currentStep == 3) {
+          if (state.maxSavedStep >= 3) {
+            debugPrint('Step 3: Already saved, advancing locally.');
+            // If "decide_later", complete the project now without Steps 5-6
+            if (state.assignmentMethod == 'decide_later') {
+              debugPrint(
+                'Step 3: "Decide Later" selected - completing project immediately',
+              );
+              notifier.setSuccess(true);
+              return;
+            }
+            notifier.updateStep(4);
+            return;
+          }
           await apiNotifier.updateTimelineBudget(
             state.projectId!,
             UpdateTimelineBudgetPayload(
@@ -551,6 +585,7 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
             ),
           );
           debugPrint('Step 3: UpdateTimelineBudget Success');
+          notifier.setMaxSavedStep(3);
 
           // If self-contractor was selected, add them as contractor participant
           if (state.selectedContractorId != null &&
@@ -578,8 +613,22 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
             }
           }
 
+          // If "decide_later", complete the project immediately without Steps 5-6
+          if (state.assignmentMethod == 'decide_later') {
+            debugPrint(
+              'Step 3: "Decide Later" selected - completing project immediately',
+            );
+            notifier.setSuccess(true);
+            return;
+          }
+
           notifier.updateStep(4);
         } else if (state.currentStep == 4) {
+          if (state.maxSavedStep >= 4) {
+            debugPrint('Step 4: Already saved, advancing locally.');
+            notifier.updateStep(5);
+            return;
+          }
           await apiNotifier.updateSpecialisations(
             state.projectId!,
             UpdateSpecialisationsPayload(
@@ -606,6 +655,7 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
             ),
           );
           debugPrint('Step 4: UpdateSpecialisations Success');
+          notifier.setMaxSavedStep(4);
           notifier.updateStep(5);
         } else if (state.currentStep == 5) {
           await apiNotifier.confirmProject(

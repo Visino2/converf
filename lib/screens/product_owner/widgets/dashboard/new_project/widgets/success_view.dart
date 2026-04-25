@@ -92,7 +92,11 @@ class _SuccessViewState extends ConsumerState<SuccessView> {
                     color: Color(0xFFF3F4F6),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.close, size: 20, color: Color(0xFF4B5563)),
+                  child: const Icon(
+                    Icons.close,
+                    size: 20,
+                    color: Color(0xFF4B5563),
+                  ),
                 ),
               ),
             ],
@@ -100,7 +104,11 @@ class _SuccessViewState extends ConsumerState<SuccessView> {
           Stack(
             alignment: Alignment.center,
             children: [
-              Image.asset('assets/images/colourful.png', height: 150, fit: BoxFit.cover),
+              Image.asset(
+                'assets/images/colourful.png',
+                height: 150,
+                fit: BoxFit.cover,
+              ),
               Container(
                 width: 96,
                 height: 96,
@@ -109,7 +117,11 @@ class _SuccessViewState extends ConsumerState<SuccessView> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Center(
-                  child: SvgPicture.asset('assets/images/check.svg', width: 56, height: 56),
+                  child: SvgPicture.asset(
+                    'assets/images/check.svg',
+                    width: 56,
+                    height: 56,
+                  ),
                 ),
               ),
             ],
@@ -131,7 +143,11 @@ class _SuccessViewState extends ConsumerState<SuccessView> {
           RichText(
             textAlign: TextAlign.center,
             text: TextSpan(
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600, height: 1.5),
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+                height: 1.5,
+              ),
               children: [
                 const TextSpan(text: 'Your project "'),
                 TextSpan(
@@ -143,7 +159,11 @@ class _SuccessViewState extends ConsumerState<SuccessView> {
                     color: Color(0xFF276572),
                   ),
                 ),
-                const TextSpan(text: '" is ready\nfor management.'),
+                TextSpan(
+                  text: state.assignmentMethod == 'decide_later'
+                      ? '" is ready.\nYou can decide on assignment later.'
+                      : '" is ready\nfor management.',
+                ),
               ],
             ),
           ),
@@ -158,81 +178,109 @@ class _SuccessViewState extends ConsumerState<SuccessView> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Reference ID: ', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                Text(
+                  'Reference ID: ',
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                ),
                 const Text(
                   'CV-2024-001',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF111827)),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Color(0xFF111827),
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 32),
-          // Invite Team card — tappable with conditional logic
-          GestureDetector(
-            onTap: _onInviteTeamTapped,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _checkingTeam ? const Color(0xFF276572) : const Color(0xFFE5E7EB),
-                  width: _checkingTeam ? 1.5 : 1,
+          // Invite Team card — only show if NOT "decide_later"
+          if (state.assignmentMethod != 'decide_later')
+            GestureDetector(
+              onTap: _onInviteTeamTapped,
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _checkingTeam
+                        ? const Color(0xFF276572)
+                        : const Color(0xFFE5E7EB),
+                    width: _checkingTeam ? 1.5 : 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFF3F4F6)),
+                      ),
+                      child: SvgPicture.asset(
+                        'assets/images/map.svg',
+                        colorFilter: const ColorFilter.mode(
+                          Color(0xFF2A8090),
+                          BlendMode.srcIn,
+                        ),
+                        width: 24,
+                        height: 24,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Invite Team Members',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Add contractors and team members',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        if (_checkingTeam)
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFF2A8090),
+                            ),
+                          )
+                        else ...[
+                          const Text(
+                            'Invite Team',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF2A8090),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.arrow_forward,
+                            color: Color(0xFF2A8090),
+                            size: 16,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9FAFB),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFF3F4F6)),
-                    ),
-                    child: SvgPicture.asset(
-                      'assets/images/map.svg',
-                      colorFilter: const ColorFilter.mode(Color(0xFF2A8090), BlendMode.srcIn),
-                      width: 24,
-                      height: 24,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Invite Team Members',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF111827)),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Add contractors and team members',
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      if (_checkingTeam)
-                        const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Color(0xFF2A8090),
-                          ),
-                        )
-                      else ...[
-                        const Text(
-                          'Invite Team',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2A8090)),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.arrow_forward, color: Color(0xFF2A8090), size: 16),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
             ),
-          ),
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
@@ -247,7 +295,8 @@ class _SuccessViewState extends ConsumerState<SuccessView> {
                   ref.invalidate(projectsListProvider(1));
                   Navigator.of(context, rootNavigator: true).push(
                     MaterialPageRoute(
-                      builder: (context) => ProjectDetailsScreen(projectId: projectId),
+                      builder: (context) =>
+                          ProjectDetailsScreen(projectId: projectId),
                     ),
                   );
                 }
@@ -256,20 +305,31 @@ class _SuccessViewState extends ConsumerState<SuccessView> {
                 backgroundColor: const Color(0xFF276572),
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Go to Project Dashboard',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                  Text(
+                    state.assignmentMethod == 'decide_later'
+                        ? 'Back to Dashboard'
+                        : 'Go to Project Dashboard',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
                   SvgPicture.asset(
                     'assets/images/projects.svg',
                     width: 24,
                     height: 24,
-                    colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                    colorFilter: const ColorFilter.mode(
+                      Colors.white,
+                      BlendMode.srcIn,
+                    ),
                   ),
                 ],
               ),
