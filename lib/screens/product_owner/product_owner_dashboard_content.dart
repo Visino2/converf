@@ -61,7 +61,6 @@ class _ProductOwnerDashboardContentState
     ref.invalidate(dashboardAdvisoryProvider);
   }
 
-
   void _toggleSearch() {
     setState(() {
       _isSearching = !_isSearching;
@@ -78,7 +77,7 @@ class _ProductOwnerDashboardContentState
   Widget build(BuildContext context) {
     // Keep subscription data warm in memory
     ref.watch(billingSubscriptionProvider);
-    
+
     return SafeArea(
       child: Stack(
         children: [
@@ -155,20 +154,27 @@ class _ProductOwnerDashboardContentState
                       // 3. Check subscription limits
                       final subState = ref.read(billingSubscriptionProvider);
                       final authState = ref.read(authProvider);
-                      
+
                       int maxProjects = 1; // Default for free plan
-                      
+
                       bool isPremiumPlan = false;
-                      final userPlan = authState.value?.user['plan']?.toString().toLowerCase() ?? '';
-                      if (userPlan.contains('builder') || userPlan.contains('starter') || userPlan.contains('professional')) {
+                      final userPlan =
+                          authState.value?.user['plan']
+                              ?.toString()
+                              .toLowerCase() ??
+                          '';
+                      if (userPlan.contains('builder') ||
+                          userPlan.contains('starter') ||
+                          userPlan.contains('professional')) {
                         isPremiumPlan = true;
                       }
 
-                      if (subState.hasValue && subState.value?.limits?.maxProjects != null) {
+                      if (subState.hasValue &&
+                          subState.value?.limits?.maxProjects != null) {
                         maxProjects = subState.value!.limits!.maxProjects!;
                       } else if (isPremiumPlan) {
                         // Safe fallback if billing data is still loading but we know they are premium
-                        maxProjects = 10; 
+                        maxProjects = 10;
                       }
 
                       debugPrint(
@@ -299,7 +305,9 @@ class _DashboardHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final unreadCount = ref.watch(unreadNotificationsCountProvider);
-    final unreadMessageCount = ref.watch(unreadMessageNotificationsCountProvider);
+    final unreadMessageCount = ref.watch(
+      unreadMessageNotificationsCountProvider,
+    );
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -897,7 +905,9 @@ class _HighlightedProjectCard extends StatelessWidget {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: project.assignmentMethod == 'decide_later'
+                              ? const Color(0xFFFFF3E0) // Orange background
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
@@ -907,9 +917,13 @@ class _HighlightedProjectCard extends StatelessWidget {
                           ],
                         ),
                         child: Text(
-                          project.status.label.toUpperCase(),
+                          project.assignmentMethod == 'decide_later'
+                              ? '⏸️ AWAITING ASSIGNMENT'
+                              : project.status.label.toUpperCase(),
                           style: TextStyle(
-                            color: project.status.color,
+                            color: project.assignmentMethod == 'decide_later'
+                                ? const Color(0xFFF57C00) // Orange text
+                                : project.status.color,
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),

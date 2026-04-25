@@ -124,21 +124,35 @@ class ProjectCard extends ConsumerWidget {
                       ),
                       Row(
                         children: [
+                          // Main status badge
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: project.assignmentMethod == 'decide_later'
+                                  ? const Color(
+                                      0xFFFFF3E0,
+                                    ) // Orange background for awaiting
+                                  : Colors.white,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              project.status.label,
+                              project.assignmentMethod == 'decide_later'
+                                  ? '⏸️ Awaiting Assignment'
+                                  : project.assignmentMethod == 'self_managed'
+                                  ? 'Self Managed'
+                                  : project.status.label,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: project.status.color,
+                                color:
+                                    project.assignmentMethod == 'decide_later'
+                                    ? const Color(0xFFF57C00) // Orange text
+                                    : project.assignmentMethod == 'self_managed'
+                                    ? const Color(0xFF276572)
+                                    : project.status.color,
                               ),
                             ),
                           ),
