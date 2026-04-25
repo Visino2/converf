@@ -1,6 +1,9 @@
 
 class NewProjectState {
   final int currentStep;
+  // Highest wizard step that has already been saved to the API in this session.
+  // Steps <= maxSavedStep skip API calls when navigating forward again.
+  final int maxSavedStep;
   final String? projectId;
   
   // Step 0
@@ -39,6 +42,7 @@ class NewProjectState {
 
   const NewProjectState({
     this.currentStep = 0,
+    this.maxSavedStep = 0,
     this.projectId,
     this.selectedIndex,
     this.selectedType,
@@ -68,6 +72,7 @@ class NewProjectState {
 
   NewProjectState copyWith({
     int? currentStep,
+    int? maxSavedStep,
     String? projectId,
     int? selectedIndex,
     String? selectedType,
@@ -94,6 +99,7 @@ class NewProjectState {
   }) {
     return NewProjectState(
       currentStep: currentStep ?? this.currentStep,
+      maxSavedStep: maxSavedStep ?? this.maxSavedStep,
       projectId: projectId ?? this.projectId,
       selectedIndex: selectedIndex ?? this.selectedIndex,
       selectedType: selectedType ?? this.selectedType,

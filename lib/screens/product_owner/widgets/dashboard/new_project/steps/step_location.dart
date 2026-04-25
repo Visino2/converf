@@ -166,35 +166,28 @@ class _StepLocationState extends ConsumerState<StepLocation> {
           ),
         ],
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: isNigeria
-                  ? WizardDropdown(
-                      label: 'City/Town*',
-                      value: state.city,
-                      items: (state.country != null && state.state != null)
-                          ? (_locationData[state.country]?[state.state] ?? <String>[])
-                          : const <String>[],
-                      onChanged: (val) => notifier.updateLocation(city: val),
-                    )
-                  : WizardTextField(
-                      label: 'City/Town*',
-                      hint: 'Enter city/town',
-                      controller: _cityController,
-                      onChanged: (val) => notifier.updateLocation(city: val),
-                    ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: WizardTextField(
-                label: 'Detailed Address',
-                controller: _addressController,
-                hint: 'e.g., 12 Admiralty Way',
-                onChanged: (val) => notifier.updateLocation(address: val),
+        isNigeria
+            ? WizardDropdown(
+                label: 'City/Town*',
+                value: state.city,
+                items: (state.country != null && state.state != null)
+                    ? (_locationData[state.country]?[state.state] ?? <String>[])
+                    : const <String>[],
+                onChanged: (val) => notifier.updateLocation(city: val),
+              )
+            : WizardTextField(
+                label: 'City/Town*',
+                hint: 'Enter city/town',
+                controller: _cityController,
+                onChanged: (val) => notifier.updateLocation(city: val),
               ),
-            ),
-          ],
+        const SizedBox(height: 16),
+        WizardTextField(
+          label: 'Detailed Address',
+          controller: _addressController,
+          hint: 'e.g., 12 Admiralty Way, Lekki Phase 1',
+          maxLines: 3,
+          onChanged: (val) => notifier.updateLocation(address: val),
         ),
       ],
     );

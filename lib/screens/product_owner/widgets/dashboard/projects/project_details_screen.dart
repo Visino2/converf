@@ -545,9 +545,15 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                         Row(
                           children: [
                             _buildBadge(
-                              project.status.label.toUpperCase(),
-                              project.status.bgColor,
-                              project.status.textColor,
+                              project.assignmentMethod == 'self_managed'
+                                  ? 'SELF MANAGED'
+                                  : project.status.label.toUpperCase(),
+                              project.assignmentMethod == 'self_managed'
+                                  ? const Color(0xFFF0FBFB)
+                                  : project.status.bgColor,
+                              project.assignmentMethod == 'self_managed'
+                                  ? const Color(0xFF276572)
+                                  : project.status.textColor,
                             ),
                             const SizedBox(width: 8),
                             _buildBadge(
@@ -869,9 +875,11 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                                                   .phases
                                                   .isEmpty))) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                         content: Text(
-                                          'Wait for the contractor to create a project schedule to view the overview.',
+                                          project.assignmentMethod == 'self_managed'
+                                              ? 'Create a project schedule first to view the overview.'
+                                              : 'Wait for the contractor to create a project schedule to view the overview.',
                                         ),
                                         backgroundColor: Colors.orange,
                                       ),
@@ -895,30 +903,32 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                                 ScheduleModal(projectId: widget.projectId),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Consumer(
-                              builder: (context, ref, child) {
-                                final openBidsCountAsync = ref.watch(
-                                  projectOpenBidsCountProvider(
-                                    widget.projectId,
-                                  ),
-                                );
-                                final badgeCount =
-                                    openBidsCountAsync.asData?.value;
-                                return _buildTabItemWithBadge(
-                                  Icons.gavel,
-                                  'Bids',
-                                  isActive: false,
-                                  badge: badgeCount != null && badgeCount > 0
-                                      ? badgeCount
-                                      : null,
-                                  onTapped: () => _showModal(
-                                    context,
-                                    BidsModal(projectId: widget.projectId),
-                                  ),
-                                );
-                              },
-                            ),
+                            if (project.assignmentMethod != 'self_managed') ...[
+                              const SizedBox(width: 12),
+                              Consumer(
+                                builder: (context, ref, child) {
+                                  final openBidsCountAsync = ref.watch(
+                                    projectOpenBidsCountProvider(
+                                      widget.projectId,
+                                    ),
+                                  );
+                                  final badgeCount =
+                                      openBidsCountAsync.asData?.value;
+                                  return _buildTabItemWithBadge(
+                                    Icons.gavel,
+                                    'Bids',
+                                    isActive: false,
+                                    badge: badgeCount != null && badgeCount > 0
+                                        ? badgeCount
+                                        : null,
+                                    onTapped: () => _showModal(
+                                      context,
+                                      BidsModal(projectId: widget.projectId),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                             const SizedBox(width: 12),
                             _buildTabItem(
                               'assets/images/field_inspection.svg',

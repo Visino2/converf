@@ -106,7 +106,13 @@ class StepReview extends ConsumerWidget {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(color: const Color(0xFFF0FBFB), borderRadius: BorderRadius.circular(12)),
                   child: SvgPicture.asset(
-                    state.assignmentMethod == 'tender' ? 'assets/images/projects.svg' : (state.assignmentMethod == 'direct' ? 'assets/images/group-1.svg' : 'assets/images/Calendar-1.svg'),
+                    state.assignmentMethod == 'tender'
+                        ? 'assets/images/projects.svg'
+                        : state.assignmentMethod == 'direct'
+                            ? 'assets/images/group-1.svg'
+                            : state.assignmentMethod == 'self_managed'
+                                ? 'assets/images/edit-profile.svg'
+                                : 'assets/images/Calendar-1.svg',
                     width: 24,
                     height: 24,
                     colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn),
@@ -118,7 +124,13 @@ class StepReview extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        state.assignmentMethod == 'tender' ? 'Public Tender' : (state.assignmentMethod == 'direct' ? 'Direct Assignment' : 'Decide Later'),
+                        state.assignmentMethod == 'tender'
+                            ? 'Public Tender'
+                            : state.assignmentMethod == 'direct'
+                                ? 'Direct Assignment'
+                                : state.assignmentMethod == 'self_managed'
+                                    ? 'Self Managed'
+                                    : 'Decide Later',
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF111827)),
                       ),
                       if (state.assignmentMethod == 'tender' && state.biddingDeadline != null)

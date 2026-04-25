@@ -7,6 +7,7 @@ import 'package:converf/features/projects/models/schedule.dart';
 import 'package:converf/features/projects/providers/schedule_providers.dart';
 import 'package:converf/features/projects/models/project.dart';
 import 'package:converf/features/projects/providers/project_providers.dart';
+import 'package:converf/screens/contractor/projects/schedule/schedule_screen.dart';
 
 class _StatusStyle {
   final String label;
@@ -57,9 +58,10 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
     final project = projectAsync.value?.data;
 
     if (project != null) {
-      final isEarlyStage = project.status == ProjectStatus.draft || 
+      final isSelfManaged = project.assignmentMethod == 'self_managed';
+      final isEarlyStage = project.status == ProjectStatus.draft ||
                            project.status == ProjectStatus.pendingTender;
-      if (isEarlyStage || project.contractorId == null || project.contractorId!.isEmpty) {
+      if (!isSelfManaged && (isEarlyStage || project.contractorId == null || project.contractorId!.isEmpty)) {
         return Container(
           height: MediaQuery.of(context).size.height * 0.92,
           decoration: const BoxDecoration(
@@ -71,13 +73,14 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
               _buildHandle(),
               _buildHeader(context),
               const Divider(height: 1, color: Color(0xFFEAECF0)),
-              Expanded(child: _buildEmpty()),
+              Expanded(child: _buildEmpty(context)),
             ],
           ),
         );
       }
     }
 
+    final isSelfManaged = project?.assignmentMethod == 'self_managed';
     final scheduleAsync = ref.watch(projectScheduleProvider(widget.projectId));
 
     return Container(
@@ -98,11 +101,11 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
                 final isNotFound = (error is ApiException && error.statusCode == 404) ||
                     error.toString().toLowerCase().contains('404') ||
                     error.toString().toLowerCase().contains('not found');
-                if (isNotFound) return _buildEmpty();
+                if (isNotFound) return _buildEmpty(context, isSelfManaged: isSelfManaged);
                 return Center(child: Text('Error: $error', style: const TextStyle(color: Colors.red)));
               },
               data: (schedule) {
-                if (schedule.status == 'draft') return _buildEmpty();
+                if (schedule.status == 'draft') return _buildEmpty(context, isSelfManaged: isSelfManaged);
                 return _buildBody(context, schedule);
               },
             ),
@@ -223,7 +226,7 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
     );
   }
 
-  Widget _buildEmpty() {
+  Widget _buildEmpty(BuildContext context, {bool isSelfManaged = false}) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -236,13 +239,43 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
               child: const Icon(Icons.calendar_month_outlined, size: 52, color: Color(0xFF667085)),
             ),
             const SizedBox(height: 20),
-            const Text('No Schedule Submitted', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF101828))),
-            const SizedBox(height: 8),
-            const Text(
-              'Once the contractor submits a schedule, you can review and approve, request revision, or reject it.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Color(0xFF667085), height: 1.5),
+            Text(
+              isSelfManaged ? 'No Schedule Yet' : 'No Schedule Submitted',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
             ),
+            const SizedBox(height: 8),
+            Text(
+              isSelfManaged
+                  ? 'Create a project schedule to track phases, tasks, and timelines for this self-managed project.'
+                  : 'Once the contractor submits a schedule, you can review and approve, request revision, or reject it.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF667085), height: 1.5),
+            ),
+            if (isSelfManaged) ...[
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ScheduleScreen(
+                        projectId: widget.projectId,
+                        isEmbedded: false,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Create Schedule'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF276572),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
           ],
         ),
       ),

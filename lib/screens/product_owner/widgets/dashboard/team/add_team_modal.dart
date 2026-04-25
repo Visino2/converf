@@ -54,7 +54,7 @@ class _AddTeamModalState extends ConsumerState<AddTeamModal> {
           _selectedCountry != null;
     }
     if (_currentStep == 2) {
-      return _selectedRole != null && _assignedProject != null;
+      return _selectedRole != null;
     }
     return true;
   }
@@ -477,14 +477,22 @@ class _AddTeamModalState extends ConsumerState<AddTeamModal> {
             color: Color(0xFF111827),
           ),
         ),
+        const SizedBox(height: 4),
+        const Text(
+          'Tap a project below to assign this member (optional)',
+          style: TextStyle(
+            fontSize: 12,
+            color: Color(0xFF6B7280),
+          ),
+        ),
         const SizedBox(height: 12),
         projectsAsync.when(
           data: (projectsData) {
             final projectList = projectsData.data;
             if (projectList.isEmpty) {
               return Text(
-                'No projects found. Please create a project first.',
-                style: TextStyle(color: Colors.grey.shade500),
+                'No projects yet — you can assign this member to a project later.',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
               );
             }
             return Column(
