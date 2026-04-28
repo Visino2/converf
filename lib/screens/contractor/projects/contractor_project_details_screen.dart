@@ -110,9 +110,47 @@ class _ContractorProjectDetailsScreenState
         ),
         centerTitle: true,
         actions: [
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.menu, color: Colors.black),
-            onPressed: () {},
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            onSelected: (value) {
+              switch (value) {
+                case 'overview':
+                  _openHub(0, true);
+                case 'schedule':
+                  _openHub(1, true);
+                case 'share':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Share link copied!')),
+                  );
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'overview',
+                child: Row(children: [
+                  Icon(Icons.home_outlined, size: 20),
+                  SizedBox(width: 12),
+                  Text('Overview'),
+                ]),
+              ),
+              const PopupMenuItem(
+                value: 'schedule',
+                child: Row(children: [
+                  Icon(Icons.calendar_today_outlined, size: 20),
+                  SizedBox(width: 12),
+                  Text('Schedule'),
+                ]),
+              ),
+              const PopupMenuItem(
+                value: 'share',
+                child: Row(children: [
+                  Icon(Icons.share_outlined, size: 20),
+                  SizedBox(width: 12),
+                  Text('Share Project'),
+                ]),
+              ),
+            ],
           ),
         ],
       ),

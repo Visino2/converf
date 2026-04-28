@@ -6,7 +6,7 @@ String priceText(BillingPlan plan) {
     if (plan.name.toLowerCase().contains('enterprise')) {
       return 'Contact sales for custom pricing';
     }
-    return 'Premium Plan';
+    return 'Free';
   }
   final currency = plan.currency ?? '₦';
   final interval = plan.interval ?? 'month';

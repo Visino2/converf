@@ -11,6 +11,7 @@ import '../../../features/auth/models/auth_response.dart';
 import '../../../features/auth/models/social_auth_method.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/auth/providers/social_auth_provider.dart';
+import '../../../features/auth/services/biometric_auth_service.dart';
 
 class OnboardingLoginStep extends ConsumerStatefulWidget {
   final VoidCallback onSignup;
@@ -40,10 +41,57 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
   bool _isPasswordValid = false;
   String? _loginError;
 
+  bool _biometricAvailable = false;
+  String _biometricLabel = 'Biometrics';
+  bool _isBiometricLoading = false;
+
   @override
   void initState() {
     super.initState();
     Future.microtask(_loadSavedEmail);
+    Future.microtask(_checkBiometricAvailability);
+  }
+
+  Future<void> _checkBiometricAvailability() async {
+    final biometricService = ref.read(biometricAuthServiceProvider);
+    if (!biometricService.isEnabledSync || !biometricService.hasSavedCredentials) return;
+    final availability = await biometricService.getAvailability();
+    if (!mounted) return;
+    if (availability.canAuthenticate) {
+      setState(() {
+        _biometricAvailable = true;
+        _biometricLabel = availability.preferredLabel;
+      });
+    }
+  }
+
+  Future<void> _handleBiometricLogin() async {
+    setState(() => _isBiometricLoading = true);
+    try {
+      final biometricService = ref.read(biometricAuthServiceProvider);
+      final didAuth = await biometricService.authenticate(
+        reason: 'Use $_biometricLabel to log back in to Converf.',
+      );
+      if (!mounted) return;
+      if (!didAuth) {
+        setState(() => _isBiometricLoading = false);
+        return;
+      }
+      final ok = await ref.read(authProvider.notifier).loginWithBiometric();
+      if (!mounted) return;
+      if (!ok) {
+        setState(() {
+          _isBiometricLoading = false;
+          _biometricAvailable = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Session expired. Please log in with your email and password.')),
+        );
+      }
+      // On success, authProvider rebuilds → router redirects automatically.
+    } catch (e) {
+      if (mounted) setState(() => _isBiometricLoading = false);
+    }
   }
 
   void _loadSavedEmail() {
@@ -582,6 +630,40 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
                             ),
                           ),
                         ),
+                        if (_biometricAvailable) ...[
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFF276572)),
+                                foregroundColor: const Color(0xFF276572),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                              onPressed: _isBiometricLoading ? null : _handleBiometricLogin,
+                              icon: _isBiometricLoading
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFF276572),
+                                      ),
+                                    )
+                                  : const Icon(Icons.fingerprint, size: 24),
+                              label: Text(
+                                _isBiometricLoading ? 'Authenticating...' : 'Login with $_biometricLabel',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         Row(
                           children: [

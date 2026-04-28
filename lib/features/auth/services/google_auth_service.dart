@@ -24,60 +24,64 @@ class GoogleIdTokenClaims {
 }
 
 class GoogleAuthService {
-  // Platform-specific client IDs from google-services.json configuration.
-  // These are used to generate the ID token with the correct 'aud' claim.
-  // The backend expects to validate against these specific client IDs
-  // for the Android and iOS apps.
-  static const String _androidClientId = String.fromEnvironment(
-    'GOOGLE_ANDROID_CLIENT_ID',
+  // Web OAuth client ID for the web app (project 165586994124).
+  // ID tokens issued on iOS/web will carry this as their audience.
+  // Backend MUST accept this as valid audience for web/iOS tokens.
+  static const String _webClientId = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
     defaultValue:
-        '165586994124-etvi2qfifm6labfj7hdgf13f820kkv3v.apps.googleusercontent.com',
+        '165586994124-hflca443nfirdase4vj76vkakfs7pvq9.apps.googleusercontent.com',
   );
+
+  // Mobile OAuth client (type 3) from the native Android Firebase project
+  // (project number 897727755110). The Android google-services.json belongs
+  // to this project, so serverClientId on Android MUST use this client ID —
+  // using a client from a different project causes sign_in_failed on Android.
+  // ID tokens issued on Android will carry this value as their audience.
+  // Backend MUST accept this as valid audience for Android tokens.
+  static const String _mobileClientId = String.fromEnvironment(
+    'GOOGLE_MOBILE_CLIENT_ID',
+    defaultValue:
+        '897727755110-f345u25o6888kq6nsrrvv6n1s0cuu6hf.apps.googleusercontent.com',
+  );
+
+  // iOS OAuth client ID (project 165586994124 — same as web).
   static const String _iosClientId = String.fromEnvironment(
     'GOOGLE_IOS_CLIENT_ID',
     defaultValue:
         '165586994124-5tiu5dl7hn1q56lqp5edq2gbeujbcgts.apps.googleusercontent.com',
   );
 
-  // Web client ID used as fallback for non-native platforms
-  static const String _webClientId = String.fromEnvironment(
-    'GOOGLE_WEB_CLIENT_ID',
-    defaultValue:
-        '165586994124-ehinqf0siepk2ioifu13kkv3oc901t9f.apps.googleusercontent.com',
-  );
+  /// Both audiences the backend must accept: web tokens use _webClientId,
+  /// Android tokens use _mobileClientId.
+  static const List<String> validTokenAudiences = [
+    _webClientId,
+    _mobileClientId,
+  ];
 
-  /// Returns the native OAuth client configured for the current platform.
-  String get expectedPlatformClientId {
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return _androidClientId;
-      case TargetPlatform.iOS:
-        return _iosClientId;
-      default:
-        return _webClientId;
-    }
+  /// The audience expected for the current platform's token.
+  String get expectedTokenAudience {
+    return defaultTargetPlatform == TargetPlatform.android
+        ? _mobileClientId
+        : _webClientId;
   }
-
-  /// Native Google Sign-In returns an ID token whose audience matches the
-  /// configured Web OAuth client when `serverClientId` is used.
-  String get expectedTokenAudience => _webClientId;
 
   late final GoogleSignIn _googleSignIn;
 
   GoogleAuthService() {
     _googleSignIn = GoogleSignIn(
-      // On iOS: Set clientId to get proper ID token
-      // On Android: Leave clientId null - the Google SDK will use the package name
-      // to determine which OAuth client to use from google-services.json
+      // iOS needs an explicit clientId to identify which OAuth client to use.
+      // Android leaves this null — the SDK resolves it from google-services.json.
       clientId: defaultTargetPlatform == TargetPlatform.iOS
           ? _iosClientId
           : null,
-      // serverClientId MUST be the Web OAuth client ID (client_type: 3).
-      // Google's native SDK requires a Web client here to issue a valid ID token.
-      // Android/iOS client IDs cannot be used as serverClientId — it causes sign_in_failed.
-      // The resulting token will have aud = Web client ID.
-      // The backend must accept this Web client ID as a valid audience.
-      serverClientId: _webClientId,
+      // serverClientId MUST be a Web OAuth client from the SAME Firebase project
+      // as the platform's config file (google-services.json / GoogleService-Info.plist).
+      // Using a client ID from a different project causes sign_in_failed on Android.
+      // Android → mobile project (431938083961), iOS/other → web project (165586994124).
+      serverClientId: defaultTargetPlatform == TargetPlatform.android
+          ? _mobileClientId
+          : _webClientId,
       scopes: ['email', 'profile'],
     );
   }
@@ -87,8 +91,7 @@ class GoogleAuthService {
     try {
       debugPrint(
         '[GoogleSignIn] signIn() called on ${defaultTargetPlatform.name} '
-        'with platformClientId=$expectedPlatformClientId '
-        'and serverClientId=$_webClientId.',
+        'with serverClientId=$expectedTokenAudience.',
       );
       // Clear any previous session to ensure the "Choose Account" popup appears
       if (await _googleSignIn.isSignedIn()) {

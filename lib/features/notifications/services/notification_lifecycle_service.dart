@@ -272,6 +272,7 @@ class NotificationLifecycleService {
         return;
       }
 
+      // Invalidate notifications to trigger refetch from backend API
       _ref.invalidate(notificationsProvider(false));
       _ref.invalidate(notificationsProvider(true));
 
@@ -279,6 +280,10 @@ class NotificationLifecycleService {
         message.sender?.firstName ?? '',
         message.sender?.lastName ?? '',
       ].where((part) => part.isNotEmpty).join(' ');
+
+      debugPrint(
+        '[Notifications] Message from $senderName: ${message.body} (Project: $projectId)',
+      );
 
       appScaffoldMessengerKey.currentState?.showSnackBar(
         SnackBar(

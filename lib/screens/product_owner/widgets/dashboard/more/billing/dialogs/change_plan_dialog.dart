@@ -2,6 +2,15 @@ import 'package:converf/features/billing/models/billing_models.dart';
 import 'package:flutter/material.dart';
 import '../utils/billing_formatters.dart';
 
+String _planDescription(String planName) {
+  final name = planName.toLowerCase();
+  if (name.contains('free')) return 'Basic access · 1 project · limited features';
+  if (name.contains('starter')) return '10 projects · team management · AI credits';
+  if (name.contains('builder')) return 'Unlimited projects · advanced analytics · priority support';
+  if (name.contains('enterprise')) return 'Custom limits · dedicated support · SLA guarantee';
+  return 'Contact us for details';
+}
+
 class ChangePlanDialog extends StatefulWidget {
   final BillingSubscription currentSubscription;
   final List<BillingPlan> plans;
@@ -300,6 +309,15 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF111827),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _planDescription(plan.name),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
+                      height: 1.4,
                     ),
                   ),
                   const SizedBox(height: 6),

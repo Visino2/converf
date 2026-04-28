@@ -13,16 +13,44 @@ class _StatusStyle {
   final String label;
   final Color bg;
   final Color text;
-  const _StatusStyle({required this.label, required this.bg, required this.text});
+  const _StatusStyle({
+    required this.label,
+    required this.bg,
+    required this.text,
+  });
 }
 
 const _statusStyles = <String, _StatusStyle>{
-  'draft':               _StatusStyle(label: 'Draft',              bg: Color(0xFFF0F2F5), text: Color(0xFF475367)),
-  'submitted':           _StatusStyle(label: 'Submitted',          bg: Color(0xFFFEF6E7), text: Color(0xFF865503)),
-  'revision_requested':  _StatusStyle(label: 'Revision Requested', bg: Color(0xFFFFF4ED), text: Color(0xFF9A3412)),
-  'resubmitted':         _StatusStyle(label: 'Resubmitted',        bg: Color(0xFFE0EAFF), text: Color(0xFF1D4ED8)),
-  'approved':            _StatusStyle(label: 'Approved',           bg: Color(0xFFE7F6EC), text: Color(0xFF036B26)),
-  'rejected':            _StatusStyle(label: 'Rejected',           bg: Color(0xFFFEF3F2), text: Color(0xFFB42318)),
+  'draft': _StatusStyle(
+    label: 'Draft',
+    bg: Color(0xFFF0F2F5),
+    text: Color(0xFF475367),
+  ),
+  'submitted': _StatusStyle(
+    label: 'Submitted',
+    bg: Color(0xFFFEF6E7),
+    text: Color(0xFF865503),
+  ),
+  'revision_requested': _StatusStyle(
+    label: 'Revision Requested',
+    bg: Color(0xFFFFF4ED),
+    text: Color(0xFF9A3412),
+  ),
+  'resubmitted': _StatusStyle(
+    label: 'Resubmitted',
+    bg: Color(0xFFE0EAFF),
+    text: Color(0xFF1D4ED8),
+  ),
+  'approved': _StatusStyle(
+    label: 'Approved',
+    bg: Color(0xFFE7F6EC),
+    text: Color(0xFF036B26),
+  ),
+  'rejected': _StatusStyle(
+    label: 'Rejected',
+    bg: Color(0xFFFEF3F2),
+    text: Color(0xFFB42318),
+  ),
 };
 
 _StatusStyle _getStyle(String status) =>
@@ -32,7 +60,20 @@ String _fmtDate(String? date) {
   if (date == null || date.isEmpty) return 'Not set';
   try {
     final d = DateTime.parse(date);
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   } catch (_) {
     return date;
@@ -59,9 +100,16 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
 
     if (project != null) {
       final isSelfManaged = project.assignmentMethod == 'self_managed';
-      final isEarlyStage = project.status == ProjectStatus.draft ||
-                           project.status == ProjectStatus.pendingTender;
-      if (!isSelfManaged && (isEarlyStage || project.contractorId == null || project.contractorId!.isEmpty)) {
+      final isEarlyStage =
+          project.status == ProjectStatus.draft ||
+          project.status == ProjectStatus.pendingTender;
+      // Show empty state for non-self-managed projects in early stages with no contractor
+      // OR for self-managed projects in draft status (they can create schedule)
+      if ((!isSelfManaged &&
+              (isEarlyStage ||
+                  project.contractorId == null ||
+                  project.contractorId!.isEmpty)) ||
+          (isSelfManaged && project.status == ProjectStatus.draft)) {
         return Container(
           height: MediaQuery.of(context).size.height * 0.92,
           decoration: const BoxDecoration(
@@ -73,7 +121,9 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
               _buildHandle(),
               _buildHeader(context),
               const Divider(height: 1, color: Color(0xFFEAECF0)),
-              Expanded(child: _buildEmpty(context)),
+              Expanded(
+                child: _buildEmpty(context, isSelfManaged: isSelfManaged),
+              ),
             ],
           ),
         );
@@ -98,14 +148,24 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
             child: scheduleAsync.when(
               loading: () => _buildLoadingSkeleton(),
               error: (error, _) {
-                final isNotFound = (error is ApiException && error.statusCode == 404) ||
+                final isNotFound =
+                    (error is ApiException && error.statusCode == 404) ||
                     error.toString().toLowerCase().contains('404') ||
                     error.toString().toLowerCase().contains('not found');
-                if (isNotFound) return _buildEmpty(context, isSelfManaged: isSelfManaged);
-                return Center(child: Text('Error: $error', style: const TextStyle(color: Colors.red)));
+                if (isNotFound) {
+                  return _buildEmpty(context, isSelfManaged: isSelfManaged);
+                }
+                return Center(
+                  child: Text(
+                    'Error: $error',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                );
               },
               data: (schedule) {
-                if (schedule.status == 'draft') return _buildEmpty(context, isSelfManaged: isSelfManaged);
+                if (schedule.status == 'draft') {
+                  return _buildEmpty(context, isSelfManaged: isSelfManaged);
+                }
                 return _buildBody(context, schedule);
               },
             ),
@@ -116,14 +176,18 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
   }
 
   Widget _buildHandle() => Padding(
-        padding: const EdgeInsets.only(top: 12, bottom: 4),
-        child: Center(
-          child: Container(
-            width: 40, height: 4,
-            decoration: BoxDecoration(color: const Color(0xFFD0D5DD), borderRadius: BorderRadius.circular(2)),
-          ),
+    padding: const EdgeInsets.only(top: 12, bottom: 4),
+    child: Center(
+      child: Container(
+        width: 40,
+        height: 4,
+        decoration: BoxDecoration(
+          color: const Color(0xFFD0D5DD),
+          borderRadius: BorderRadius.circular(2),
         ),
-      );
+      ),
+    ),
+  );
 
   Widget _buildLoadingSkeleton() {
     return SingleChildScrollView(
@@ -189,7 +253,11 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
     );
   }
 
-  Widget _shimmerBox({required double height, double? width, double radius = 6}) {
+  Widget _shimmerBox({
+    required double height,
+    double? width,
+    double radius = 6,
+  }) {
     return Container(
       width: width,
       height: height,
@@ -206,19 +274,43 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(children: [
-            SvgPicture.asset('assets/images/calendar-3.svg', width: 22, height: 22,
-              colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn),
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.calendar_month, color: Color(0xFF276572))),
-            const SizedBox(width: 10),
-            const Text('Project Schedule', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF101828))),
-          ]),
+          Row(
+            children: [
+              SvgPicture.asset(
+                'assets/images/calendar-3.svg',
+                width: 22,
+                height: 22,
+                colorFilter: const ColorFilter.mode(
+                  Color(0xFF276572),
+                  BlendMode.srcIn,
+                ),
+                errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.calendar_month, color: Color(0xFF276572)),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Project Schedule',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF101828),
+                ),
+              ),
+            ],
+          ),
           GestureDetector(
             onTap: () => Navigator.pop(context),
             child: Container(
               padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(color: Color(0xFFF2F4F7), shape: BoxShape.circle),
-              child: const Icon(Icons.close, size: 18, color: Color(0xFF667085)),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF2F4F7),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.close,
+                size: 18,
+                color: Color(0xFF667085),
+              ),
             ),
           ),
         ],
@@ -235,13 +327,24 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: const Color(0xFFF2F4F7), borderRadius: BorderRadius.circular(20)),
-              child: const Icon(Icons.calendar_month_outlined, size: 52, color: Color(0xFF667085)),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2F4F7),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.calendar_month_outlined,
+                size: 52,
+                color: Color(0xFF667085),
+              ),
             ),
             const SizedBox(height: 20),
             Text(
               isSelfManaged ? 'No Schedule Yet' : 'No Schedule Submitted',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF101828),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -249,7 +352,11 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
                   ? 'Create a project schedule to track phases, tasks, and timelines for this self-managed project.'
                   : 'Once the contractor submits a schedule, you can review and approve, request revision, or reject it.',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF667085), height: 1.5),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF667085),
+                height: 1.5,
+              ),
             ),
             if (isSelfManaged) ...[
               const SizedBox(height: 24),
@@ -271,8 +378,13 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF276572),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ],
@@ -284,13 +396,17 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
 
   Widget _buildBody(BuildContext context, Schedule schedule) {
     final style = _getStyle(schedule.status);
-    final canReview = schedule.status == 'submitted' || schedule.status == 'resubmitted';
+    final canReview =
+        schedule.status == 'submitted' || schedule.status == 'resubmitted';
     final contractorName = schedule.contractor?.companyName?.isNotEmpty == true
         ? schedule.contractor!.companyName!
         : schedule.contractor != null
-            ? '${schedule.contractor!.firstName} ${schedule.contractor!.lastName}'.trim()
-            : 'Unknown';
-    final submittedDate = _fmtDate(schedule.resubmittedAt ?? schedule.submittedAt);
+        ? '${schedule.contractor!.firstName} ${schedule.contractor!.lastName}'
+              .trim()
+        : 'Unknown';
+    final submittedDate = _fmtDate(
+      schedule.resubmittedAt ?? schedule.submittedAt,
+    );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -310,30 +426,56 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
               children: [
                 Row(
                   children: [
-                    const Text('Project Schedule',
-                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF111827))),
+                    const Text(
+                      'Project Schedule',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
                     const Spacer(),
                     // Status badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: style.bg, borderRadius: BorderRadius.circular(999)),
-                      child: Text(style.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: style.text)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: style.bg,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        style.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: style.text,
+                        ),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Review the contractor\'s schedule and decide the next action.',
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF667085)),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF667085),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Contractor: $contractorName  •  Submitted: $submittedDate',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF667085)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF667085),
+                  ),
                 ),
 
                 // Contractor notes
-                if (schedule.contractorNotes != null && schedule.contractorNotes!.isNotEmpty) ...[
+                if (schedule.contractorNotes != null &&
+                    schedule.contractorNotes!.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -345,16 +487,30 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Contractor Notes', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF111827))),
+                        const Text(
+                          'Contractor Notes',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: Color(0xFF111827),
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text(schedule.contractorNotes!, style: const TextStyle(fontSize: 13, color: Color(0xFF344054))),
+                        Text(
+                          schedule.contractorNotes!,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF344054),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
 
                 // Owner feedback (if revision was requested or schedule was rejected)
-                if (schedule.ownerFeedback != null && schedule.ownerFeedback!.isNotEmpty) ...[
+                if (schedule.ownerFeedback != null &&
+                    schedule.ownerFeedback!.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -368,13 +524,30 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
                       children: [
                         const Row(
                           children: [
-                            Icon(Icons.feedback_outlined, size: 14, color: Color(0xFF9A3412)),
+                            Icon(
+                              Icons.feedback_outlined,
+                              size: 14,
+                              color: Color(0xFF9A3412),
+                            ),
                             SizedBox(width: 6),
-                            Text('Owner Feedback', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF9A3412))),
+                            Text(
+                              'Owner Feedback',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: Color(0xFF9A3412),
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text(schedule.ownerFeedback!, style: const TextStyle(fontSize: 13, color: Color(0xFF7C2D12))),
+                        Text(
+                          schedule.ownerFeedback!,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF7C2D12),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -383,7 +556,10 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
                 // ── Review action buttons ────────────────────────────────────
                 if (canReview) ...[
                   const SizedBox(height: 16),
-                  _ReviewActions(scheduleId: schedule.id, projectId: widget.projectId),
+                  _ReviewActions(
+                    scheduleId: schedule.id,
+                    projectId: widget.projectId,
+                  ),
                 ],
               ],
             ),
@@ -394,7 +570,9 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
           _PhasesAccordion(
             schedule: schedule,
             expandedPhaseId: _expandedPhaseId,
-            onToggle: (id) => setState(() => _expandedPhaseId = _expandedPhaseId == id ? null : id),
+            onToggle: (id) => setState(
+              () => _expandedPhaseId = _expandedPhaseId == id ? null : id,
+            ),
           ),
           const SizedBox(height: 32),
         ],
@@ -420,8 +598,10 @@ class _ReviewActionsState extends ConsumerState<_ReviewActions> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(isRevision ? 'Request Revision' : 'Reject Schedule',
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          isRevision ? 'Request Revision' : 'Reject Schedule',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,21 +618,30 @@ class _ReviewActionsState extends ConsumerState<_ReviewActions> {
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: 'Write your feedback here...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 contentPadding: const EdgeInsets.all(12),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: isRevision ? const Color(0xFF276572) : Colors.red,
+              backgroundColor: isRevision
+                  ? const Color(0xFF276572)
+                  : Colors.red,
             ),
-            child: Text(isRevision ? 'Request Revision' : 'Reject',
-                style: const TextStyle(color: Colors.white)),
+            child: Text(
+              isRevision ? 'Request Revision' : 'Reject',
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -462,24 +651,41 @@ class _ReviewActionsState extends ConsumerState<_ReviewActions> {
       final notifier = ref.read(scheduleActionProvider.notifier);
       try {
         if (isRevision) {
-          await notifier.requestRevision(widget.scheduleId, widget.projectId, controller.text.trim()); // revision
+          await notifier.requestRevision(
+            widget.scheduleId,
+            widget.projectId,
+            controller.text.trim(),
+          ); // revision
         } else {
-          await notifier.rejectSchedule(widget.scheduleId, widget.projectId, controller.text.trim());
+          await notifier.rejectSchedule(
+            widget.scheduleId,
+            widget.projectId,
+            controller.text.trim(),
+          );
         }
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(isRevision ? 'Revision requested.' : 'Schedule rejected.'),
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isRevision ? 'Revision requested.' : 'Schedule rejected.',
+              ),
+            ),
+          );
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed: $e')));
         }
       }
     } else if (confirmed == true) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Feedback must be at least 10 characters.')));
+          const SnackBar(
+            content: Text('Feedback must be at least 10 characters.'),
+          ),
+        );
       }
     }
   }
@@ -493,59 +699,97 @@ class _ReviewActionsState extends ConsumerState<_ReviewActions> {
       children: [
         Expanded(
           child: OutlinedButton(
-            onPressed: isLoading ? null : () => _showFeedbackDialog(context, 'revision'),
+            onPressed: isLoading
+                ? null
+                : () => _showFeedbackDialog(context, 'revision'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               side: const BorderSide(color: Color(0xFF276572)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
             ),
-            child: const Text('Request Revision', 
+            child: const Text(
+              'Request Revision',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF276572), fontWeight: FontWeight.w600, fontSize: 13)),
+              style: TextStyle(
+                color: Color(0xFF276572),
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: ElevatedButton(
-            onPressed: isLoading ? null : () => _showFeedbackDialog(context, 'reject'),
+            onPressed: isLoading
+                ? null
+                : () => _showFeedbackDialog(context, 'reject'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFB42318),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
               elevation: 0,
             ),
-            child: const Text('Reject', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Reject',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: ElevatedButton(
-            onPressed: isLoading ? null : () async {
-              try {
-                await ref.read(scheduleActionProvider.notifier).approveSchedule(widget.scheduleId, widget.projectId);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Schedule approved successfully.')),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to approve: $e')),
-                  );
-                }
-              }
-            },
+            onPressed: isLoading
+                ? null
+                : () async {
+                    try {
+                      await ref
+                          .read(scheduleActionProvider.notifier)
+                          .approveSchedule(widget.scheduleId, widget.projectId);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Schedule approved successfully.'),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed to approve: $e')),
+                        );
+                      }
+                    }
+                  },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0F973D),
               padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
               elevation: 0,
             ),
             child: isLoading
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Approve', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text(
+                    'Approve',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
           ),
         ),
       ],
@@ -573,22 +817,28 @@ class _PhasesAccordion extends ConsumerWidget {
       return const Center(
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: 24),
-          child: Text('No phases in this schedule yet.',
-              style: TextStyle(fontSize: 14, color: Color(0xFF667085))),
+          child: Text(
+            'No phases in this schedule yet.',
+            style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+          ),
         ),
       );
     }
 
     return Column(
-      children: phases.map((phase) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: _PhaseAccordionItem(
-          phase: phase,
-          scheduleId: schedule.id,
-          isExpanded: expandedPhaseId == phase.id,
-          onToggle: () => onToggle(phase.id),
-        ),
-      )).toList(),
+      children: phases
+          .map(
+            (phase) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _PhaseAccordionItem(
+                phase: phase,
+                scheduleId: schedule.id,
+                isExpanded: expandedPhaseId == phase.id,
+                onToggle: () => onToggle(phase.id),
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -608,7 +858,9 @@ class _PhaseAccordionItem extends ConsumerWidget {
   });
 
   String _timeline() {
-    if (phase.startDate == null && phase.endDate == null) return 'No timeline set';
+    if (phase.startDate == null && phase.endDate == null) {
+      return 'No timeline set';
+    }
     return '${_fmtDate(phase.startDate)} – ${_fmtDate(phase.endDate)}';
   }
 
@@ -640,32 +892,56 @@ class _PhaseAccordionItem extends ConsumerWidget {
                       children: [
                         Text(
                           'Phase ${phase.order}: ${phase.name}',
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF111827)),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: Color(0xFF111827),
+                          ),
                         ),
                         const SizedBox(height: 2),
-                        Text(_timeline(), style: const TextStyle(fontSize: 12, color: Color(0xFF667085))),
+                        Text(
+                          _timeline(),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF667085),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF0F2F5),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.list_alt, size: 14, color: Color(0xFF475367)),
+                        const Icon(
+                          Icons.list_alt,
+                          size: 14,
+                          color: Color(0xFF475367),
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '${phase.activitiesCount > 0 ? phase.activitiesCount : activities.length} Activities',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF475367)),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF475367),
+                          ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(isExpanded ? Icons.expand_less : Icons.expand_more, color: const Color(0xFF667085)),
+                  Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: const Color(0xFF667085),
+                  ),
                 ],
               ),
             ),
@@ -678,11 +954,18 @@ class _PhaseAccordionItem extends ConsumerWidget {
               child: activities.isEmpty
                   ? const Padding(
                       padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Text('No activities in this phase yet.',
-                          style: TextStyle(fontSize: 13, color: Color(0xFF667085))),
+                      child: Text(
+                        'No activities in this phase yet.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF667085),
+                        ),
+                      ),
                     )
                   : Column(
-                      children: activities.map((activity) => _ActivityItem(activity: activity)).toList(),
+                      children: activities
+                          .map((activity) => _ActivityItem(activity: activity))
+                          .toList(),
                     ),
             ),
         ],
@@ -711,21 +994,37 @@ class _ActivityItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(activity.title,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF101828))),
+                Text(
+                  activity.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: Color(0xFF101828),
+                  ),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   '${activity.activityCode ?? 'Custom'} • '
                   '${activity.standardDurationDays != null ? '${activity.standardDurationDays} day(s)' : 'No standard duration'}',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF667085)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF667085),
+                  ),
                 ),
               ],
             ),
           ),
           if (activity.deadline != null) ...[
-            const Icon(Icons.calendar_today, size: 13, color: Color(0xFF475467)),
+            const Icon(
+              Icons.calendar_today,
+              size: 13,
+              color: Color(0xFF475467),
+            ),
             const SizedBox(width: 4),
-            Text(_fmtDate(activity.deadline), style: const TextStyle(fontSize: 12, color: Color(0xFF475467))),
+            Text(
+              _fmtDate(activity.deadline),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF475467)),
+            ),
           ],
         ],
       ),

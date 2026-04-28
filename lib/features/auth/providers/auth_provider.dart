@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import '../models/auth_response.dart';
 import '../models/contractor_register_request.dart';
 import '../models/product_owner_register_request.dart';
 import '../repositories/auth_repository.dart';
+import '../services/biometric_auth_service.dart';
 import '../../../core/auth/session_manager.dart';
 import '../../../core/api/api_client.dart';
 import '../../notifications/services/notification_lifecycle_service.dart';
@@ -128,6 +130,25 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
         rethrow;
       }
     });
+  }
+
+  Future<bool> loginWithBiometric() async {
+    final biometricService = ref.read(biometricAuthServiceProvider);
+    final sessionManager = ref.read(sessionManagerProvider);
+
+    final token = biometricService.getSavedToken();
+    final userJson = biometricService.getSavedUserJson();
+    if (token == null || token.isEmpty || userJson == null) return false;
+
+    try {
+      final user = jsonDecode(userJson) as Map<String, dynamic>;
+      await sessionManager.saveSession(token, user);
+      // authProvider.build() will fire via sessionRefreshProvider and restore state
+      return true;
+    } catch (e) {
+      debugPrint('[AUTH] biometric login restore failed: $e');
+      return false;
+    }
   }
 
   Future<void> logout() async {
@@ -366,13 +387,20 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
       throw Exception('Your account does not have a supported role.');
     }
 
+    final token = response.data!.token;
+    final user = response.data!.user;
+
     await ref
         .read(sessionManagerProvider)
-        .saveSession(
-          response.data!.token,
-          response.data!.user,
-          notifySessionChange: false,
-        );
+        .saveSession(token, user, notifySessionChange: false);
+
+    // Persist credentials for biometric quick-login (survives explicit logout).
+    try {
+      final biometricService = ref.read(biometricAuthServiceProvider);
+      await biometricService.saveCredentials(token, jsonEncode(user));
+    } catch (e) {
+      debugPrint('[AUTH] Biometric credential save failed (non-fatal): $e');
+    }
 
     // Auto-mark welcome as seen immediately after login to skip welcome screen
     // This provides smooth navigation: Login → Dashboard (no intermediate screens)

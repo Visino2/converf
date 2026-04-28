@@ -339,6 +339,23 @@ class ProjectRepository {
     return ProjectResponse.fromJson(response.data);
   }
 
+  Future<void> updateProjectAssignment(
+    String projectId, {
+    required String assignmentMethod,
+    String? contractorId,
+    String? biddingDeadline,
+  }) async {
+    await _apiClient.patch(
+      '/api/v1/projects/wizard/$projectId',
+      data: <String, dynamic>{
+        'assignment_method': assignmentMethod,
+        if (contractorId?.isNotEmpty ?? false) 'contractor_id': contractorId,
+        if (biddingDeadline?.isNotEmpty ?? false)
+          'bidding_deadline': biddingDeadline,
+      },
+    );
+  }
+
   Future<ProjectAdvisoryResponse> fetchProjectAdvisory(String projectId) async {
     final response = await _apiClient.get(
       '/api/v1/projects/$projectId/advisory',

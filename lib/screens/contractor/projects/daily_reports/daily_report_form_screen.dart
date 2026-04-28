@@ -250,6 +250,29 @@ class _DailyReportFormScreenState extends ConsumerState<DailyReportFormScreen> {
     );
   }
 
+  bool _validateStep(int step) {
+    switch (step) {
+      case 0:
+        if (_selectedDate == null || _selectedDate!.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please select a report date before proceeding.')),
+          );
+          return false;
+        }
+        return true;
+      case 1:
+        if (_weatherData['weather_condition'] == null || (_weatherData['weather_condition'] as String).isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Weather condition is required. Please select one before proceeding.')),
+          );
+          return false;
+        }
+        return true;
+      default:
+        return true;
+    }
+  }
+
   Widget _buildFormContent(DailyReportFormMeta meta) {
     // Initialize updates from meta if completely empty (new report)
     if (_activityUpdates.isEmpty &&
@@ -265,6 +288,17 @@ class _DailyReportFormScreenState extends ConsumerState<DailyReportFormScreen> {
             },
           )
           .toList();
+    }
+
+    // Auto-initialize weather condition from meta defaults (new report only)
+    if (_weatherData['weather_condition'] == null && widget.reportId == null) {
+      final defaultCondition = meta.defaults['weather_condition'];
+      final options = (meta.options['weather_conditions'] as List?)?.map((e) => e.toString()).toList() ?? ['clear'];
+      if (defaultCondition != null && options.contains(defaultCondition.toString())) {
+        _weatherData['weather_condition'] = defaultCondition.toString();
+      } else if (options.isNotEmpty) {
+        _weatherData['weather_condition'] = options.first;
+      }
     }
 
     if (_tomorrowPlan.isEmpty &&
@@ -287,6 +321,7 @@ class _DailyReportFormScreenState extends ConsumerState<DailyReportFormScreen> {
       type: StepperType.horizontal,
       currentStep: _currentStep,
       onStepContinue: () {
+        if (!_validateStep(_currentStep)) return;
         if (_currentStep < 4) {
           setState(() => _currentStep++);
         } else {

@@ -15,6 +15,7 @@ import 'package:converf/features/auth/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:converf/features/billing/providers/billing_providers.dart';
 import '../widgets/modals/upgrade_plan_modal.dart';
+import 'widgets/dashboard/projects/update_assignment_dialog.dart';
 
 class ProductOwnerDashboardContent extends ConsumerStatefulWidget {
   final VoidCallback? onNavigateToProjects;
@@ -1026,6 +1027,39 @@ class _HighlightedProjectCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                  if (project.assignmentMethod == 'decide_later') ...[
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => showDialog(
+                        context: context,
+                        builder: (_) => UpdateAssignmentDialog(
+                          projectId: project.id,
+                          currentAssignmentMethod: project.assignmentMethod,
+                          currentContractorId: project.contractorId,
+                          currentBiddingDeadline: project.biddingDeadline,
+                        ),
+                      ),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF276572),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'Update Assignment',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -40,6 +40,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late OnboardingStep _step;
   String? _selectedRole;
+  String? _resetEmail;
 
   @override
   void initState() {
@@ -140,12 +141,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case OnboardingStep.forgotPassword:
         return OnboardingForgotPasswordStep(
           onBack: () => setState(() => _step = OnboardingStep.login),
-          onResetPassword: () =>
-              setState(() => _step = OnboardingStep.resetPassword),
+          onResetPassword: (email) => setState(() {
+            _resetEmail = email;
+            _step = OnboardingStep.resetPassword;
+          }),
         );
       case OnboardingStep.resetPassword:
         return OnboardingResetPasswordStep(
           onBackToLogin: () => setState(() => _step = OnboardingStep.login),
+          initialEmail: _resetEmail,
         );
       case OnboardingStep.acceptInvitation:
         return OnboardingAcceptInvitationStep(

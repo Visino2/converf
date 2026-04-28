@@ -5,7 +5,7 @@ import '../../../features/auth/providers/auth_provider.dart';
 
 class OnboardingForgotPasswordStep extends ConsumerStatefulWidget {
   final VoidCallback onBack;
-  final VoidCallback onResetPassword;
+  final Function(String email) onResetPassword;
 
   const OnboardingForgotPasswordStep({
     super.key,
@@ -55,7 +55,7 @@ class _OnboardingForgotPasswordStepState
           ),
         );
         Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) widget.onResetPassword();
+          if (mounted) widget.onResetPassword(email);
         });
       }
     }
@@ -241,7 +241,7 @@ class _OnboardingForgotPasswordStepState
                         const SizedBox(height: 24),
                         Center(
                           child: TextButton(
-                            onPressed: widget.onResetPassword,
+                            onPressed: () => widget.onResetPassword(_emailController.text.trim()),
                             child: const Text(
                               'I already have a reset token',
                               style: TextStyle(

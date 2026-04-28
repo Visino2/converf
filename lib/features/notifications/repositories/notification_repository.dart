@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_client.dart';
@@ -24,20 +25,43 @@ class NotificationRepository {
         queryParameters: {if (unreadOnly) 'unread_only': true},
       );
 
+      debugPrint(
+        '[NotifRepo] Raw response data type: ${response.data.runtimeType}',
+      );
+      debugPrint('[NotifRepo] Raw response: ${response.data}');
+
       if (response.data is Map<String, dynamic>) {
-        return NotificationsResponse.fromJson(
+        final parsed = NotificationsResponse.fromJson(
           response.data as Map<String, dynamic>,
         ).data;
+        debugPrint(
+          '[NotifRepo] Parsed ${parsed.length} notifications from Map response',
+        );
+        for (final notif in parsed) {
+          debugPrint(
+            '[NotifRepo]   - Type: ${notif.type}, Title: ${notif.title}, Body: ${notif.body}',
+          );
+        }
+        return parsed;
       }
 
       if (response.data is List<dynamic>) {
-        return (response.data as List<dynamic>)
+        final parsed = (response.data as List<dynamic>)
             .whereType<Map>()
             .map(
               (item) =>
                   AppNotification.fromJson(Map<String, dynamic>.from(item)),
             )
             .toList();
+        debugPrint(
+          '[NotifRepo] Parsed ${parsed.length} notifications from List response',
+        );
+        for (final notif in parsed) {
+          debugPrint(
+            '[NotifRepo]   - Type: ${notif.type}, Title: ${notif.title}, Body: ${notif.body}',
+          );
+        }
+        return parsed;
       }
 
       throw Exception('Invalid response format from server');
@@ -46,8 +70,12 @@ class NotificationRepository {
           (e.message.contains('not verified') ||
               e.message.contains('verify your email'))) {
         // Return empty notifications list for the unverified bypass.
+        debugPrint('[NotifRepo] Returning empty list for unverified email');
         return [];
       }
+      debugPrint(
+        '[NotifRepo] ApiException: statusCode=${e.statusCode}, message=${e.message}',
+      );
       rethrow;
     }
   }

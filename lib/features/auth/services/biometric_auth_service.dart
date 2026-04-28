@@ -61,11 +61,29 @@ class BiometricAuthService {
     : _localAuthentication = localAuthentication ?? LocalAuthentication();
 
   static const String biometricEnabledKey = 'biometric_login_enabled';
+  static const String _biometricTokenKey = 'biometric_session_token';
+  static const String _biometricUserKey = 'biometric_session_user';
 
   final SharedPreferences _prefs;
   final LocalAuthentication _localAuthentication;
 
   bool get isEnabledSync => _prefs.getBool(biometricEnabledKey) ?? false;
+
+  bool get hasSavedCredentials =>
+      (_prefs.getString(_biometricTokenKey) ?? '').isNotEmpty;
+
+  Future<void> saveCredentials(String token, String userJson) async {
+    await _prefs.setString(_biometricTokenKey, token);
+    await _prefs.setString(_biometricUserKey, userJson);
+  }
+
+  String? getSavedToken() => _prefs.getString(_biometricTokenKey);
+  String? getSavedUserJson() => _prefs.getString(_biometricUserKey);
+
+  Future<void> clearCredentials() async {
+    await _prefs.remove(_biometricTokenKey);
+    await _prefs.remove(_biometricUserKey);
+  }
 
   Future<void> setEnabled(bool enabled) async {
     await _prefs.setBool(biometricEnabledKey, enabled);
