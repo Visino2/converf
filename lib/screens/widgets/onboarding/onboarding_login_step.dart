@@ -55,8 +55,9 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
   Future<void> _checkBiometricAvailability() async {
     final biometricService = ref.read(biometricAuthServiceProvider);
     if (!biometricService.isEnabledSync ||
-        !biometricService.hasSavedCredentials)
+        !biometricService.hasSavedCredentials) {
       return;
+    }
     final availability = await biometricService.getAvailability();
     if (!mounted) return;
     if (availability.canAuthenticate) {

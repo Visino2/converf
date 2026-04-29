@@ -20,7 +20,6 @@ import '../screens/product_owner/widgets/dashboard/messages/project_inbox_screen
 import '../screens/product_owner/widgets/dashboard/projects/project_details_screen.dart';
 import '../screens/contractor/projects/widgets/tools/contractor_notifications_screen.dart';
 import '../screens/contractor/projects/contractor_project_details_screen.dart';
-import '../screens/debug/debug_biometric_screen.dart';
 
 final routerRefreshProvider = Provider((ref) => RouterRefreshNotifier(ref));
 
@@ -287,12 +286,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           final projectId = state.pathParameters['projectId']!;
           return ContractorProjectDetailsScreen(projectId: projectId);
         },
-      ),
-      // Debug Routes (Development Only)
-      GoRoute(
-        path: '/debug/biometric',
-        name: 'debug-biometric',
-        builder: (context, state) => const DebugBiometricScreen(),
       ),
     ],
   );
