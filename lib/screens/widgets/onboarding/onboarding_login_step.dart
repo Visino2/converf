@@ -54,7 +54,9 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
 
   Future<void> _checkBiometricAvailability() async {
     final biometricService = ref.read(biometricAuthServiceProvider);
-    if (!biometricService.isEnabledSync || !biometricService.hasSavedCredentials) return;
+    if (!biometricService.isEnabledSync ||
+        !biometricService.hasSavedCredentials)
+      return;
     final availability = await biometricService.getAvailability();
     if (!mounted) return;
     if (availability.canAuthenticate) {
@@ -85,11 +87,21 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
           _biometricAvailable = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Session expired. Please log in with your email and password.')),
+          const SnackBar(
+            content: Text(
+              'Session expired. Please log in with your email and password.',
+            ),
+          ),
         );
+        return;
       }
-      // On success, authProvider rebuilds → router redirects automatically.
+      // Force refresh authProvider to trigger router redirect
+      debugPrint(
+        '[DEBUG] Biometric login successful, refreshing auth state...',
+      );
+      ref.invalidate(authProvider);
     } catch (e) {
+      debugPrint('[DEBUG] Biometric login error: $e');
       if (mounted) setState(() => _isBiometricLoading = false);
     }
   }
@@ -635,32 +647,39 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
                           SizedBox(
                             width: double.infinity,
                             height: 56,
-                            child: OutlinedButton.icon(
+                            child: OutlinedButton(
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Color(0xFF276572)),
+                                side: const BorderSide(
+                                  color: Color(0xFF276572),
+                                ),
                                 foregroundColor: const Color(0xFF276572),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(30),
                                 ),
                               ),
-                              onPressed: _isBiometricLoading ? null : _handleBiometricLogin,
-                              icon: _isBiometricLoading
+                              onPressed: _isBiometricLoading
+                                  ? null
+                                  : _handleBiometricLogin,
+                              child: _isBiometricLoading
                                   ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
+                                      width: 24,
+                                      height: 24,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
                                         color: Color(0xFF276572),
                                       ),
                                     )
-                                  : const Icon(Icons.fingerprint, size: 24),
-                              label: Text(
-                                _isBiometricLoading ? 'Authenticating...' : 'Login with $_biometricLabel',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                                  : const Icon(Icons.fingerprint, size: 28),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _biometricLabel,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF276572),
                             ),
                           ),
                         ],

@@ -158,30 +158,54 @@ class _ProductOwnerDashboardContentState
 
                       int maxProjects = 1; // Default for free plan
 
-                      bool isPremiumPlan = false;
                       final userPlan =
                           authState.value?.user['plan']
                               ?.toString()
                               .toLowerCase() ??
                           '';
-                      if (userPlan.contains('builder') ||
+                      final bool isPremiumPlan =
+                          userPlan.contains('builder') ||
                           userPlan.contains('starter') ||
-                          userPlan.contains('professional')) {
-                        isPremiumPlan = true;
-                      }
+                          userPlan.contains('professional') ||
+                          userPlan.contains('elite') ||
+                          userPlan.contains('enterprise');
+
+                      debugPrint(
+                        '[BILLING] DEBUG: subState.hasValue=${subState.hasValue}, subState.isLoading=${subState.isLoading}, subState.hasError=${subState.hasError}',
+                      );
+                      debugPrint(
+                        '[BILLING] DEBUG: limits exists=${subState.value?.limits != null}, maxProjects=${subState.value?.limits?.maxProjects}',
+                      );
+                      debugPrint(
+                        '[BILLING] DEBUG: userPlan=$userPlan, isPremiumPlan=$isPremiumPlan',
+                      );
 
                       if (subState.hasValue &&
                           subState.value?.limits?.maxProjects != null) {
+                        // Billing subscription is the source of truth for limits
                         maxProjects = subState.value!.limits!.maxProjects!;
+                        debugPrint(
+                          '[BILLING] ✓ Elite/Enterprise limit triggered: maxProjects=$maxProjects',
+                        );
                       } else if (isPremiumPlan) {
-                        // Safe fallback if billing data is still loading but we know they are premium
+                        // Safe fallback if billing data is still loading
                         maxProjects = 10;
+                        debugPrint(
+                          '[BILLING] ⚠ Using premium fallback: maxProjects=$maxProjects (reason: subState.hasValue=${subState.hasValue}, limits=${subState.value?.limits})',
+                        );
+                      } else {
+                        debugPrint(
+                          '[BILLING] Free plan: maxProjects=$maxProjects',
+                        );
                       }
+
+                      debugPrint(
+                        '[BILLING] Subscription limits: teamMembers=${subState.value?.limits?.teamMembers}, maxProjects=${subState.value?.limits?.maxProjects}, storage=${subState.value?.limits?.storage.allowedGb}GB',
+                      );
 
                       debugPrint(
                         'CHECK: active=$activeProjects, max=$maxProjects, plan=$userPlan, isPremium=$isPremiumPlan',
                       );
-
                       if (activeProjects >= maxProjects) {
                         debugPrint('LIMIT REACHED: showing upgrade modal');
                         await showUpgradePlanModal(context);

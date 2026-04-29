@@ -26,7 +26,20 @@ class PlansSection extends StatefulWidget {
 
 class _PlansSectionState extends State<PlansSection> {
   String? _loadingPlanId;
-  String _getPlanDescription(String planName) {
+
+  String _getPlanDescription(String planName, BillingPlan? planData) {
+    // If we have plan data with features, use those as a list
+    if (planData?.features != null && planData!.features.isNotEmpty) {
+      final featuresList = planData.features.keys
+          .where((key) => planData.features[key] == true)
+          .map((key) => key.replaceAll('_', ' ').toTitleCase())
+          .toList();
+      if (featuresList.isNotEmpty) {
+        return featuresList.join(', ');
+      }
+    }
+
+    // Fallback to hardcoded descriptions based on plan name
     final lower = planName.toLowerCase();
     if (lower.contains('free') || lower.contains('basic')) {
       return '1 project, 3 team members, 2 GB storage';
@@ -143,7 +156,7 @@ class _PlansSectionState extends State<PlansSection> {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    _getPlanDescription(plan.name),
+                                    _getPlanDescription(plan.name, plan),
                                     style: const TextStyle(
                                       fontSize: 13,
                                       color: Color(0xFF475467),

@@ -345,15 +345,24 @@ class ProjectRepository {
     String? contractorId,
     String? biddingDeadline,
   }) async {
-    await _apiClient.patch(
-      '/api/v1/projects/wizard/$projectId',
-      data: <String, dynamic>{
-        'assignment_method': assignmentMethod,
-        if (contractorId?.isNotEmpty ?? false) 'contractor_id': contractorId,
-        if (biddingDeadline?.isNotEmpty ?? false)
-          'bidding_deadline': biddingDeadline,
-      },
-    );
+    final payload = <String, dynamic>{
+      'assignment_method': assignmentMethod,
+      if (contractorId?.isNotEmpty ?? false) 'contractor_id': contractorId,
+      if (biddingDeadline?.isNotEmpty ?? false) 'bidding_deadline': biddingDeadline,
+    };
+    debugPrint('[UpdateAssignment] PATCH /api/v1/projects/wizard/$projectId');
+    debugPrint('[UpdateAssignment] Payload: $payload');
+    try {
+      final response = await _apiClient.patch(
+        '/api/v1/projects/wizard/$projectId',
+        data: payload,
+      );
+      debugPrint('[UpdateAssignment] ✅ Success: ${response.statusCode} ${response.data}');
+    } catch (e, st) {
+      debugPrint('[UpdateAssignment] ❌ Error: $e');
+      debugPrint('[UpdateAssignment] Stack: $st');
+      rethrow;
+    }
   }
 
   Future<ProjectAdvisoryResponse> fetchProjectAdvisory(String projectId) async {

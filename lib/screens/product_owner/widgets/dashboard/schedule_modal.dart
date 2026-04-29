@@ -163,7 +163,7 @@ class _ScheduleModalState extends ConsumerState<ScheduleModal> {
                 );
               },
               data: (schedule) {
-                if (schedule.status == 'draft') {
+                if (schedule == null || schedule.status == 'draft') {
                   return _buildEmpty(context, isSelfManaged: isSelfManaged);
                 }
                 return _buildBody(context, schedule);

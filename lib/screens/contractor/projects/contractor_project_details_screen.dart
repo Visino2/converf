@@ -1748,8 +1748,8 @@ class _FinancialModal extends ConsumerWidget {
                           );
                         },
                         data: (schedule) {
-                          final currentPhase = schedule.phases.isNotEmpty
-                              ? schedule.phases.first.name
+                          final currentPhase = (schedule?.phases.isNotEmpty ?? false)
+                              ? schedule!.phases.first.name
                               : 'N/A';
                           return Text(
                             currentPhase,
@@ -1780,10 +1780,10 @@ class _FinancialModal extends ConsumerWidget {
                       ),
                     ),
                     data: (schedule) {
-                      final completedCount = schedule.phases
+                      final completedCount = (schedule?.phases ?? [])
                           .where((p) => p.status == 'completed')
                           .length;
-                      final totalCount = schedule.phases.length;
+                      final totalCount = (schedule?.phases ?? []).length;
                       final progress = totalCount > 0
                           ? completedCount / totalCount
                           : 0.0;

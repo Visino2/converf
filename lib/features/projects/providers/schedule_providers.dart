@@ -7,7 +7,7 @@ import '../repositories/schedule_library_repository.dart';
 
 
 
-final projectScheduleProvider = FutureProvider.family<Schedule, String>((ref, projectId) async {
+final projectScheduleProvider = FutureProvider.family<Schedule?, String>((ref, projectId) async {
   final repo = ref.read(scheduleRepositoryProvider);
   return repo.getProjectScheduleDetail(projectId);
 });

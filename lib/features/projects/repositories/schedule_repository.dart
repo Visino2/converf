@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/dio_provider.dart';
@@ -191,15 +192,22 @@ class ScheduleRepository {
     throw Exception("Invalid response format from server");
   }
 
-  Future<Schedule> getProjectScheduleDetail(String projectId) async {
-    final response = await _apiClient.get(
-      '/api/v1/projects/$projectId/schedule',
-    );
-    if (response.data is Map<String, dynamic>) {
-      final map = response.data['data'] ?? response.data;
-      return Schedule.fromJson(map);
+  Future<Schedule?> getProjectScheduleDetail(String projectId) async {
+    try {
+      final response = await _apiClient.get(
+        '/api/v1/projects/$projectId/schedule',
+      );
+      if (response.data is Map<String, dynamic>) {
+        final map = response.data['data'] ?? response.data;
+        return Schedule.fromJson(map);
+      }
+      throw Exception("Invalid response format from server");
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404 || e.response?.statusCode == 403) {
+        return null;
+      }
+      rethrow;
     }
-    throw Exception("Invalid response format from server");
   }
 
   // --- SCHEDULE ACTIONS ---

@@ -530,12 +530,6 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
               budget: payload['budget'],
               currency: payload['currency'],
               urgencyLevel: payload['urgency_level'],
-              assignmentMethod: payload['assignment_method'],
-              contractorId: payload['contractor_id'],
-              biddingDeadline: payload['bidding_deadline'],
-              specialisations: payload['specialisations'] != null
-                  ? List<String>.from(payload['specialisations'])
-                  : null,
               confirm: payload['confirm'],
               agreeTerms: payload['agree_terms'],
             ),
@@ -634,9 +628,6 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
               budget: payload['budget'],
               currency: payload['currency'],
               urgencyLevel: payload['urgency_level'],
-              assignmentMethod: payload['assignment_method'],
-              contractorId: payload['contractor_id'],
-              biddingDeadline: payload['bidding_deadline'],
               confirm: payload['confirm'],
               agreeTerms: payload['agree_terms'],
             ),
@@ -664,9 +655,6 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
               budget: payload['budget'],
               currency: payload['currency'],
               urgencyLevel: payload['urgency_level'],
-              assignmentMethod: payload['assignment_method'],
-              contractorId: payload['contractor_id'],
-              biddingDeadline: payload['bidding_deadline'],
               specialisations: payload['specialisations'] != null
                   ? List<String>.from(payload['specialisations'])
                   : null,
@@ -699,7 +687,6 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
                 budget: payload['budget'],
                 currency: payload['currency'],
                 urgencyLevel: payload['urgency_level'],
-                assignmentMethod: payload['assignment_method'],
                 biddingDeadline: payload['bidding_deadline'],
                 specialisations: payload['specialisations'] != null
                     ? List<String>.from(payload['specialisations'])

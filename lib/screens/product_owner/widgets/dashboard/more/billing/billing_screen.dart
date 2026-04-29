@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:converf/features/ai_credits/providers/ai_credits_provider.dart';
+import 'package:converf/features/auth/providers/auth_provider.dart';
 import 'package:converf/features/billing/models/billing_models.dart';
 import 'package:converf/features/billing/providers/billing_providers.dart';
 import 'widgets/add_ons_section.dart';
@@ -322,11 +323,10 @@ class _BillingScreenState extends ConsumerState<BillingScreen>
     ref.invalidate(billingPlansProvider);
     ref.invalidate(aiCreditsProvider);
 
-    try {
-      await ref.read(billingSubscriptionProvider.future);
-    } catch (_) {
-      // Let the UI show the latest state it can fetch.
-    }
+    await Future.wait<void>([
+      ref.read(billingSubscriptionProvider.future).then((_) {}).catchError((_) {}),
+      ref.read(authProvider.notifier).refreshUser().catchError((_) {}),
+    ]);
   }
 
 }

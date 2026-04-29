@@ -73,16 +73,55 @@ class BiometricAuthService {
       (_prefs.getString(_biometricTokenKey) ?? '').isNotEmpty;
 
   Future<void> saveCredentials(String token, String userJson) async {
-    await _prefs.setString(_biometricTokenKey, token);
-    await _prefs.setString(_biometricUserKey, userJson);
+    try {
+      debugPrint('[BiometricAuth] Saving credentials...');
+      debugPrint('[BiometricAuth] Token length: ${token.length}');
+      debugPrint('[BiometricAuth] User JSON length: ${userJson.length}');
+      await _prefs.setString(_biometricTokenKey, token);
+      await _prefs.setString(_biometricUserKey, userJson);
+      debugPrint('[BiometricAuth] ✓ Credentials saved successfully');
+    } catch (e) {
+      debugPrint('[BiometricAuth] ✗ Failed to save credentials: $e');
+      rethrow;
+    }
   }
 
-  String? getSavedToken() => _prefs.getString(_biometricTokenKey);
-  String? getSavedUserJson() => _prefs.getString(_biometricUserKey);
+  String? getSavedToken() {
+    try {
+      final token = _prefs.getString(_biometricTokenKey);
+      debugPrint(
+        '[BiometricAuth] Retrieved token: ${token != null ? 'exists (${token.length} chars)' : 'NOT FOUND'}',
+      );
+      return token;
+    } catch (e) {
+      debugPrint('[BiometricAuth] ✗ Failed to retrieve token: $e');
+      return null;
+    }
+  }
+
+  String? getSavedUserJson() {
+    try {
+      final userJson = _prefs.getString(_biometricUserKey);
+      debugPrint(
+        '[BiometricAuth] Retrieved user JSON: ${userJson != null ? 'exists (${userJson.length} chars)' : 'NOT FOUND'}',
+      );
+      return userJson;
+    } catch (e) {
+      debugPrint('[BiometricAuth] ✗ Failed to retrieve user JSON: $e');
+      return null;
+    }
+  }
 
   Future<void> clearCredentials() async {
-    await _prefs.remove(_biometricTokenKey);
-    await _prefs.remove(_biometricUserKey);
+    try {
+      debugPrint('[BiometricAuth] Clearing saved credentials...');
+      await _prefs.remove(_biometricTokenKey);
+      await _prefs.remove(_biometricUserKey);
+      debugPrint('[BiometricAuth] ✓ Credentials cleared');
+    } catch (e) {
+      debugPrint('[BiometricAuth] ✗ Failed to clear credentials: $e');
+      rethrow;
+    }
   }
 
   Future<void> setEnabled(bool enabled) async {
@@ -91,11 +130,18 @@ class BiometricAuthService {
 
   Future<BiometricAvailability> getAvailability() async {
     try {
+      debugPrint('[BiometricAuth] Checking availability...');
       final isDeviceSupported = await _localAuthentication.isDeviceSupported();
       final canCheckBiometrics = await _localAuthentication.canCheckBiometrics;
       final availableBiometrics = (isDeviceSupported || canCheckBiometrics)
           ? await _localAuthentication.getAvailableBiometrics()
           : const <BiometricType>[];
+
+      debugPrint('[BiometricAuth] Device supported: $isDeviceSupported');
+      debugPrint('[BiometricAuth] Can check biometrics: $canCheckBiometrics');
+      debugPrint(
+        '[BiometricAuth] Available types: ${availableBiometrics.map((t) => t.toString()).join(', ')}',
+      );
 
       return BiometricAvailability(
         isDeviceSupported: isDeviceSupported,
@@ -103,7 +149,7 @@ class BiometricAuthService {
         availableBiometrics: availableBiometrics,
       );
     } catch (e) {
-      debugPrint('[BiometricAuth] Availability check failed: $e');
+      debugPrint('[BiometricAuth] ✗ Availability check failed: $e');
       return BiometricAvailability(
         isDeviceSupported: false,
         canCheckBiometrics: false,
@@ -114,15 +160,22 @@ class BiometricAuthService {
   }
 
   Future<bool> canProtectSession() async {
+    debugPrint('[BiometricAuth] Checking if can protect session...');
     if (!isEnabledSync) {
+      debugPrint('[BiometricAuth] Biometric not enabled');
       return false;
     }
-    return (await getAvailability()).canAuthenticate;
+    final result = (await getAvailability()).canAuthenticate;
+    debugPrint('[BiometricAuth] Can protect session: $result');
+    return result;
   }
 
   Future<bool> authenticate({required String reason}) async {
     try {
-      return await _localAuthentication.authenticate(
+      debugPrint(
+        '[BiometricAuth] Starting authentication with reason: "$reason"',
+      );
+      final result = await _localAuthentication.authenticate(
         localizedReason: reason,
         options: const AuthenticationOptions(
           stickyAuth: true,
@@ -130,8 +183,10 @@ class BiometricAuthService {
           useErrorDialogs: true,
         ),
       );
+      debugPrint('[BiometricAuth] ✓ Authentication result: $result');
+      return result;
     } catch (e) {
-      debugPrint('[BiometricAuth] Authentication failed: $e');
+      debugPrint('[BiometricAuth] ✗ Authentication failed: $e');
       return false;
     }
   }

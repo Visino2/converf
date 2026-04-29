@@ -82,13 +82,29 @@ class _UpdateAssignmentDialogState extends ConsumerState<UpdateAssignmentDialog>
         );
       }
     } catch (e) {
+      // Refresh stale project data regardless of error type
+      ref.invalidate(projectDetailsProvider(widget.projectId));
+      ref.invalidate(projectsListProvider(1));
+
       if (mounted) {
-        final msg = e.toString().contains('Exception:')
-            ? e.toString().split('Exception:').last.trim()
-            : e.toString();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update: $msg')),
-        );
+        final raw = e.toString();
+        final isNotDecideLater = raw.toLowerCase().contains('decide_later');
+        if (isNotDecideLater) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('This project assignment has already been set. Refreshing...'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        } else {
+          final msg = raw.contains('Exception:')
+              ? raw.split('Exception:').last.trim()
+              : raw;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to update: $msg')),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -178,7 +194,17 @@ class _UpdateAssignmentDialogState extends ConsumerState<UpdateAssignmentDialog>
                       .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
                       .toList(),
                   onChanged: _isLoading ? null : (val) {
-                    if (val != null) setState(() => _selectedMethod = val);
+                    if (val != null) {
+                      setState(() {
+                        _selectedMethod = val;
+                        if (val == 'direct') _biddingDeadline = null;
+                        if (val == 'tender') _selectedContractorId = null;
+                        if (val == 'self_managed') {
+                          _selectedContractorId = null;
+                          _biddingDeadline = null;
+                        }
+                      });
+                    }
                   },
                 ),
                 const SizedBox(height: 16),

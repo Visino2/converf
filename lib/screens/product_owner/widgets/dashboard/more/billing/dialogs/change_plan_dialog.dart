@@ -6,6 +6,8 @@ String _planDescription(String planName) {
   final name = planName.toLowerCase();
   if (name.contains('free')) return 'Basic access · 1 project · limited features';
   if (name.contains('starter')) return '10 projects · team management · AI credits';
+  if (name.contains('professional')) return '20 projects · advanced tools · priority support';
+  if (name.contains('elite')) return 'Unlimited projects · elite support · all features';
   if (name.contains('builder')) return 'Unlimited projects · advanced analytics · priority support';
   if (name.contains('enterprise')) return 'Custom limits · dedicated support · SLA guarantee';
   return 'Contact us for details';

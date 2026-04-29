@@ -1,4 +1,4 @@
-package com.converf.app
+package com.converf.mobile
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

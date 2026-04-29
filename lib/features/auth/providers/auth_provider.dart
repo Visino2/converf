@@ -133,20 +133,48 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
   }
 
   Future<bool> loginWithBiometric() async {
+    debugPrint('[AUTH] ========== BIOMETRIC LOGIN START ==========');
     final biometricService = ref.read(biometricAuthServiceProvider);
     final sessionManager = ref.read(sessionManagerProvider);
 
+    debugPrint('[AUTH] Step 1: Retrieving saved credentials...');
     final token = biometricService.getSavedToken();
     final userJson = biometricService.getSavedUserJson();
-    if (token == null || token.isEmpty || userJson == null) return false;
+
+    if (token == null || token.isEmpty) {
+      debugPrint('[AUTH] ✗ Token is missing or empty');
+      debugPrint('[AUTH] Token value: ${token == null ? 'NULL' : 'EMPTY'}');
+      return false;
+    }
+    if (userJson == null) {
+      debugPrint('[AUTH] ✗ User JSON is missing');
+      return false;
+    }
+
+    debugPrint('[AUTH] ✓ Both token and user JSON found');
+    debugPrint('[AUTH] Step 2: Parsing user JSON...');
 
     try {
       final user = jsonDecode(userJson) as Map<String, dynamic>;
+      debugPrint('[AUTH] ✓ User JSON parsed successfully');
+      debugPrint('[AUTH] User email: ${user['email'] ?? 'N/A'}');
+
+      debugPrint('[AUTH] Step 3: Saving session...');
       await sessionManager.saveSession(token, user);
-      // authProvider.build() will fire via sessionRefreshProvider and restore state
+      debugPrint('[AUTH] ✓ Session saved successfully');
+
+      // Step 4: Update the auth state to trigger router redirect
+      debugPrint('[AUTH] Step 4: Updating auth state...');
+      final response = AuthResponse.fromSession(token: token, user: user);
+      state = AsyncValue.data(response);
+      debugPrint('[AUTH] ✓ Auth state updated successfully');
+
+      debugPrint('[AUTH] ========== BIOMETRIC LOGIN SUCCESS ==========');
       return true;
     } catch (e) {
-      debugPrint('[AUTH] biometric login restore failed: $e');
+      debugPrint('[AUTH] ✗ Biometric login failed at parsing/session save: $e');
+      debugPrint('[AUTH] Error type: ${e.runtimeType}');
+      debugPrint('[AUTH] ========== BIOMETRIC LOGIN FAILED ==========');
       return false;
     }
   }
@@ -348,6 +376,12 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
           },
         );
     unawaited(_backgroundRefresh);
+  }
+
+  Future<void> refreshUser() async {
+    final token = await ref.read(sessionManagerProvider).getToken();
+    if (token == null || token.isEmpty) return;
+    await _refreshCurrentUser(token: token);
   }
 
   Future<void> _refreshCurrentUser({

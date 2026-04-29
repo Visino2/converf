@@ -436,12 +436,13 @@ class _ScheduleScreenState extends ConsumerState<ScheduleScreen> {
             if (mounted) setState(() => _justCreatedSchedule = null);
           });
         }
+        if (schedule == null) return _buildNoScheduleView();
         return _buildScheduleContent(schedule, isOwner);
       },
     );
 
     final bottomBar = scheduleAsync.when(
-      data: barFor,
+      data: (schedule) => schedule != null ? barFor(schedule) : null,
       loading: () {
         if (_justCreatedSchedule != null) return barFor(_justCreatedSchedule!);
         return scheduleAsync.hasValue ? barFor(scheduleAsync.value!) : null;

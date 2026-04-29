@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/session_manager.dart';
 import '../config/config.dart';
+import '../../features/auth/services/biometric_auth_service.dart';
 
 /// Custom interceptor that logs responses in chunks to avoid logcat truncation
 class ChunkedLogInterceptor extends Interceptor {
@@ -70,6 +71,7 @@ class ChunkedLogInterceptor extends Interceptor {
 
 final dioProvider = Provider<Dio>((ref) {
   final sessionManager = ref.watch(sessionManagerProvider);
+  final biometricService = ref.watch(biometricAuthServiceProvider);
 
   final dio = Dio(
     BaseOptions(
@@ -93,8 +95,10 @@ final dioProvider = Provider<Dio>((ref) {
       },
       onError: (DioException e, handler) async {
         if (e.response?.statusCode == 401) {
-          // Immediately clear session on 401 to match Web App behavior.
+          // Clear session and biometric credentials on 401 so a stale
+          // biometric token doesn't keep restoring an expired session.
           await sessionManager.clearSession();
+          await biometricService.clearCredentials();
         }
         return handler.next(e);
       },
