@@ -98,7 +98,7 @@ final dioProvider = Provider<Dio>((ref) {
           // Clear session and biometric credentials on 401 so a stale
           // biometric token doesn't keep restoring an expired session.
           await sessionManager.clearSession();
-          await biometricService.clearCredentials();
+          await biometricService.disable();
         }
         return handler.next(e);
       },
