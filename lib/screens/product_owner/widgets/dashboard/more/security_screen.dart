@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../../features/auth/providers/auth_provider.dart';
+import '../../../../../features/auth/repositories/auth_repository.dart';
+import '../../../../../features/auth/services/biometric_auth_service.dart';
 import '../../../../../features/profile/models/profile_models.dart';
 import '../../../../../features/profile/providers/profile_providers.dart';
-import '../../../../../features/auth/services/biometric_auth_service.dart';
 import 'package:local_auth/local_auth.dart';
 
 class SecurityScreen extends ConsumerStatefulWidget {
@@ -26,11 +28,19 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
   bool _biometricLoading = true;
   bool _biometricBusy = false;
   BiometricAvailability? _biometricAvailability;
+  bool _hasPassword = true;
 
   @override
   void initState() {
     super.initState();
     Future.microtask(_loadBiometricState);
+    _loadHasPassword();
+  }
+
+  void _loadHasPassword() {
+    final user = ref.read(authProvider).value?.data?.user;
+    final hasPassword = user?['has_password'] as bool? ?? true;
+    setState(() => _hasPassword = hasPassword);
   }
 
   @override
@@ -71,27 +81,39 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
 
       setState(() => _biometricBusy = true);
 
-      bool didEnable = enabled;
       if (enabled) {
-        didEnable = await biometricService.authenticate(
+        // Verify biometrics locally first.
+        final didAuth = await biometricService.authenticate(
           reason:
               'Use ${availability.preferredLabel} to enable biometric login for Converf.',
         );
+        if (!mounted) return;
+        if (!didAuth) {
+          setState(() => _biometricBusy = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Biometric setup was cancelled. Nothing changed.'),
+            ),
+          );
+          return;
+        }
+
+        // Register with the backend to get a long-lived biometric token.
+        final repository = ref.read(authRepositoryProvider);
+        final deviceToken = await repository.registerBiometric();
+        await biometricService.saveDeviceToken(deviceToken);
+        await biometricService.setEnabled(true);
+      } else {
+        // Revoke backend token and clear locally.
+        try {
+          final repository = ref.read(authRepositoryProvider);
+          await repository.revokeBiometric();
+        } catch (e) {
+          debugPrint('[BiometricAuth] Backend revoke failed (non-fatal): $e');
+        }
+        await biometricService.disable();
       }
 
-      if (!mounted) return;
-
-      if (enabled && !didEnable) {
-        setState(() => _biometricBusy = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Biometric setup was cancelled. Nothing changed.'),
-          ),
-        );
-        return;
-      }
-
-      await biometricService.setEnabled(enabled);
       if (!mounted) return;
       setState(() {
         _biometricEnabled = enabled;
@@ -126,47 +148,39 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
 
   Future<void> _updatePassword() async {
     if (_formKey.currentState?.validate() != true) return;
-    final current = _currentPasswordController.text.trim();
-    final newPassword = _newPasswordController.text.trim();
-    final confirm = _confirmPasswordController.text.trim();
-
-    if (current.isEmpty || newPassword.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
-      );
-      return;
-    }
-
-    if (newPassword != confirm) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('New passwords do not match')),
-      );
-      return;
-    }
-
-    final payload = ChangePasswordPayload(
-      currentPassword: current,
-      password: newPassword,
-      passwordConfirmation: confirm,
-    );
-
     setState(() => _formError = null);
+
     try {
-      await ref.read(profileNotifierProvider.notifier).changePassword(payload);
+      if (_hasPassword) {
+        final current = _currentPasswordController.text.trim();
+        final newPassword = _newPasswordController.text.trim();
+        final confirm = _confirmPasswordController.text.trim();
+        final payload = ChangePasswordPayload(
+          currentPassword: current,
+          password: newPassword,
+          passwordConfirmation: confirm,
+        );
+        await ref.read(profileNotifierProvider.notifier).changePassword(payload);
+      } else {
+        await ref.read(authRepositoryProvider).setPassword(
+          password: _newPasswordController.text.trim(),
+          passwordConfirmation: _confirmPasswordController.text.trim(),
+        );
+        // Update local auth state so the form switches to Change Password.
+        await ref.read(authProvider.notifier).updateCurrentUser({'has_password': true});
+        if (mounted) setState(() => _hasPassword = true);
+      }
       if (mounted) {
         _currentPasswordController.clear();
         _newPasswordController.clear();
         _confirmPasswordController.clear();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password changed successfully')),
+          SnackBar(content: Text(_hasPassword ? 'Password changed successfully' : 'Password set successfully')),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _formError = e.toString());
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to change password: $e')),
-        );
       }
     }
   }
@@ -363,14 +377,21 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                 ),
               ),
 
-              const Text(
-                'Change Password',
-                style: TextStyle(
+              Text(
+                _hasPassword ? 'Change Password' : 'Set Password',
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF111827),
                 ),
               ),
+              if (!_hasPassword) ...[
+                const SizedBox(height: 6),
+                const Text(
+                  'Add a password so you can log in with email.',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                ),
+              ],
               const SizedBox(height: 16),
 
               if (_formError != null || actionState.hasError) ...[
@@ -393,16 +414,18 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                 ),
               ],
 
-              _buildPasswordField(
-                'Current Password',
-                _currentPasswordController,
-                _showCurrent,
-                () => setState(() => _showCurrent = !_showCurrent),
-                enabled: !actionState.isLoading,
-                validator: (v) =>
-                    (v == null || v.isEmpty) ? 'Enter current password' : null,
-              ),
-              const SizedBox(height: 16),
+              if (_hasPassword) ...[
+                _buildPasswordField(
+                  'Current Password',
+                  _currentPasswordController,
+                  _showCurrent,
+                  () => setState(() => _showCurrent = !_showCurrent),
+                  enabled: !actionState.isLoading,
+                  validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Enter current password' : null,
+                ),
+                const SizedBox(height: 16),
+              ],
 
               Row(
                 children: [

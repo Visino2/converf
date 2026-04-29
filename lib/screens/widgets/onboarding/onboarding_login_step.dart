@@ -3,15 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/core/config/shared_prefs_provider.dart';
+import '../../../core/auth/session_manager.dart';
 import 'package:converf/core/ui/app_colors.dart';
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
+import '../../../core/ui/app_navigation.dart';
 import '../../../features/auth/models/auth_response.dart';
 import '../../../features/auth/models/social_auth_method.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/auth/providers/social_auth_provider.dart';
 import '../../../features/auth/services/biometric_auth_service.dart';
+import 'set_password_sheet.dart';
 
 class OnboardingLoginStep extends ConsumerStatefulWidget {
   final VoidCallback onSignup;
@@ -54,10 +57,7 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
 
   Future<void> _checkBiometricAvailability() async {
     final biometricService = ref.read(biometricAuthServiceProvider);
-    if (!biometricService.isEnabledSync ||
-        !biometricService.hasSavedCredentials) {
-      return;
-    }
+    if (!biometricService.isEnabledSync || !biometricService.hasDeviceToken) return;
     final availability = await biometricService.getAvailability();
     if (!mounted) return;
     if (availability.canAuthenticate) {
@@ -107,11 +107,20 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
     }
   }
 
-  void _loadSavedEmail() {
+  Future<void> _loadSavedEmail() async {
     final prefs = ref.read(sharedPreferencesProvider);
     final savedEmail = prefs.getString('last_login_email');
-    if (savedEmail != null && mounted) {
-      _emailController.text = savedEmail;
+    if (savedEmail != null && savedEmail.isNotEmpty) {
+      if (mounted) _emailController.text = savedEmail;
+      return;
+    }
+    final biometricService = ref.read(biometricAuthServiceProvider);
+    if (biometricService.isEnabledSync) {
+      final user = await ref.read(sessionManagerProvider).getUser();
+      final email = user?['email'] as String?;
+      if (email != null && email.isNotEmpty && mounted) {
+        _emailController.text = email;
+      }
     }
   }
 
@@ -273,6 +282,10 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
         }
 
         // Success: authProvider state updated → router redirects to dashboard automatically.
+        final hasPassword = response.data?.user['has_password'] as bool? ?? true;
+        if (!hasPassword) {
+          _schedulePasswordSetupPrompt();
+        }
       } else {
         // Apple: use the in-app WebView flow
         final authUrl = await ref
@@ -321,6 +334,19 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
         ),
       );
     }
+  }
+
+  void _schedulePasswordSetupPrompt() {
+    Future.delayed(const Duration(milliseconds: 800), () {
+      final navContext = appNavigatorKey.currentContext;
+      if (navContext == null || !navContext.mounted) return;
+      showModalBottomSheet<bool>(
+        context: navContext,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => const SetPasswordSheet(),
+      );
+    });
   }
 
   Widget _buildFieldLabel(String label) {
@@ -647,43 +673,43 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
                           ),
                         ),
                         if (_biometricAvailable) ...[
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(
-                                  color: Color(0xFF276572),
-                                ),
-                                foregroundColor: const Color(0xFF276572),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
+                          const SizedBox(height: 4),
+                          Center(
+                            child: Tooltip(
+                              message: 'Login with $_biometricLabel',
+                              child: InkWell(
+                                onTap: _isBiometricLoading ? null : _handleBiometricLogin,
+                                borderRadius: BorderRadius.circular(32),
+                                child: Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: const Color(0xFF276572),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: _isBiometricLoading
+                                      ? const Center(
+                                          child: SizedBox(
+                                            width: 22,
+                                            height: 22,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Color(0xFF276572),
+                                            ),
+                                          ),
+                                        )
+                                      : Icon(
+                                          _biometricLabel == 'Face ID'
+                                              ? Icons.face_outlined
+                                              : Icons.fingerprint,
+                                          size: 28,
+                                          color: const Color(0xFF276572),
+                                        ),
                                 ),
                               ),
-                              onPressed: _isBiometricLoading
-                                  ? null
-                                  : _handleBiometricLogin,
-                              child: _isBiometricLoading
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Color(0xFF276572),
-                                      ),
-                                    )
-                                  : const Icon(Icons.fingerprint, size: 28),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _biometricLabel,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF276572),
                             ),
                           ),
                         ],

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +9,7 @@ import '../repositories/auth_repository.dart';
 import '../services/biometric_auth_service.dart';
 import '../../../core/auth/session_manager.dart';
 import '../../../core/api/api_client.dart';
+import '../../../core/config/shared_prefs_provider.dart';
 import '../../notifications/services/notification_lifecycle_service.dart';
 
 final authProvider = AsyncNotifierProvider<AuthNotifier, AuthResponse?>(
@@ -135,46 +135,29 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
   Future<bool> loginWithBiometric() async {
     debugPrint('[AUTH] ========== BIOMETRIC LOGIN START ==========');
     final biometricService = ref.read(biometricAuthServiceProvider);
-    final sessionManager = ref.read(sessionManagerProvider);
+    final repository = ref.read(authRepositoryProvider);
 
-    debugPrint('[AUTH] Step 1: Retrieving saved credentials...');
-    final token = biometricService.getSavedToken();
-    final userJson = biometricService.getSavedUserJson();
-
-    if (token == null || token.isEmpty) {
-      debugPrint('[AUTH] ✗ Token is missing or empty');
-      debugPrint('[AUTH] Token value: ${token == null ? 'NULL' : 'EMPTY'}');
-      return false;
-    }
-    if (userJson == null) {
-      debugPrint('[AUTH] ✗ User JSON is missing');
-      return false;
-    }
-
-    debugPrint('[AUTH] ✓ Both token and user JSON found');
-    debugPrint('[AUTH] Step 2: Parsing user JSON...');
+    final deviceToken = biometricService.getDeviceToken();
+    if (deviceToken == null || deviceToken.isEmpty) return false;
 
     try {
-      final user = jsonDecode(userJson) as Map<String, dynamic>;
-      debugPrint('[AUTH] ✓ User JSON parsed successfully');
-      debugPrint('[AUTH] User email: ${user['email'] ?? 'N/A'}');
-
-      debugPrint('[AUTH] Step 3: Saving session...');
-      await sessionManager.saveSession(token, user);
-      debugPrint('[AUTH] ✓ Session saved successfully');
-
-      // Step 4: Update the auth state to trigger router redirect
-      debugPrint('[AUTH] Step 4: Updating auth state...');
-      final response = AuthResponse.fromSession(token: token, user: user);
-      state = AsyncValue.data(response);
-      debugPrint('[AUTH] ✓ Auth state updated successfully');
-
-      debugPrint('[AUTH] ========== BIOMETRIC LOGIN SUCCESS ==========');
-      return true;
+      // Exchange the long-lived biometric device token for a fresh session token.
+      final response = await repository.loginWithBiometricToken(deviceToken);
+      if (!response.isAuthenticated) {
+        await biometricService.disable();
+        return false;
+      }
+      final authData = await persistAuthenticatedResponse(response);
+      debugPrint('[AUTH] Biometric login successful');
+      return authData.isAuthenticated;
+    } on ApiException catch (e) {
+      debugPrint('[AUTH] Biometric login failed (${e.statusCode}): ${e.message}');
+      if (e.statusCode == 401 || e.statusCode == 403) {
+        await biometricService.disable();
+      }
+      return false;
     } catch (e) {
-      debugPrint('[AUTH] ✗ Biometric login failed at parsing/session save: $e');
-      debugPrint('[AUTH] Error type: ${e.runtimeType}');
-      debugPrint('[AUTH] ========== BIOMETRIC LOGIN FAILED ==========');
+      debugPrint('[AUTH] Biometric login error: $e');
       return false;
     }
   }
@@ -428,12 +411,12 @@ class AuthNotifier extends AsyncNotifier<AuthResponse?> {
         .read(sessionManagerProvider)
         .saveSession(token, user, notifySessionChange: false);
 
-    // Persist credentials for biometric quick-login (survives explicit logout).
-    try {
-      final biometricService = ref.read(biometricAuthServiceProvider);
-      await biometricService.saveCredentials(token, jsonEncode(user));
-    } catch (e) {
-      debugPrint('[AUTH] Biometric credential save failed (non-fatal): $e');
+    // Persist email so the login form can prefill it even after logout.
+    final email = user['email'] as String?;
+    if (email != null && email.isNotEmpty) {
+      unawaited(
+        ref.read(sharedPreferencesProvider).setString('last_login_email', email),
+      );
     }
 
     // Auto-mark welcome as seen immediately after login to skip welcome screen

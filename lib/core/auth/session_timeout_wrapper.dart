@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/models/auth_response.dart';
 import '../../features/auth/services/biometric_auth_service.dart';
+import '../../features/auth/repositories/auth_repository.dart';
+import '../ui/app_navigation.dart';
+import '../ui/app_scaffold_messenger.dart';
 import 'session_manager.dart';
 
 class SessionTimeoutWrapper extends ConsumerStatefulWidget {
@@ -155,6 +158,75 @@ class _SessionTimeoutWrapperState extends ConsumerState<SessionTimeoutWrapper>
           reason: 'Use biometrics to unlock your saved session.',
         );
       }
+      return;
+    }
+
+    // Fresh login (no persisted session at launch) — offer one-time biometric setup.
+    if (!_hadPersistedSessionOnLaunch && !_launchProtectionHandled) {
+      _launchProtectionHandled = true;
+      final biometricService = ref.read(biometricAuthServiceProvider);
+      if (!biometricService.isEnabledSync && !biometricService.hasBeenSetupPrompted) {
+        final availability = await biometricService.getAvailability();
+        if (availability.canAuthenticate) {
+          // Wait for dashboard navigation to settle before showing the sheet.
+          await Future.delayed(const Duration(milliseconds: 600));
+          if (mounted) await _offerBiometricSetup(biometricService, availability);
+        }
+      }
+    }
+  }
+
+  Future<void> _offerBiometricSetup(
+    BiometricAuthService biometricService,
+    BiometricAvailability availability,
+  ) async {
+    if (appNavigatorKey.currentContext == null) return;
+
+    // Mark as prompted only after confirming we can actually show the sheet.
+    await biometricService.markSetupPrompted();
+
+    final navContext = appNavigatorKey.currentContext;
+    if (navContext == null || !navContext.mounted) return;
+
+    final enabled = await showModalBottomSheet<bool>(
+      context: navContext,
+      backgroundColor: Colors.transparent,
+      isDismissible: true,
+      isScrollControlled: true,
+      builder: (_) => _BiometricSetupSheet(label: availability.preferredLabel),
+    );
+
+    if (enabled == true) {
+      final didAuth = await biometricService.authenticate(
+        reason:
+            'Use ${availability.preferredLabel} to enable quick login for Converf.',
+      );
+      if (didAuth) {
+        try {
+          final repository = ref.read(authRepositoryProvider);
+          final deviceToken = await repository.registerBiometric();
+          await biometricService.saveDeviceToken(deviceToken);
+          await biometricService.setEnabled(true);
+          appScaffoldMessengerKey.currentState?.showSnackBar(
+            SnackBar(
+              content: Text(
+                '${availability.preferredLabel} login enabled. '
+                "You'll see it on the login screen next time.",
+              ),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: const Color(0xFF276572),
+            ),
+          );
+        } catch (e) {
+          debugPrint('[BiometricSetup] Backend registration failed: $e');
+          appScaffoldMessengerKey.currentState?.showSnackBar(
+            const SnackBar(
+              content: Text('Could not enable biometric login. Please try again in Settings.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -295,6 +367,95 @@ class _SessionTimeoutWrapperState extends ConsumerState<SessionTimeoutWrapper>
     _authSubscription.close();
     _timer?.cancel();
     super.dispose();
+  }
+}
+
+class _BiometricSetupSheet extends StatelessWidget {
+  const _BiometricSetupSheet({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE6F4F1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              label == 'Face ID' ? Icons.face_outlined : Icons.fingerprint,
+              color: const Color(0xFF276572),
+              size: 32,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Enable $label Login',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Skip the password next time. Use $label to log in to Converf instantly.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.5,
+              color: Color(0xFF667085),
+            ),
+          ),
+          const SizedBox(height: 28),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF276572),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+              child: Text(
+                'Enable $label',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text(
+              'Not now',
+              style: TextStyle(
+                color: Color(0xFF667085),
+                fontSize: 15,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

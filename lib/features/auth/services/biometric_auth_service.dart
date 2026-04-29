@@ -27,15 +27,11 @@ class BiometricAvailability {
       isDeviceSupported && canCheckBiometrics && hasEnrolledBiometrics;
 
   String get preferredLabel {
-    if (availableBiometrics.contains(BiometricType.face)) {
-      return 'Face ID';
-    }
+    if (availableBiometrics.contains(BiometricType.face)) return 'Face ID';
     if (availableBiometrics.contains(BiometricType.fingerprint)) {
       return 'Fingerprint';
     }
-    if (availableBiometrics.contains(BiometricType.iris)) {
-      return 'Iris';
-    }
+    if (availableBiometrics.contains(BiometricType.iris)) return 'Iris';
     return 'Biometrics';
   }
 
@@ -43,9 +39,7 @@ class BiometricAvailability {
     if (canAuthenticate) {
       return 'Use $preferredLabel to unlock your app after inactivity.';
     }
-    if (lastError != null && lastError!.isNotEmpty) {
-      return lastError!;
-    }
+    if (lastError != null && lastError!.isNotEmpty) return lastError!;
     if (!isDeviceSupported) {
       return 'This device does not support biometric authentication.';
     }
@@ -61,72 +55,51 @@ class BiometricAuthService {
     : _localAuthentication = localAuthentication ?? LocalAuthentication();
 
   static const String biometricEnabledKey = 'biometric_login_enabled';
-  static const String _biometricTokenKey = 'biometric_session_token';
-  static const String _biometricUserKey = 'biometric_session_user';
+
+  // Backend-issued long-lived token used exclusively for biometric re-login.
+  // Stored separately from the session token so it survives regular logouts.
+  static const String _biometricDeviceTokenKey = 'biometric_device_token';
+  static const String _biometricSetupPromptedKey = 'biometric_setup_prompted';
 
   final SharedPreferences _prefs;
   final LocalAuthentication _localAuthentication;
 
+  // ── State ────────────────────────────────────────────────────────────────────
+
   bool get isEnabledSync => _prefs.getBool(biometricEnabledKey) ?? false;
 
-  bool get hasSavedCredentials =>
-      (_prefs.getString(_biometricTokenKey) ?? '').isNotEmpty;
+  bool get hasDeviceToken =>
+      (_prefs.getString(_biometricDeviceTokenKey) ?? '').isNotEmpty;
 
-  Future<void> saveCredentials(String token, String userJson) async {
-    try {
-      debugPrint('[BiometricAuth] Saving credentials...');
-      debugPrint('[BiometricAuth] Token length: ${token.length}');
-      debugPrint('[BiometricAuth] User JSON length: ${userJson.length}');
-      await _prefs.setString(_biometricTokenKey, token);
-      await _prefs.setString(_biometricUserKey, userJson);
-      debugPrint('[BiometricAuth] ✓ Credentials saved successfully');
-    } catch (e) {
-      debugPrint('[BiometricAuth] ✗ Failed to save credentials: $e');
-      rethrow;
-    }
+  bool get hasBeenSetupPrompted =>
+      _prefs.getBool(_biometricSetupPromptedKey) ?? false;
+
+  String? getDeviceToken() => _prefs.getString(_biometricDeviceTokenKey);
+
+  // ── Persistence ──────────────────────────────────────────────────────────────
+
+  Future<void> saveDeviceToken(String token) =>
+      _prefs.setString(_biometricDeviceTokenKey, token);
+
+  Future<void> clearDeviceToken() =>
+      _prefs.remove(_biometricDeviceTokenKey);
+
+  Future<void> setEnabled(bool enabled) =>
+      _prefs.setBool(biometricEnabledKey, enabled);
+
+  Future<void> markSetupPrompted() =>
+      _prefs.setBool(_biometricSetupPromptedKey, true);
+
+  Future<void> resetSetupPrompt() =>
+      _prefs.remove(_biometricSetupPromptedKey);
+
+  Future<void> disable() async {
+    await _prefs.setBool(biometricEnabledKey, false);
+    await _prefs.remove(_biometricDeviceTokenKey);
+    await _prefs.remove(_biometricSetupPromptedKey);
   }
 
-  String? getSavedToken() {
-    try {
-      final token = _prefs.getString(_biometricTokenKey);
-      debugPrint(
-        '[BiometricAuth] Retrieved token: ${token != null ? 'exists (${token.length} chars)' : 'NOT FOUND'}',
-      );
-      return token;
-    } catch (e) {
-      debugPrint('[BiometricAuth] ✗ Failed to retrieve token: $e');
-      return null;
-    }
-  }
-
-  String? getSavedUserJson() {
-    try {
-      final userJson = _prefs.getString(_biometricUserKey);
-      debugPrint(
-        '[BiometricAuth] Retrieved user JSON: ${userJson != null ? 'exists (${userJson.length} chars)' : 'NOT FOUND'}',
-      );
-      return userJson;
-    } catch (e) {
-      debugPrint('[BiometricAuth] ✗ Failed to retrieve user JSON: $e');
-      return null;
-    }
-  }
-
-  Future<void> clearCredentials() async {
-    try {
-      debugPrint('[BiometricAuth] Clearing saved credentials...');
-      await _prefs.remove(_biometricTokenKey);
-      await _prefs.remove(_biometricUserKey);
-      debugPrint('[BiometricAuth] ✓ Credentials cleared');
-    } catch (e) {
-      debugPrint('[BiometricAuth] ✗ Failed to clear credentials: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> setEnabled(bool enabled) async {
-    await _prefs.setBool(biometricEnabledKey, enabled);
-  }
+  // ── Device capabilities ──────────────────────────────────────────────────────
 
   Future<BiometricAvailability> getAvailability() async {
     try {
@@ -160,15 +133,11 @@ class BiometricAuthService {
   }
 
   Future<bool> canProtectSession() async {
-    debugPrint('[BiometricAuth] Checking if can protect session...');
-    if (!isEnabledSync) {
-      debugPrint('[BiometricAuth] Biometric not enabled');
-      return false;
-    }
-    final result = (await getAvailability()).canAuthenticate;
-    debugPrint('[BiometricAuth] Can protect session: $result');
-    return result;
+    if (!isEnabledSync) return false;
+    return (await getAvailability()).canAuthenticate;
   }
+
+  // ── Authentication ───────────────────────────────────────────────────────────
 
   Future<bool> authenticate({required String reason}) async {
     try {
