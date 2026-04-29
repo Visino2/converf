@@ -24,133 +24,91 @@ class GoogleIdTokenClaims {
 }
 
 class GoogleAuthService {
-  // Web OAuth client ID for the web app (project 165586994124).
-  // ID tokens issued on iOS/web will carry this as their audience.
-  // Backend MUST accept this as valid audience for web/iOS tokens.
-  static const String _webClientId = String.fromEnvironment(
-    'GOOGLE_WEB_CLIENT_ID',
-    defaultValue:
-        '165586994124-hflca443nfirdase4vj76vkakfs7pvq9.apps.googleusercontent.com',
-  );
+  // iOS OAuth client (client_type: 2, onverf-v2 project).
+  static const String _iosClientId =
+      '215124506289-9jbqenrlgjbqj9cagk5k54tu1oa9mp4d.apps.googleusercontent.com';
 
-  // Mobile OAuth client (type 3) from the native Android Firebase project
-  // (project number 897727755110). The Android google-services.json belongs
-  // to this project, so serverClientId on Android MUST use this client ID —
-  // using a client from a different project causes sign_in_failed on Android.
-  // ID tokens issued on Android will carry this value as their audience.
-  // Backend MUST accept this as valid audience for Android tokens.
-  static const String _mobileClientId = String.fromEnvironment(
-    'GOOGLE_MOBILE_CLIENT_ID',
-    defaultValue:
-        '897727755110-f345u25o6888kq6nsrrvv6n1s0cuu6hf.apps.googleusercontent.com',
-  );
+  // Web OAuth client (client_type: 3, auto-created by Firebase, onverf-v2 project).
+  // Used as serverClientId on both platforms so GMS issues an ID token
+  // with aud = this client ID, which the backend validates.
+  static const String _webClientId =
+      '215124506289-9blp8h59q5k9v48dh45ngnhbva494tcf.apps.googleusercontent.com';
 
-  // iOS OAuth client ID (project 165586994124 — same as web).
-  static const String _iosClientId = String.fromEnvironment(
-    'GOOGLE_IOS_CLIENT_ID',
-    defaultValue:
-        '165586994124-5tiu5dl7hn1q56lqp5edq2gbeujbcgts.apps.googleusercontent.com',
-  );
-
-  /// Both audiences the backend must accept: web tokens use _webClientId,
-  /// Android tokens use _mobileClientId.
-  static const List<String> validTokenAudiences = [
-    _webClientId,
-    _mobileClientId,
-  ];
-
-  /// The audience expected for the current platform's token.
-  String get expectedTokenAudience {
-    return defaultTargetPlatform == TargetPlatform.android
-        ? _mobileClientId
-        : _webClientId;
-  }
+  String get expectedTokenAudience => _webClientId;
 
   late final GoogleSignIn _googleSignIn;
 
   GoogleAuthService() {
     _googleSignIn = GoogleSignIn(
-      // iOS needs an explicit clientId to identify which OAuth client to use.
-      // Android leaves this null — the SDK resolves it from google-services.json.
-      clientId: defaultTargetPlatform == TargetPlatform.iOS
-          ? _iosClientId
-          : null,
-      // serverClientId MUST be a Web OAuth client from the SAME Firebase project
-      // as the platform's config file (google-services.json / GoogleService-Info.plist).
-      // Using a client ID from a different project causes sign_in_failed on Android.
-      // Android → mobile project (431938083961), iOS/other → web project (165586994124).
-      serverClientId: defaultTargetPlatform == TargetPlatform.android
-          ? _mobileClientId
-          : _webClientId,
+      // iOS needs an explicit clientId; Android resolves it from google-services.json.
+      clientId: defaultTargetPlatform == TargetPlatform.iOS ? _iosClientId : null,
+      // serverClientId must be the web client (client_type: 3).
+      // GMS issues an ID token with aud = _webClientId for backend validation.
+      serverClientId: _webClientId,
       scopes: ['email', 'profile'],
     );
   }
 
-  /// Triggers the native Google Sign-In flow and returns the ID Token.
+  /// Triggers the native Google Sign-In flow and returns the ID token.
+  /// Returns null if the user cancels.
   Future<String?> signIn() async {
     try {
       debugPrint(
-        '[GoogleSignIn] signIn() called on ${defaultTargetPlatform.name} '
-        'with serverClientId=$expectedTokenAudience.',
+        '[GoogleSignIn] signIn() on ${defaultTargetPlatform.name} '
+        'serverClientId=$_webClientId',
       );
-      // Clear any previous session to ensure the "Choose Account" popup appears
+
+      // Disconnect so the account picker always appears.
       if (await _googleSignIn.isSignedIn()) {
         await _googleSignIn.disconnect();
       }
 
       final GoogleSignInAccount? account = await _googleSignIn.signIn();
       if (account == null) {
-        // User cancelled the sign-in
-        debugPrint('[GoogleSignIn] User cancelled account selection.');
+        debugPrint('[GoogleSignIn] User cancelled.');
         return null;
       }
 
-      debugPrint('[GoogleSignIn] Selected account: ${account.email}');
+      debugPrint('[GoogleSignIn] Signed in as ${account.email}');
 
       final GoogleSignInAuthentication auth = await account.authentication;
       final String? idToken = auth.idToken;
 
       if (idToken == null) {
-        throw Exception('Failed to obtain Google ID Token.');
+        throw Exception('Google Sign-In succeeded but ID token is null.');
       }
 
       logIdTokenClaims(idToken);
       return idToken;
+    } on PlatformException catch (e) {
+      debugPrint(
+        '[GoogleSignIn] PlatformException: code=${e.code} message=${e.message}',
+      );
+      rethrow;
     } catch (e, st) {
-      debugPrint('[GoogleSignIn] Error during signIn(): $e');
-      debugPrint('[GoogleSignIn] Stack trace: $st');
-      if (e is PlatformException) {
-        debugPrint(
-          '[GoogleSignIn] PlatformException - code: ${e.code}, message: ${e.message}, details: ${e.details}',
-        );
-      }
+      debugPrint('[GoogleSignIn] Error: $e\n$st');
       rethrow;
     }
   }
 
-  /// Signs out the user from Google.
   Future<void> signOut() async {
     try {
       await _googleSignIn.signOut();
     } catch (e) {
-      debugPrint('Google Sign-Out Error: $e');
+      debugPrint('[GoogleSignIn] Sign-out error: $e');
     }
   }
 
   GoogleIdTokenClaims? parseIdTokenClaims(String idToken) {
     try {
       final segments = idToken.split('.');
-      if (segments.length < 2) {
-        return null;
-      }
+      if (segments.length < 2) return null;
 
       final decodedPayload = utf8.decode(
         base64Url.decode(base64Url.normalize(segments[1])),
       );
       final dynamic payload = jsonDecode(decodedPayload);
-      if (payload is! Map) {
-        return null;
-      }
+      if (payload is! Map) return null;
 
       final claims = Map<String, dynamic>.from(payload);
       final expValue = claims['exp'];
@@ -168,7 +126,7 @@ class GoogleAuthService {
         expiresAt: expiresAt,
       );
     } catch (e) {
-      debugPrint('[GoogleSignIn] Failed to decode ID token claims: $e');
+      debugPrint('[GoogleSignIn] Failed to parse ID token: $e');
       return null;
     }
   }
@@ -176,22 +134,20 @@ class GoogleAuthService {
   void logIdTokenClaims(String idToken) {
     final claims = parseIdTokenClaims(idToken);
     if (claims == null) {
-      debugPrint('[GoogleSignIn] Unable to decode Google ID token claims.');
+      debugPrint('[GoogleSignIn] Could not decode ID token claims.');
       return;
     }
-
     debugPrint(
-      '[GoogleSignIn] ID token claims: '
-      'aud=${claims.audience ?? 'unknown'}, '
-      'azp=${claims.authorizedParty ?? 'unknown'}, '
-      'iss=${claims.issuer ?? 'unknown'}, '
-      'exp=${claims.expiresAt?.toIso8601String() ?? 'unknown'}',
+      '[GoogleSignIn] Token claims — '
+      'aud=${claims.audience}, '
+      'azp=${claims.authorizedParty}, '
+      'iss=${claims.issuer}, '
+      'exp=${claims.expiresAt?.toIso8601String()}',
     );
-
     if (claims.audience != null && claims.audience != expectedTokenAudience) {
       debugPrint(
-        '[GoogleSignIn] Token audience differs from expected client ID. '
-        'token aud=${claims.audience}, expected=$expectedTokenAudience',
+        '[GoogleSignIn] WARNING: aud mismatch — '
+        'got=${claims.audience}, expected=$expectedTokenAudience',
       );
     }
   }

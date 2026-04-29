@@ -1,34 +1,57 @@
 {
   "project_info": {
-    "project_number": "897727755110",
-    "project_id": "converf-494615",
-    "storage_bucket": "converf-494615.firebasestorage.app"
+    "project_number": "215124506289",
+    "project_id": "onverf-v2",
+    "storage_bucket": "onverf-v2.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:897727755110:android:8e57e71b1952a1b9290ea7",
+        "mobilesdk_app_id": "1:215124506289:android:2e2c8a3d7418c261025490",
         "android_client_info": {
-          "package_name": "com.converf.mobile"
+          "package_name": "com.converf.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "897727755110-f345u25o6888kq6nsrrvv6n1s0cuu6hf.apps.googleusercontent.com",
+          "client_id": "215124506289-9n3v986vf86dcli1tkh2625ghbvsdh4e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.converf.app",
+            "certificate_hash": "01e8260e4bce51a8e36e336a79042551177a402d"
+          }
+        },
+        {
+          "client_id": "215124506289-rhvd7io46aqt7tab41sluvpjq02289r3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.converf.app",
+            "certificate_hash": "a55bc2c5c141ee76c78b37945a64472c1b67e814"
+          }
+        },
+        {
+          "client_id": "215124506289-9blp8h59q5k9v48dh45ngnhbva494tcf.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyCE8pTPYPlJGqzBSPczauBTuEE5J59sljc"
+          "current_key": "AIzaSyAxw3a3ax34lX7lUuDlMxKum0EH0X3Oq6g"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "897727755110-f345u25o6888kq6nsrrvv6n1s0cuu6hf.apps.googleusercontent.com",
+              "client_id": "215124506289-9blp8h59q5k9v48dh45ngnhbva494tcf.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "215124506289-9jbqenrlgjbqj9cagk5k54tu1oa9mp4d.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.converf.app"
+              }
             }
           ]
         }

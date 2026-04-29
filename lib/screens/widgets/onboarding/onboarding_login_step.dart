@@ -297,6 +297,9 @@ class _OnboardingLoginStepState extends ConsumerState<OnboardingLoginStep> {
         label: '[OnboardingLoginStep] PlatformException during social auth',
         stackTrace: StackTrace.current,
       );
+      debugPrint(
+        '[OnboardingLoginStep] PlatformException - code: ${e.code}, message: ${e.message}, details: ${e.stacktrace}',
+      );
       // Do NOT fall back to the external browser — that sends users to the web app.
       // Show a clear error so the user knows to retry.
       ScaffoldMessenger.of(context).showSnackBar(

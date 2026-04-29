@@ -49,7 +49,7 @@ android {
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-    }
+}
 
     buildTypes {
         release {
