@@ -26,17 +26,17 @@ class _ContractorProjectsScreenState
 
   final List<String> _statusOptions = [
     'All Status',
-    'On Track',
-    'At Risk',
-    'Delay',
+    'Active',
+    'Pending',
+    'Draft',
     'Completed',
   ];
   final List<String> _typeOptions = [
     'All Types',
-    'Residential',
-    'Commercial',
-    'Roadway',
-    'Infrastructure',
+    'Client',
+    'Contractor',
+    'Completed',
+    'Incomplete',
   ];
   final List<String> _methodOptions = ['All Method', 'Open Tender', 'Direct'];
 
@@ -64,19 +64,19 @@ class _ContractorProjectsScreenState
 
   List<Project> _filterProjects(List<Project> projects) {
     return projects.where((p) {
-      // Status Filter
+      // Status Filter (Active, Pending, Draft, Completed)
       bool matchesStatus = true;
       if (_selectedStatus != 'All Status' && _selectedStatus != 'All') {
         ProjectStatus? filterStatus;
         switch (_selectedStatus) {
-          case 'At Risk':
-            filterStatus = ProjectStatus.atRisk;
+          case 'Active':
+            filterStatus = ProjectStatus.active;
             break;
-          case 'Delay':
-            filterStatus = ProjectStatus.delayed;
+          case 'Pending':
+            filterStatus = ProjectStatus.pendingTender;
             break;
-          case 'On Track':
-            filterStatus = ProjectStatus.onTrack;
+          case 'Draft':
+            filterStatus = ProjectStatus.draft;
             break;
           case 'Completed':
             filterStatus = ProjectStatus.completed;
@@ -85,11 +85,22 @@ class _ContractorProjectsScreenState
         matchesStatus = p.status == filterStatus;
       }
 
-      // Type Filter
+      // Type Filter (Client, Contractor, Completed, Incomplete)
       bool matchesType = true;
       if (_selectedType != 'All Types') {
-        matchesType =
-            p.constructionType.toLowerCase() == _selectedType.toLowerCase();
+        if (_selectedType == 'Client') {
+          // Client projects are owned by the user
+          matchesType = p.owner != null; // Has owner = Client project
+        } else if (_selectedType == 'Contractor') {
+          // Contractor projects have contractor assigned
+          matchesType = p.contractor != null;
+        } else if (_selectedType == 'Completed') {
+          // Completed projects
+          matchesType = p.status == ProjectStatus.completed;
+        } else if (_selectedType == 'Incomplete') {
+          // Incomplete projects (not completed)
+          matchesType = p.status != ProjectStatus.completed;
+        }
       }
 
       // Method Filter
@@ -181,6 +192,7 @@ class _ContractorProjectsScreenState
     }
 
     return ListView.separated(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       padding: EdgeInsets.zero,
       cacheExtent: 500,
       itemCount: projects.length,
@@ -205,11 +217,13 @@ class _ContractorProjectsScreenState
         children: [
           _buildChip('All'),
           const SizedBox(width: 12),
-          _buildChip('On Track'),
+          _buildChip('Active'),
           const SizedBox(width: 12),
-          _buildChip('At Risk'),
+          _buildChip('Pending'),
           const SizedBox(width: 12),
-          _buildChip('Delay'),
+          _buildChip('Draft'),
+          const SizedBox(width: 12),
+          _buildChip('Completed'),
         ],
       ),
     );
@@ -287,7 +301,16 @@ class _ContractorProjectsScreenState
           .map(
             (opt) => PopupMenuItem(
               value: opt,
-              child: Text(opt, style: const TextStyle(fontSize: 14)),
+              child: Row(
+                children: [
+                  if (opt == current)
+                    const Icon(Icons.check, color: Color(0xFF276572), size: 18)
+                  else
+                    const SizedBox(width: 18),
+                  const SizedBox(width: 8),
+                  Text(opt, style: const TextStyle(fontSize: 14)),
+                ],
+              ),
             ),
           )
           .toList(),

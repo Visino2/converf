@@ -42,13 +42,14 @@ class _OnboardingContractorSignupStepState
   final _registrationNumberController = TextEditingController();
   final _licenseNumberController = TextEditingController();
   final _addressController = TextEditingController();
-  final _tinController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
   // State for all steps
   String? _selectedCountry = 'Nigeria';
   String? _yearsInBusiness;
+  String? _insuranceDocumentName;
+  String? _selectedProfessionalBody;
   final Map<String, bool> _specializations = {
     'residential': false,
     'infrastructure': false,
@@ -69,7 +70,6 @@ class _OnboardingContractorSignupStepState
     _registrationNumberController.dispose();
     _licenseNumberController.dispose();
     _addressController.dispose();
-    _tinController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -86,9 +86,9 @@ class _OnboardingContractorSignupStepState
         final email = _emailController.text.trim();
         final repository = ref.read(authRepositoryProvider);
         final exists = await repository.checkEmailExists(email);
-        
+
         if (!mounted) return;
-        
+
         if (exists) {
           setState(() {
             _isCheckingEmail = false;
@@ -157,9 +157,14 @@ class _OnboardingContractorSignupStepState
     // Convert "3-5 Years" to int 5 as per request example
     int years = 0;
     if (_yearsInBusiness != null) {
-      final match = RegExp(r'(\d+)').firstMatch(_yearsInBusiness!);
-      if (match != null) {
-        years = int.parse(match.group(1)!);
+      if (_yearsInBusiness!.contains('1-2')) {
+        years = 2;
+      } else if (_yearsInBusiness!.contains('3-5')) {
+        years = 5;
+      } else if (_yearsInBusiness!.contains('5-10')) {
+        years = 10;
+      } else if (_yearsInBusiness!.contains('10+')) {
+        years = 15;
       }
     }
 
@@ -174,7 +179,8 @@ class _OnboardingContractorSignupStepState
       licenseNumber: _licenseNumberController.text,
       constructionSpecialisations: selectedSpecs,
       businessAddress: _addressController.text,
-      taxIdentificationNumber: _tinController.text,
+      insuranceDocumentName: _insuranceDocumentName,
+      professionalBody: _selectedProfessionalBody,
       agreedToTerms: _termsAgreed,
       confirmedInformationAccuracy: _infoAccurate,
       password: _passwordController.text,
@@ -182,6 +188,9 @@ class _OnboardingContractorSignupStepState
     );
 
     await ref.read(authProvider.notifier).registerContractor(request);
+
+    // Add delay to allow authProvider state to propagate before reading it
+    await Future.delayed(const Duration(milliseconds: 100));
 
     if (mounted) {
       final authState = ref.read(authProvider);
@@ -222,18 +231,12 @@ class _OnboardingContractorSignupStepState
           authState.value?.message ?? '',
         );
       } else {
-        final response = authState.value;
         if (!mounted) {
           return;
         }
 
-        // New accounts always require email verification upon signup
-        context.go(
-          verifyEmailLocation(
-            email: response?.data?.user['email']?.toString() ?? request.email,
-            autoResend: true,
-          ),
-        );
+        // Smooth transition to onboarding welcome step
+        widget.onSignupSubmit();
         return;
       }
 
@@ -258,6 +261,10 @@ class _OnboardingContractorSignupStepState
     }
 
     await ref.read(authProvider.notifier).login(email, password);
+
+    // Add delay to allow authProvider state to propagate before reading it
+    await Future.delayed(const Duration(milliseconds: 100));
+
     if (!mounted) {
       return;
     }
@@ -387,7 +394,6 @@ class _OnboardingContractorSignupStepState
         return ContractorSpecializationStep(
           onSignupSubmit: _handleSignup,
           addressController: _addressController,
-          tinController: _tinController,
           passwordController: _passwordController,
           confirmPasswordController: _confirmPasswordController,
           specializations: _specializations,
@@ -398,6 +404,13 @@ class _OnboardingContractorSignupStepState
           infoAccurate: _infoAccurate,
           onInfoAccurateChanged: (v) => setState(() => _infoAccurate = v),
           isLoading: authState.isLoading,
+          insuranceDocumentName: _insuranceDocumentName,
+          onInsuranceDocumentPicked: (path, name) => setState(() {
+            _insuranceDocumentName = name;
+          }),
+          selectedProfessionalBody: _selectedProfessionalBody,
+          onProfessionalBodyChanged: (v) =>
+              setState(() => _selectedProfessionalBody = v),
         );
       default:
         return ContractorPersonalInfoStep(

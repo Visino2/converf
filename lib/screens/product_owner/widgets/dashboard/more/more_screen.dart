@@ -5,10 +5,12 @@ import 'package:converf/screens/product_owner/widgets/dashboard/more/security_sc
 import 'package:converf/screens/product_owner/widgets/dashboard/notifications/notifications_screen.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/more/billing/billing_screen.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/more/help_support_screen.dart';
+import 'package:converf/screens/product_owner/widgets/dashboard/more/privacy_settings_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:converf/screens/widgets/logout_confirmation_modal.dart';
 import 'package:converf/features/auth/providers/auth_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:converf/screens/settings/delete_account_screen.dart';
 
 class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
@@ -27,13 +29,21 @@ class MoreScreen extends ConsumerWidget {
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => const NotificationsScreen()));
         break;
-      case 'Billing & Subscription':
+      case 'Subscription':
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => const BillingScreen()));
         break;
       case 'Help & Support':
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => const HelpSupportScreen()));
+        break;
+      case 'Delete Account':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const DeleteAccountScreen()));
+        break;
+      case 'Privacy Settings':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const PrivacySettingsScreen()));
         break;
       default:
         break;
@@ -46,15 +56,18 @@ class MoreScreen extends ConsumerWidget {
       {'title': 'Profile Information', 'icon': 'assets/images/more.svg'},
       {'title': 'Security', 'icon': 'assets/images/Shield.svg'},
       {'title': 'Notifications', 'icon': 'assets/images/Bell.svg'},
-      {'title': 'Billing & Subscription', 'icon': 'assets/images/card.png'},
+      {'title': 'Privacy Settings', 'icon': 'assets/images/Shield.svg'},
+      {'title': 'Subscription', 'icon': 'assets/images/card.png'},
       {'title': 'Help & Support', 'icon': 'assets/images/headset.svg'},
+      {'title': 'Delete Account', 'icon': 'assets/images/Shield.svg'},
     ];
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+          physics: const BouncingScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

@@ -25,8 +25,7 @@ class BillingTransaction {
       currency: json['currency']?.toString(),
       status: json['status']?.toString(),
       reference: json['reference']?.toString(),
-      createdAt:
-          createdText != null ? DateTime.tryParse(createdText) : null,
+      createdAt: createdText != null ? DateTime.tryParse(createdText) : null,
       raw: Map<String, dynamic>.from(json),
     );
   }
@@ -39,6 +38,7 @@ class BillingPlan {
   final num? price;
   final String? currency;
   final String? interval;
+  final String? billingCycle;
   final Map<String, bool> features;
   final Map<String, dynamic> raw;
 
@@ -49,6 +49,7 @@ class BillingPlan {
     this.price,
     this.currency,
     this.interval,
+    this.billingCycle,
     this.features = const {},
     this.raw = const {},
   });
@@ -61,7 +62,9 @@ class BillingPlan {
       displayName: json['display_name']?.toString(),
       price: json['price'] as num? ?? (json['price_kobo'] as num? ?? 0) / 100,
       currency: json['currency']?.toString(),
-      interval: json['billing_interval']?.toString() ?? json['interval']?.toString(),
+      interval:
+          json['billing_interval']?.toString() ?? json['interval']?.toString(),
+      billingCycle: json['billing_cycle']?.toString(),
       features: featuresMap.map((key, value) => MapEntry(key, value == true)),
       raw: Map<String, dynamic>.from(json),
     );
@@ -85,7 +88,9 @@ class BillingLimits {
 
   factory BillingLimits.fromJson(Map<String, dynamic> json) {
     return BillingLimits(
-      storage: StorageLimit.fromJson(json['storage'] as Map<String, dynamic>? ?? {}),
+      storage: StorageLimit.fromJson(
+        json['storage'] as Map<String, dynamic>? ?? {},
+      ),
       teamMembers: json['team_members'] as int?,
       maxProjects: json['max_projects'] as int?,
       aiCredits: json['ai_credits'] as int?,
@@ -115,7 +120,8 @@ class StorageLimit {
     );
   }
 
-  double get usagePercentage => allowedBytes > 0 ? (usedBytes / allowedBytes) : 0;
+  double get usagePercentage =>
+      allowedBytes > 0 ? (usedBytes / allowedBytes) : 0;
 }
 
 class BillingSubscription {
@@ -138,19 +144,31 @@ class BillingSubscription {
   });
 
   factory BillingSubscription.fromJson(Map<String, dynamic> json) {
-    final root = json['data'] is Map<String, dynamic> ? json['data'] as Map<String, dynamic> : json;
-    
-    final renewsText = (root['renews_at'] ?? root['next_billing_date'])?.toString();
-    
+    final root = json['data'] is Map<String, dynamic>
+        ? json['data'] as Map<String, dynamic>
+        : json;
+
+    final renewsText = (root['renews_at'] ?? root['next_billing_date'])
+        ?.toString();
+
     return BillingSubscription(
-      status: root['subscription']?['status']?.toString() ?? root['status']?.toString(),
-      planName: root['plan']?['display_name']?.toString() ?? root['plan']?['name']?.toString() ?? root['plan_name']?.toString(),
+      status:
+          root['subscription']?['status']?.toString() ??
+          root['status']?.toString(),
+      planName:
+          root['plan']?['display_name']?.toString() ??
+          root['plan']?['name']?.toString() ??
+          root['plan_name']?.toString(),
       planId: root['plan']?['id']?.toString() ?? root['plan_id']?.toString(),
       renewsAt: (renewsText != null && renewsText.isNotEmpty)
           ? DateTime.tryParse(renewsText)
           : null,
-      limits: root['limits'] != null ? BillingLimits.fromJson(root['limits'] as Map<String, dynamic>) : null,
-      plan: root['plan'] != null ? BillingPlan.fromJson(root['plan'] as Map<String, dynamic>) : null,
+      limits: root['limits'] != null
+          ? BillingLimits.fromJson(root['limits'] as Map<String, dynamic>)
+          : null,
+      plan: root['plan'] != null
+          ? BillingPlan.fromJson(root['plan'] as Map<String, dynamic>)
+          : null,
       raw: root,
     );
   }
@@ -179,8 +197,10 @@ class BillingPlansResponse {
   BillingPlansResponse({required this.plans, required this.addonPacks});
 
   factory BillingPlansResponse.fromJson(Map<String, dynamic> json) {
-    final data = json['data'] is Map<String, dynamic> ? json['data'] as Map<String, dynamic> : json;
-    
+    final data = json['data'] is Map<String, dynamic>
+        ? json['data'] as Map<String, dynamic>
+        : json;
+
     final plansList = (data['plans'] as List<dynamic>? ?? [])
         .whereType<Map>()
         .map((e) => BillingPlan.fromJson(Map<String, dynamic>.from(e)))
@@ -191,7 +211,12 @@ class BillingPlansResponse {
       final categoryPacks = packs as Map<String, dynamic>? ?? {};
       return MapEntry(
         category,
-        categoryPacks.map((key, packData) => MapEntry(key, AddonPack.fromJson(packData as Map<String, dynamic>))),
+        categoryPacks.map(
+          (key, packData) => MapEntry(
+            key,
+            AddonPack.fromJson(packData as Map<String, dynamic>),
+          ),
+        ),
       );
     });
 
@@ -202,16 +227,42 @@ class BillingPlansResponse {
 class PaymentIntent {
   final String paymentUrl;
   final String reference;
+  final String? message;
+  final bool? status;
+  final Map<String, dynamic> raw;
 
-  PaymentIntent({required this.paymentUrl, required this.reference});
+  PaymentIntent({
+    required this.paymentUrl,
+    required this.reference,
+    this.message,
+    this.status,
+    this.raw = const {},
+  });
 
   factory PaymentIntent.fromJson(Map<String, dynamic> json) {
-    final data = json['data'] is Map<String, dynamic> ? json['data'] as Map<String, dynamic> : json;
+    final data = json['data'] is Map<String, dynamic>
+        ? json['data'] as Map<String, dynamic>
+        : json;
     return PaymentIntent(
-      paymentUrl: data['payment_url']?.toString() ?? '',
-      reference: data['reference']?.toString() ?? '',
+      paymentUrl:
+          data['payment_url']?.toString() ??
+          data['checkout_url']?.toString() ??
+          data['authorization_url']?.toString() ??
+          '',
+      reference:
+          data['reference']?.toString() ??
+          data['payment_reference']?.toString() ??
+          data['trxref']?.toString() ??
+          '',
+      message: data['message']?.toString() ?? json['message']?.toString(),
+      status: data['status'] as bool? ?? json['status'] as bool?,
+      raw: Map<String, dynamic>.from(data),
     );
   }
+
+  bool get requiresPayment => paymentUrl.trim().isNotEmpty;
+
+  bool get hasReference => reference.trim().isNotEmpty;
 }
 
 class PaginatedTransactions {
@@ -221,7 +272,9 @@ class PaginatedTransactions {
   PaginatedTransactions({required this.data, this.meta = const {}});
 
   factory PaginatedTransactions.fromJson(Map<String, dynamic> json) {
-    final envelope = json['data'] is Map<String, dynamic> ? json['data'] as Map<String, dynamic> : json;
+    final envelope = json['data'] is Map<String, dynamic>
+        ? json['data'] as Map<String, dynamic>
+        : json;
     final items = envelope['data'] as List<dynamic>? ?? [];
     return PaginatedTransactions(
       data: items

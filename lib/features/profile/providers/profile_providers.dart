@@ -97,6 +97,35 @@ class ProfileNotifier extends AsyncNotifier<void> {
       rethrow;
     }
   }
+
+  Future<bool> deleteAccount({String? password}) async {
+    state = const AsyncLoading();
+    try {
+      await _repository.deleteAccount(password: password);
+      // On success, we logout immediately
+      await ref.read(authProvider.notifier).logout();
+      state = const AsyncData(null);
+      return true;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      return false;
+    }
+  }
+
+  Future<bool> updateHideFinancials(bool hide) async {
+    state = const AsyncLoading();
+    try {
+      await _repository.updateHideFinancials(hide);
+      // We don't necessarily update the session user here as this is a specific settings flag
+      // but we invalidate profile to ensure UI updates if it depends on it.
+      ref.invalidate(profileProvider);
+      state = const AsyncData(null);
+      return true;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      return false;
+    }
+  }
 }
 
 final profileNotifierProvider = AsyncNotifierProvider<ProfileNotifier, void>(ProfileNotifier.new);

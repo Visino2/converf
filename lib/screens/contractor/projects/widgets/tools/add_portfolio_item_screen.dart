@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:converf/core/media/app_image_picker.dart';
+import '../../../../../core/constants/app_locations.dart';
 import '../../../../../features/contractors/models/contractor_models.dart';
 import '../../../../../features/contractors/providers/contractor_providers.dart';
 
@@ -20,10 +21,11 @@ class _AddPortfolioItemScreenState extends ConsumerState<AddPortfolioItemScreen>
   
   late TextEditingController _titleController;
   late TextEditingController _locationController;
-  late TextEditingController _cityController;
-  late TextEditingController _stateController;
   late TextEditingController _budgetController;
   late TextEditingController _descriptionController;
+
+  String? _selectedState;
+  String? _selectedCity;
   
   String _constructionType = 'Residential';
   String _status = 'Completed';
@@ -43,8 +45,8 @@ class _AddPortfolioItemScreenState extends ConsumerState<AddPortfolioItemScreen>
     super.initState();
     _titleController = TextEditingController(text: widget.initialItem?.title);
     _locationController = TextEditingController(text: widget.initialItem?.location);
-    _cityController = TextEditingController(text: widget.initialItem?.city);
-    _stateController = TextEditingController(text: widget.initialItem?.state);
+    _selectedCity = widget.initialItem?.city;
+    _selectedState = widget.initialItem?.state;
     _budgetController = TextEditingController(text: widget.initialItem?.budget?.toString());
     _descriptionController = TextEditingController(text: widget.initialItem?.description);
     
@@ -60,8 +62,6 @@ class _AddPortfolioItemScreenState extends ConsumerState<AddPortfolioItemScreen>
   void dispose() {
     _titleController.dispose();
     _locationController.dispose();
-    _cityController.dispose();
-    _stateController.dispose();
     _budgetController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -70,7 +70,9 @@ class _AddPortfolioItemScreenState extends ConsumerState<AddPortfolioItemScreen>
   Future<void> _pickImage() async {
     final picked = await ref.read(appImagePickerProvider).pickImage(
       source: ImageSource.gallery,
-      imageQuality: 80,
+      imageQuality: 50,
+      maxWidth: 1024,
+      maxHeight: 1024,
     );
     if (picked != null) {
       setState(() => _imageFile = picked);
@@ -92,8 +94,8 @@ class _AddPortfolioItemScreenState extends ConsumerState<AddPortfolioItemScreen>
       final payload = ContractorPortfolioPayload(
         title: _titleController.text,
         location: _locationController.text,
-        city: _cityController.text,
-        state: _stateController.text,
+        city: _selectedCity,
+        state: _selectedState,
         constructionType: _constructionType,
         budget: num.tryParse(_budgetController.text),
         status: _status.toLowerCase(),
@@ -143,6 +145,7 @@ class _AddPortfolioItemScreenState extends ConsumerState<AddPortfolioItemScreen>
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,15 +239,28 @@ class _AddPortfolioItemScreenState extends ConsumerState<AddPortfolioItemScreen>
               const SizedBox(height: 20),
 
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildLabel('City'),
-                        TextFormField(
-                          controller: _cityController,
-                          decoration: _inputDecoration('e.g. Lagos'),
+                        _buildLabel('State'),
+                        DropdownButtonFormField<String>(
+                          initialValue: AppLocations.nigerianStatesAndCities['Nigeria']!.containsKey(_selectedState) 
+                              ? _selectedState 
+                              : null,
+                          decoration: _inputDecoration('Select State'),
+                          items: AppLocations.nigerianStatesAndCities['Nigeria']!
+                              .keys
+                              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                              .toList(),
+                          onChanged: (v) {
+                            setState(() {
+                              _selectedState = v;
+                              _selectedCity = null; // Reset city when state changes
+                            });
+                          },
                         ),
                       ],
                     ),
@@ -254,10 +270,26 @@ class _AddPortfolioItemScreenState extends ConsumerState<AddPortfolioItemScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildLabel('State'),
-                        TextFormField(
-                          controller: _stateController,
-                          decoration: _inputDecoration('e.g. Lagos State'),
+                        _buildLabel('City'),
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedCity != null && 
+                                 _selectedState != null && 
+                                 AppLocations.nigerianStatesAndCities['Nigeria']![_selectedState]!.contains(_selectedCity)
+                                  ? _selectedCity 
+                                  : null,
+                          decoration: _inputDecoration('Select City'),
+                          items: _selectedState != null
+                              ? AppLocations.nigerianStatesAndCities['Nigeria']![_selectedState]!
+                                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                                  .toList()
+                              : [],
+                          onChanged: _selectedState == null 
+                              ? null 
+                              : (v) {
+                                  setState(() {
+                                    _selectedCity = v;
+                                  });
+                                },
                         ),
                       ],
                     ),

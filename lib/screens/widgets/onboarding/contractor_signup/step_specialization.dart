@@ -1,9 +1,10 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 class ContractorSpecializationStep extends StatefulWidget {
   final Future<void> Function() onSignupSubmit;
   final TextEditingController addressController;
-  final TextEditingController tinController;
   final TextEditingController passwordController;
   final TextEditingController confirmPasswordController;
   final Map<String, bool> specializations;
@@ -13,12 +14,15 @@ class ContractorSpecializationStep extends StatefulWidget {
   final bool infoAccurate;
   final Function(bool) onInfoAccurateChanged;
   final bool isLoading;
+  final String? insuranceDocumentName;
+  final Function(String? path, String? name) onInsuranceDocumentPicked;
+  final String? selectedProfessionalBody;
+  final Function(String?) onProfessionalBodyChanged;
 
   const ContractorSpecializationStep({
     super.key,
     required this.onSignupSubmit,
     required this.addressController,
-    required this.tinController,
     required this.passwordController,
     required this.confirmPasswordController,
     required this.specializations,
@@ -27,7 +31,11 @@ class ContractorSpecializationStep extends StatefulWidget {
     required this.onTermsChanged,
     required this.infoAccurate,
     required this.onInfoAccurateChanged,
+    required this.onInsuranceDocumentPicked,
+    required this.onProfessionalBodyChanged,
     this.isLoading = false,
+    this.insuranceDocumentName,
+    this.selectedProfessionalBody,
   });
 
   @override
@@ -43,6 +51,103 @@ class _ContractorSpecializationStepState
   bool _isConfirmPasswordValid = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+
+  void _showTermsModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Expanded(
+                  child: Text(
+                    'Terms of Service',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'By using Converf, you agree to our Terms of Service. '
+                'You are responsible for maintaining the confidentiality of your account '
+                'and for all activities that occur under your account. '
+                'Converf reserves the right to modify these terms at any time.',
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 14, height: 1.5),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPrivacyModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Expanded(
+                  child: Text(
+                    'Privacy Policy',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Converf is committed to protecting your privacy. '
+                'We collect information you provide directly to us and use it to '
+                'operate, maintain, and improve our services. '
+                'We do not sell your personal information to third parties.',
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 14, height: 1.5),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFieldLabel(String label) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -338,20 +443,22 @@ class _ContractorSpecializationStepState
                 const TextSpan(
                   text: 'Yes, I understand and agree to the Converf ',
                 ),
-                const TextSpan(
+                TextSpan(
                   text: 'Terms of Service',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Color(0xFF276572),
                     fontWeight: FontWeight.w500,
                   ),
+                  recognizer: TapGestureRecognizer()..onTap = _showTermsModal,
                 ),
                 const TextSpan(text: ', including the '),
-                const TextSpan(
+                TextSpan(
                   text: 'Privacy Policy.',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Color(0xFF276572),
                     fontWeight: FontWeight.w500,
                   ),
+                  recognizer: TapGestureRecognizer()..onTap = _showPrivacyModal,
                 ),
               ],
             ),
@@ -397,13 +504,125 @@ class _ContractorSpecializationStepState
             },
           ),
           const SizedBox(height: 16),
-          _buildTextField(
-            'Tax Identification Number (TIN)',
-            'Enter your TIN',
-            controller: widget.tinController,
-            validator: (v) {
-              return null;
-            },
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Insurance Documentation *',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () async {
+                  final result = await FilePicker.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+                  );
+                  if (result != null && result.files.isNotEmpty) {
+                    widget.onInsuranceDocumentPicked(
+                      result.files.single.path,
+                      result.files.single.name,
+                    );
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFD1D5DB)),
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.upload_file, color: Color(0xFF276572), size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          widget.insuranceDocumentName ?? 'Upload insurance document (PDF/Image)',
+                          style: TextStyle(
+                            color: widget.insuranceDocumentName != null
+                                ? Colors.black87
+                                : Colors.grey.shade500,
+                            fontSize: 14,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (widget.insuranceDocumentName != null)
+                        const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Professional Registration Body *',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Select the professional body your registered personnel belongs to',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: widget.selectedProfessionalBody,
+                decoration: InputDecoration(
+                  hintText: 'Select professional body',
+                  hintStyle:
+                      TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF276572)),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.red),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        const BorderSide(color: Colors.red, width: 2),
+                  ),
+                ),
+                validator: (v) => (v == null || v.isEmpty)
+                    ? 'Please select a professional registration body'
+                    : null,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                items: const [
+                  DropdownMenuItem(
+                      value: 'COREN',
+                      child: Text('COREN – Council for Regulation of Engineering')),
+                  DropdownMenuItem(
+                      value: 'ARCON',
+                      child: Text('ARCON – Architects Registration Council')),
+                  DropdownMenuItem(
+                      value: 'NIA',
+                      child: Text('NIA – Nigerian Institute of Architects')),
+                  DropdownMenuItem(
+                      value: 'NIQS',
+                      child:
+                          Text('NIQS – Nigerian Institute of Quantity Surveyors')),
+                ],
+                onChanged: (v) => widget.onProfessionalBodyChanged(v),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Container(
@@ -420,7 +639,7 @@ class _ContractorSpecializationStepState
                 const Text(
                   'Additional verification required',
                   style: TextStyle(
-                    color: Color(0xFF166534), // green-800
+                    color: Color(0xFF166534),
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -455,8 +674,8 @@ class _ContractorSpecializationStepState
             onToggleVisibility: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
             isValid: _isConfirmPasswordValid,
             validator: (v) {
-              if (v != widget.passwordController.text) return 'Passwords do not match';
               if (v == null || v.isEmpty) return 'Confirm password';
+              if (v != widget.passwordController.text) return 'Passwords do not match';
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!_isConfirmPasswordValid) setState(() => _isConfirmPasswordValid = true);
               });
@@ -470,7 +689,7 @@ class _ContractorSpecializationStepState
           ),
           const SizedBox(height: 16),
           _buildTermsCheckbox(
-            'I confirm that all company information provided is accurate and I will submit verification documents (company registration certificate, valid ID, tax documents, and proof of past projects) within 7 days to complete my profile verification.',
+            'I confirm that all company information provided is accurate and I will submit verification documents (company registration certificate, valid ID, insurance documentation, professional registration certificate, and proof of past projects) within 7 days to complete my profile verification.',
             widget.infoAccurate,
             (v) => widget.onInfoAccurateChanged(v ?? false),
           ),

@@ -9,7 +9,8 @@ class ContractorRegisterRequest {
   final String licenseNumber;
   final List<String> constructionSpecialisations;
   final String businessAddress;
-  final String taxIdentificationNumber;
+  final String? insuranceDocumentName;
+  final String? professionalBody;
   final bool agreedToTerms;
   final bool confirmedInformationAccuracy;
   final String password;
@@ -26,7 +27,8 @@ class ContractorRegisterRequest {
     required this.licenseNumber,
     required this.constructionSpecialisations,
     required this.businessAddress,
-    required this.taxIdentificationNumber,
+    this.insuranceDocumentName,
+    this.professionalBody,
     required this.agreedToTerms,
     required this.confirmedInformationAccuracy,
     required this.password,
@@ -45,7 +47,10 @@ class ContractorRegisterRequest {
       'license_number': licenseNumber,
       'construction_specialisations': constructionSpecialisations,
       'business_address': businessAddress,
-      'tax_identification_number': taxIdentificationNumber,
+      if (insuranceDocumentName != null)
+        'insurance_document_name': insuranceDocumentName,
+      if (professionalBody != null)
+        'professional_body': professionalBody,
       'agreed_to_terms': agreedToTerms,
       'confirmed_information_accuracy': confirmedInformationAccuracy,
       'password': password,

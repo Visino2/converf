@@ -73,6 +73,7 @@ class _ContractorInvoiceScreenState
               ref.invalidate(contractorInvoicesProvider);
             },
             child: ListView.separated(
+              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
               padding: const EdgeInsets.all(16),
               itemCount: invoices.length,
               separatorBuilder: (context, index) => const SizedBox(height: 12),
@@ -352,6 +353,7 @@ class _CreateInvoiceModalState extends ConsumerState<_CreateInvoiceModal> {
             child: Form(
               key: _formKey,
               child: ListView(
+                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                 padding: const EdgeInsets.all(24),
                 children: [
                   _buildProjectDropdown(projectsAsync),

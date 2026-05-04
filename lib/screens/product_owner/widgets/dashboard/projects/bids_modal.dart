@@ -7,7 +7,7 @@ import '../../../../../features/marketplace/models/bid.dart';
 import '../../../../../features/projects/models/project.dart';
 import '../../../../../features/projects/providers/project_providers.dart';
 import '../../../../contractor/projects/widgets/tools/bid_detail_screen.dart';
-import '../../../../contractor/projects/widgets/tools/contractor_profile_screen.dart';
+import '../../../../contractor/projects/widgets/tools/contractor_public_profile_screen.dart';
 
 class BidsModal extends ConsumerWidget {
   final String projectId;
@@ -158,14 +158,18 @@ class _BidCard extends ConsumerWidget {
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF101828)),
                     ),
                     GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ContractorProfileScreen(),
-                          ),
-                        );
-                      },
+                      onTap: bid.contractor != null
+                          ? () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ContractorPublicProfileScreen(
+                                    contractor: bid.contractor!,
+                                  ),
+                                ),
+                              );
+                            }
+                          : null,
                       child: Text(
                         'View Profile',
                         style: TextStyle(fontSize: 12, color: const Color(0xFF276572), fontWeight: FontWeight.w600, decoration: TextDecoration.underline),

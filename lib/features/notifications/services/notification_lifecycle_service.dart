@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/config/shared_prefs_provider.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/api/pusher_service.dart';
 import '../../../core/ui/app_scaffold_messenger.dart';
 import '../../auth/models/auth_response.dart';
@@ -15,14 +16,7 @@ import '../../projects/repositories/project_repository.dart';
 import '../models/notification_models.dart';
 import '../providers/notification_providers.dart';
 import '../repositories/notification_repository.dart';
-
-final pushTokenSourceProvider = Provider<PushTokenSource>((ref) {
-  return const NoopPushTokenSource();
-});
-
-final nativePushSupportedProvider = Provider<bool>((ref) {
-  return ref.watch(pushTokenSourceProvider).isConfigured;
-});
+import 'push_token_source.dart';
 
 final deviceTokenStoreProvider = Provider<DeviceTokenStore>((ref) {
   return DeviceTokenStore(ref.read(sharedPreferencesProvider));
@@ -33,23 +27,6 @@ final notificationLifecycleProvider = Provider<NotificationLifecycleService>((
 ) {
   return NotificationLifecycleService(ref);
 });
-
-abstract class PushTokenSource {
-  const PushTokenSource();
-
-  bool get isConfigured;
-  Future<String?> getToken();
-}
-
-class NoopPushTokenSource extends PushTokenSource {
-  const NoopPushTokenSource();
-
-  @override
-  bool get isConfigured => false;
-
-  @override
-  Future<String?> getToken() async => null;
-}
 
 class DeviceTokenStore {
   static const _registeredTokenKey = 'registered_device_token';
@@ -71,9 +48,17 @@ class DeviceTokenStore {
 }
 
 class NotificationLifecycleService {
+  static const Set<String> _projectMessageEventNames = <String>{
+    'project.message.sent',
+    '.project.message.sent',
+  };
+
   final Ref _ref;
   final List<StreamSubscription<dynamic>> _messageSubscriptions = [];
   String? _activeUserId;
+  String? _lastHandledRealtimeMessageId;
+  Timer? _notificationPoller;
+  Future<void>? _stoppingRealtimeSubscriptions;
 
   NotificationLifecycleService(this._ref);
 
@@ -94,6 +79,9 @@ class NotificationLifecycleService {
       if (_activeUserId != null) {
         await _stopRealtimeMessageSubscriptions();
       }
+      _activeUserId = null;
+      _lastHandledRealtimeMessageId = null;
+      _stopNotificationPolling();
       return;
     }
 
@@ -113,7 +101,12 @@ class NotificationLifecycleService {
         await _stopRealtimeMessageSubscriptions();
         _activeUserId = null;
       }
+      _stopNotificationPolling();
       return;
+    }
+
+    if (_ref.read(nativePushSupportedProvider)) {
+      unawaited(registerCurrentDeviceToken());
     }
 
     if (_activeUserId == userId) return;
@@ -125,6 +118,7 @@ class NotificationLifecycleService {
       role: response.role,
       currentUserId: userId,
     );
+    _startNotificationPolling();
   }
 
   Future<bool> registerCurrentDeviceToken() async {
@@ -158,7 +152,7 @@ class NotificationLifecycleService {
     return true;
   }
 
-  Future<void> unregisterCurrentDeviceToken() async {
+  Future<void> unregisterCurrentDeviceToken({String? authToken}) async {
     final store = _ref.read(deviceTokenStoreProvider);
     final registeredToken = await store.getRegisteredToken();
     if (registeredToken == null || registeredToken.isEmpty) {
@@ -167,7 +161,17 @@ class NotificationLifecycleService {
 
     final repository = _ref.read(notificationRepositoryProvider);
     try {
-      await repository.unregisterDeviceToken(registeredToken);
+      await repository.unregisterDeviceToken(
+        registeredToken,
+        authToken: authToken,
+      );
+    } on ApiException catch (e) {
+      if (e.statusCode != 401) {
+        rethrow;
+      }
+      debugPrint(
+        '[Notifications] Device token cleanup skipped because the session is already unauthenticated.',
+      );
     } finally {
       await store.clearRegisteredToken();
     }
@@ -176,6 +180,8 @@ class NotificationLifecycleService {
   Future<void> handleLoggedOut() async {
     await _stopRealtimeMessageSubscriptions();
     _activeUserId = null;
+    _lastHandledRealtimeMessageId = null;
+    _stopNotificationPolling();
     _ref.read(pusherServiceProvider).disconnect();
   }
 
@@ -199,16 +205,16 @@ class NotificationLifecycleService {
     for (final projectId in projectIds) {
       try {
         final channel = await pusherService.subscribeToProject(projectId);
-        final subscription = channel.bind('project.message.sent').listen((
-          event,
-        ) {
-          _handleProjectMessageEvent(
-            event: event,
-            projectId: projectId,
-            currentUserId: currentUserId,
-          );
-        });
-        _messageSubscriptions.add(subscription);
+        for (final eventName in _projectMessageEventNames) {
+          final subscription = channel.bind(eventName).listen((event) {
+            _handleProjectMessageEvent(
+              event: event,
+              projectId: projectId,
+              currentUserId: currentUserId,
+            );
+          });
+          _messageSubscriptions.add(subscription);
+        }
       } catch (e) {
         debugPrint(
           '[Notifications] Failed to subscribe to project $projectId: $e',
@@ -256,19 +262,28 @@ class NotificationLifecycleService {
         Map<String, dynamic>.from(payload['message'] as Map),
       );
 
+      if (message.id.isNotEmpty &&
+          _lastHandledRealtimeMessageId == message.id) {
+        return;
+      }
+      _lastHandledRealtimeMessageId = message.id;
+
       if (message.sender?.id == currentUserId) {
         return;
       }
 
+      // Invalidate notifications to trigger refetch from backend API
       _ref.invalidate(notificationsProvider(false));
       _ref.invalidate(notificationsProvider(true));
-      _ref.invalidate(unreadNotificationsCountProvider);
-      _ref.invalidate(unreadMessageNotificationsCountProvider);
 
       final senderName = [
         message.sender?.firstName ?? '',
         message.sender?.lastName ?? '',
       ].where((part) => part.isNotEmpty).join(' ');
+
+      debugPrint(
+        '[Notifications] Message from $senderName: ${message.body} (Project: $projectId)',
+      );
 
       appScaffoldMessengerKey.currentState?.showSnackBar(
         SnackBar(
@@ -289,11 +304,55 @@ class NotificationLifecycleService {
     }
   }
 
-  Future<void> _stopRealtimeMessageSubscriptions() async {
-    for (final subscription in _messageSubscriptions) {
-      await subscription.cancel();
+  Future<void> _stopRealtimeMessageSubscriptions() {
+    final inFlightStop = _stoppingRealtimeSubscriptions;
+    if (inFlightStop != null) {
+      return inFlightStop;
     }
+
+    final stopFuture = _doStopRealtimeMessageSubscriptions();
+    _stoppingRealtimeSubscriptions = stopFuture.whenComplete(() {
+      if (identical(_stoppingRealtimeSubscriptions, stopFuture)) {
+        _stoppingRealtimeSubscriptions = null;
+      }
+    });
+
+    return _stoppingRealtimeSubscriptions!;
+  }
+
+  Future<void> _doStopRealtimeMessageSubscriptions() async {
+    if (_messageSubscriptions.isEmpty) {
+      return;
+    }
+
+    final subscriptions = List<StreamSubscription<dynamic>>.from(
+      _messageSubscriptions,
+    );
     _messageSubscriptions.clear();
+
+    for (final subscription in subscriptions) {
+      try {
+        await subscription.cancel();
+      } catch (e) {
+        debugPrint(
+          '[Notifications] Ignoring realtime subscription cleanup error: $e',
+        );
+      }
+    }
+  }
+
+  void _startNotificationPolling() {
+    _notificationPoller?.cancel();
+    // Lightweight foreground poll to keep notifications fresh, mirroring web behaviour.
+    _notificationPoller = Timer.periodic(const Duration(seconds: 30), (_) {
+      _ref.invalidate(notificationsProvider(false));
+      _ref.invalidate(notificationsProvider(true));
+    });
+  }
+
+  void _stopNotificationPolling() {
+    _notificationPoller?.cancel();
+    _notificationPoller = null;
   }
 
   String get _platformName {

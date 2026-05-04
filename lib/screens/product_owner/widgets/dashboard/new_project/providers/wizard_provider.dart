@@ -91,6 +91,12 @@ class WizardStateNotifier extends Notifier<NewProjectState> {
     state = state.copyWith(isLoading: loading);
   }
 
+  void setMaxSavedStep(int step) {
+    if (step > state.maxSavedStep) {
+      state = state.copyWith(maxSavedStep: step);
+    }
+  }
+
   void initFromProject(Project? project) {
     if (project == null) return;
     
@@ -107,6 +113,7 @@ class WizardStateNotifier extends Notifier<NewProjectState> {
     state = state.copyWith(
       projectId: project.id,
       currentStep: step,
+      maxSavedStep: step > 0 ? step - 1 : 0,
       title: project.title,
       description: project.description,
       selectedType: project.constructionType.toLowerCase(),

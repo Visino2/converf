@@ -29,6 +29,12 @@ class SocialAuthWebView extends StatefulWidget {
 }
 
 class _SocialAuthWebViewState extends State<SocialAuthWebView> {
+  static const Set<String> _acceptedCallbackHosts = <String>{
+    'converf-fe.netlify.app',
+    'converf.io',
+    'www.converf.io',
+  };
+
   late final WebViewController _controller;
   bool _isLoading = true;
   bool _callbackHandled = false;
@@ -65,11 +71,16 @@ class _SocialAuthWebViewState extends State<SocialAuthWebView> {
     if (uri == null) return;
 
     // Intercept any navigation to the Converf callback path.
-    // The backend redirects to either the Netlify preview or the production domain.
-    final isCallbackHost = uri.host == 'converf-fe.netlify.app' || 
-                         uri.host == 'converf.io' || 
-                         uri.host == 'www.converf.io';
-    final isCallbackPath = uri.path == '/auth/callback';
+    // The backend may redirect to Netlify, the production domains, or the
+    // app's custom fallback scheme.
+    final normalizedPath =
+        uri.scheme == 'converf' && uri.host.isNotEmpty
+            ? '/${uri.host}${uri.path}'
+            : uri.path;
+    final isCallbackHost =
+        uri.scheme == 'converf' ||
+        _acceptedCallbackHosts.contains(uri.host.toLowerCase());
+    final isCallbackPath = normalizedPath == '/auth/callback';
 
     if (isCallbackHost && isCallbackPath) {
       _callbackHandled = true;

@@ -9,7 +9,12 @@ import 'package:intl/intl.dart';
 
 class OverviewModal extends ConsumerWidget {
   final String projectId;
-  const OverviewModal({super.key, required this.projectId});
+  final ScrollController? scrollController;
+  const OverviewModal({
+    super.key,
+    required this.projectId,
+    this.scrollController,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,6 +39,7 @@ class OverviewModal extends ConsumerWidget {
       project,
       scheduleAsync,
       milestonesAsync,
+      scrollController,
     );
   }
 
@@ -42,6 +48,7 @@ class OverviewModal extends ConsumerWidget {
     dynamic project,
     AsyncValue<dynamic> scheduleAsync,
     AsyncValue<List<ProjectMilestone>> milestonesAsync,
+    ScrollController? scrollController,
   ) {
     if (project == null) {
       return Container(
@@ -65,6 +72,8 @@ class OverviewModal extends ConsumerWidget {
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: SingleChildScrollView(
+          controller: scrollController,
+          physics: const BouncingScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -108,6 +117,8 @@ class OverviewModal extends ConsumerWidget {
                 color: Color(0xFF101828),
               ),
             ),
+            const SizedBox(width: 8),
+            const Icon(Icons.lock_outline, size: 18, color: Color(0xFF667085)),
           ],
         ),
         GestureDetector(

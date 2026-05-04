@@ -7,6 +7,7 @@ class ScheduleActivity {
   final String title;
   final String? deadline;
   final String? status;
+  final double? budgetAmount;
   final bool isCompleted;
   final String? completedAt;
   final ProjectParty? assignedTo;
@@ -27,6 +28,7 @@ class ScheduleActivity {
     required this.title,
     this.deadline,
     this.status,
+    this.budgetAmount,
     this.isCompleted = false,
     this.completedAt,
     this.assignedTo,
@@ -49,6 +51,7 @@ class ScheduleActivity {
       title: json['title'] as String? ?? '',
       deadline: json['deadline'] as String?,
       status: json['status'] as String?,
+      budgetAmount: (json['budget_amount'] as num?)?.toDouble(),
       isCompleted: json['is_completed'] as bool? ?? false,
       completedAt: json['completed_at'] as String?,
       assignedTo: json['assigned_to'] != null
@@ -70,6 +73,7 @@ class ScheduleActivity {
     return {
       'title': title,
       if (deadline != null) 'deadline': deadline,
+      if (budgetAmount != null) 'budget_amount': budgetAmount,
       if (assignedTo != null) 'assigned_to': assignedTo?.id,
       if (assignedRoleLabel != null) 'assigned_role_label': assignedRoleLabel,
       'standard_duration_days': standardDurationDays,
@@ -88,6 +92,7 @@ class SchedulePhase {
   final String? startDate;
   final String? endDate;
   final String? status;
+  final double? budgetAmount;
   final int order;
   final int activitiesCount;
   final List<ScheduleActivity> activities;
@@ -102,6 +107,7 @@ class SchedulePhase {
     this.startDate,
     this.endDate,
     this.status,
+    this.budgetAmount,
     this.order = 0,
     this.activitiesCount = 0,
     this.activities = const [],
@@ -118,6 +124,7 @@ class SchedulePhase {
       startDate: json['start_date'] as String?,
       endDate: json['end_date'] as String?,
       status: json['status'] as String?,
+      budgetAmount: (json['budget_amount'] as num?)?.toDouble(),
       order: json['order'] as int? ?? 0,
       activitiesCount: json['activities_count'] as int? ?? 0,
       activities: (json['activities'] as List<dynamic>?)
@@ -134,6 +141,7 @@ class SchedulePhase {
       'order': order,
       if (startDate != null) 'start_date': startDate,
       if (endDate != null) 'end_date': endDate,
+      if (budgetAmount != null) 'budget_amount': budgetAmount,
     };
   }
 }

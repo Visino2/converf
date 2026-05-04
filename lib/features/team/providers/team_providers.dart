@@ -5,19 +5,24 @@ import '../models/invite_member_payload.dart';
 import '../models/team_responses.dart';
 import '../repositories/team_repository.dart';
 
-final teamMembersProvider = FutureProvider.family<TeamMembersResponse, ({String? projectId, int page, int perPage})>((ref, args) async {
-  final repository = ref.read(teamRepositoryProvider);
-  return repository.fetchTeamMembers(
-    projectId: args.projectId,
-    page: args.page,
-    perPage: args.perPage,
-  );
-});
+final teamMembersProvider =
+    FutureProvider.family<
+      TeamMembersResponse,
+      ({String? projectId, int page, int perPage})
+    >((ref, args) async {
+      final repository = ref.read(teamRepositoryProvider);
+      return repository.fetchTeamMembers(
+        projectId: args.projectId,
+        page: args.page,
+        perPage: args.perPage,
+      );
+    });
 
-final teamMemberDetailsProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
-  final repository = ref.read(teamRepositoryProvider);
-  return repository.fetchTeamMember(id);
-});
+final teamMemberDetailsProvider =
+    FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
+      final repository = ref.read(teamRepositoryProvider);
+      return repository.fetchTeamMember(id);
+    });
 
 class TeamNotifier extends AsyncNotifier<void> {
   late TeamRepository _repository;
@@ -35,6 +40,28 @@ class TeamNotifier extends AsyncNotifier<void> {
       // Invalidate relevant queries
       ref.invalidate(teamMembersProvider);
     } catch (e, st) {
+      // Check if the error is due to user already having an account
+      final errorStr = e.toString().toLowerCase();
+      final isExistingMemberError =
+          errorStr.contains('already has an account') ||
+          errorStr.contains('already exists') ||
+          errorStr.contains('already a member') ||
+          errorStr.contains('email already') ||
+          errorStr.contains('user already') ||
+          errorStr.contains('account already');
+
+      if (isExistingMemberError) {
+        // Fallback: add existing member directly
+        try {
+          await _repository.addExistingMember(payload);
+          state = const AsyncData(null);
+          ref.invalidate(teamMembersProvider);
+          return;
+        } catch (fallbackError, fallbackSt) {
+          state = AsyncError(fallbackError, fallbackSt);
+          rethrow;
+        }
+      }
       state = AsyncError(e, st);
       rethrow;
     }
@@ -55,17 +82,19 @@ class TeamNotifier extends AsyncNotifier<void> {
   Future<String> _resolveProjectMemberId(TeamMember member) async {
     final candidateUserId = member.user?.id ?? member.userId ?? member.id;
     final teamResponse = await _repository.fetchTeamMembers();
-    
+
     for (var teamMember in teamResponse.data) {
       final teamUserId = teamMember.user?.id ?? teamMember.userId;
       if (teamUserId == candidateUserId) {
         if (teamMember.id.isEmpty) {
-          throw Exception('Unable to resolve team member ID for project removal');
+          throw Exception(
+            'Unable to resolve team member ID for project removal',
+          );
         }
         return teamMember.id;
       }
     }
-    
+
     throw Exception('Unable to resolve team member ID for project removal');
   }
 
@@ -82,7 +111,10 @@ class TeamNotifier extends AsyncNotifier<void> {
     }
   }
 
-  Future<void> assignProjectMember(String projectId, String teamMemberId) async {
+  Future<void> assignProjectMember(
+    String projectId,
+    String teamMemberId,
+  ) async {
     state = const AsyncLoading();
     try {
       await _repository.assignProjectTeamMember(projectId, teamMemberId);
@@ -107,4 +139,6 @@ class TeamNotifier extends AsyncNotifier<void> {
   }
 }
 
-final teamActionProvider = AsyncNotifierProvider<TeamNotifier, void>(TeamNotifier.new);
+final teamActionProvider = AsyncNotifierProvider<TeamNotifier, void>(
+  TeamNotifier.new,
+);

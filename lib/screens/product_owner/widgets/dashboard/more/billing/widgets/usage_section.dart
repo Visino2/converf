@@ -27,36 +27,58 @@ class UsageSection extends StatelessWidget {
               color: Color(0xFF111827),
             ),
           ),
+          const SizedBox(height: 4),
+          const Text(
+            'Track your current storage usage and plan limits.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF667085)),
+          ),
           const SizedBox(height: 20),
-          _ProgressBar(
-            label: 'Total Storage',
+          _StorageProgressBar(
+            label: 'Storage Used',
             used: '${storage.usedGb.toStringAsFixed(1)} GB',
             total: '${storage.allowedGb.toStringAsFixed(0)} GB',
             percentage: storage.usagePercentage,
             icon: Icons.cloud_outlined,
           ),
-          const SizedBox(height: 20),
-          _ProgressBar(
-            label: 'Team Members',
-            used: '${limits.teamMembers ?? 0}',
-            total: '${limits.maxProjects ?? '∞'}',
-            percentage: (limits.teamMembers ?? 0) / (limits.maxProjects ?? 1).toDouble(),
+          const SizedBox(height: 18),
+          _LimitRow(
+            label: 'Team Member Limit',
+            value: _formatLimit(limits.teamMembers),
             icon: Icons.people_outline,
           ),
+          const SizedBox(height: 14),
+          _LimitRow(
+            label: 'Project Limit',
+            value: _formatLimit(limits.maxProjects),
+            icon: Icons.folder_outlined,
+          ),
+          if (limits.aiCredits != null) ...[
+            const SizedBox(height: 14),
+            _LimitRow(
+              label: 'AI Credits',
+              value: _formatLimit(limits.aiCredits),
+              icon: Icons.auto_awesome_outlined,
+            ),
+          ],
         ],
       ),
     );
   }
+
+  String _formatLimit(int? value) {
+    if (value == null) return 'Not set';
+    return '$value';
+  }
 }
 
-class _ProgressBar extends StatelessWidget {
+class _StorageProgressBar extends StatelessWidget {
   final String label;
   final String used;
   final String total;
   final double percentage;
   final IconData icon;
 
-  const _ProgressBar({
+  const _StorageProgressBar({
     required this.label,
     required this.used,
     required this.total,
@@ -99,9 +121,50 @@ class _ProgressBar extends StatelessWidget {
             value: percentage.clamp(0.0, 1.0),
             backgroundColor: const Color(0xFFF2F4F7),
             valueColor: AlwaysStoppedAnimation<Color>(
-              percentage > 0.9 ? const Color(0xFFD92D20) : const Color(0xFF276572),
+              percentage > 0.9
+                  ? const Color(0xFFD92D20)
+                  : const Color(0xFF276572),
             ),
             minHeight: 8,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LimitRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _LimitRow({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: const Color(0xFF667085)),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF344054),
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF111827),
           ),
         ),
       ],

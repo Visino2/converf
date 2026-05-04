@@ -28,12 +28,10 @@ class _MessageDetailsScreenState extends ConsumerState<MessageDetailsScreen> {
   final TextEditingController _replyController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   String _searchQuery = '';
-  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-    _startAutoRefresh();
     Future<void>(() async {
       try {
         await ref
@@ -41,21 +39,11 @@ class _MessageDetailsScreenState extends ConsumerState<MessageDetailsScreen> {
             .markMessageNotificationsRead(projectId: widget.project.id);
       } catch (_) {}
     });
-  }
-
-  void _startAutoRefresh() {
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      if (mounted) {
-        debugPrint('[Messages] Auto-refreshing messages and notifications...');
-        ref.invalidate(projectMessagesProvider(widget.project.id));
-        ref.invalidate(unreadMessageNotificationsCountProvider);
-      }
-    });
 
     // Initial scroll to bottom
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
+
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
@@ -69,7 +57,6 @@ class _MessageDetailsScreenState extends ConsumerState<MessageDetailsScreen> {
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     _searchController.dispose();
     _replyController.dispose();
     _scrollController.dispose();
@@ -220,6 +207,7 @@ class _MessageDetailsScreenState extends ConsumerState<MessageDetailsScreen> {
 
                 return ListView(
                   controller: _scrollController,
+                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                   padding: const EdgeInsets.all(16.0),
                   children: [
                     if (_searchQuery.isEmpty)

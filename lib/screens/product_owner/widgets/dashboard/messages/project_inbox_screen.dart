@@ -198,6 +198,7 @@ class _ProjectInboxScreenState extends ConsumerState<ProjectInboxScreen> {
           }
 
           return ListView.builder(
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             itemCount: displayedProjects.length,
             itemBuilder: (context, index) {
               final proj = displayedProjects[index];

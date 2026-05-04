@@ -17,7 +17,7 @@ class OnboardingRoleStep extends StatefulWidget {
 }
 
 class _OnboardingRoleStepState extends State<OnboardingRoleStep>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _bgAnimationController;
 
   @override
@@ -27,6 +27,7 @@ class _OnboardingRoleStepState extends State<OnboardingRoleStep>
       vsync: this,
       duration: const Duration(seconds: 15),
     )..repeat(reverse: true);
+
   }
 
   @override

@@ -8,6 +8,7 @@ import 'package:converf/screens/contractor/projects/widgets/tools/contractor_bid
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_notifications_screen.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_project_settings_screen.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/contractor_help_support_screen.dart';
+import 'package:converf/screens/settings/delete_account_screen.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/features/auth/providers/auth_provider.dart';
@@ -58,6 +59,14 @@ class ToolsScreen extends ConsumerWidget {
           ),
         );
         break;
+      case 'Delete Account':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const DeleteAccountScreen(),
+          ),
+        );
+        break;
       default:
         break;
     }
@@ -69,14 +78,16 @@ class ToolsScreen extends ConsumerWidget {
       {'title': 'Account Setting', 'icon': 'assets/images/more.svg'},
       {'title': 'Bidding Preferences', 'icon': 'assets/images/Shield.svg'},
       {'title': 'Notifications', 'icon': 'assets/images/Bell.svg'},
-      {'title': 'Privacy & Visibility', 'icon': 'assets/images/Shield.svg'},
+// {'title': 'Privacy & Visibility', 'icon': 'assets/images/Shield.svg'},
       {'title': 'Help & Support', 'icon': 'assets/images/headset.svg'},
+      {'title': 'Delete Account', 'icon': 'assets/images/Shield.svg'},
     ];
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

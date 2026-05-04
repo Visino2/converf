@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -14,8 +15,10 @@ import '../../../../features/projects/models/project.dart';
 import '../../../../features/projects/providers/project_image_providers.dart';
 import '../../../../features/projects/providers/schedule_providers.dart';
 import 'package:converf/core/api/api_client.dart';
-import '../../../../features/profile/providers/profile_providers.dart';
 import 'widgets/project_hub_modal.dart';
+import 'widgets/tools/contractor_invoice_screen.dart';
+import 'widgets/animations/bouncing_ball.dart';
+import 'package:converf/screens/product_owner/widgets/dashboard/projects/project_images_modal.dart';
 // To fetch overall team for assignment
 
 class ContractorProjectDetailsScreen extends ConsumerStatefulWidget {
@@ -32,6 +35,10 @@ class _ContractorProjectDetailsScreenState
     extends ConsumerState<ContractorProjectDetailsScreen> {
   int _selectedTabIndex = 0;
   Timer? _refreshTimer;
+  String?
+  _optimisticThumbnailPath; // Local file path shown instantly after pick
+  List<ProjectImage> _serverCoverImages =
+      []; // Images returned directly from upload response
 
   @override
   void initState() {
@@ -58,9 +65,7 @@ class _ContractorProjectDetailsScreenState
       // Only Overview (0) is open if not assigned
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'This feature will be available once your bid is accepted.',
-          ),
+          content: Text('This feature unlocks when the project is active.'),
         ),
       );
       return;
@@ -86,7 +91,6 @@ class _ContractorProjectDetailsScreenState
   @override
   Widget build(BuildContext context) {
     final projectAsync = ref.watch(projectDetailsProvider(widget.projectId));
-    final profileAsync = ref.watch(profileProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -107,9 +111,70 @@ class _ContractorProjectDetailsScreenState
         ),
         centerTitle: true,
         actions: [
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.menu, color: Colors.black),
-            onPressed: () {},
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            onSelected: (value) {
+              final project = projectAsync.value?.data;
+              switch (value) {
+                case 'overview':
+                  _openHub(0, true);
+                case 'schedule':
+                  _openHub(1, true);
+                case 'invoice':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ContractorInvoiceScreen(),
+                    ),
+                  );
+                case 'contact':
+                  if (project != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            MessageDetailsScreen(project: project),
+                      ),
+                    );
+                  }
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'overview',
+                child: Row(children: [
+                  Icon(Icons.home_outlined, size: 20),
+                  SizedBox(width: 12),
+                  Text('Overview'),
+                ]),
+              ),
+              const PopupMenuItem(
+                value: 'schedule',
+                child: Row(children: [
+                  Icon(Icons.calendar_today_outlined, size: 20),
+                  SizedBox(width: 12),
+                  Text('Schedule'),
+                ]),
+              ),
+              const PopupMenuItem(
+                value: 'invoice',
+                child: Row(children: [
+                  Icon(Icons.receipt_long_outlined, size: 20),
+                  SizedBox(width: 12),
+                  Text('Submit Invoice'),
+                ]),
+              ),
+              const PopupMenuItem(
+                value: 'contact',
+                child: Row(children: [
+                  Icon(Icons.message_outlined, size: 20),
+                  SizedBox(width: 12),
+                  Text('Contact Owner'),
+                ]),
+              ),
+            ],
           ),
         ],
       ),
@@ -130,15 +195,21 @@ class _ContractorProjectDetailsScreenState
             return const Center(child: Text('Project not found'));
           }
 
-          final userId = profileAsync.value?.id.toString();
-          final isAssigned =
-              project.contractorId == userId &&
-              project.status != ProjectStatus.pendingTender &&
-              project.status != ProjectStatus.draft;
+          final hasUnlockedStatus = project.status != ProjectStatus.draft;
+
+          // Unlock project tools as soon as the project leaves the tender/draft stage.
+          final canAccessProjectHub = hasUnlockedStatus;
+
+          // Note: If project is active/onTrack/atRisk/delayed/completed, it definitely should be unlocked
+          // if the current user is the contractor.
           // Alternative: if contractorId is not null, they are assigned (or at least selected)
           // But usually we want to check if the CURRENT user is that contractor.
 
           return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
@@ -228,121 +299,280 @@ class _ContractorProjectDetailsScreenState
                   ),
                   const SizedBox(height: 20),
 
-                  // Hero image with Update Thumbnail button
-                  ref
-                      .watch(projectImagesProvider(widget.projectId))
-                      .when(
-                        data: (images) {
-                          final primaryImage = images.firstWhere(
-                            (img) => img.isPrimary,
-                            orElse: () => images.isNotEmpty
-                                ? images.first
-                                : ProjectImage(
-                                    id: '',
-                                    projectId: '',
-                                    fileUrl: '',
-                                    fileSize: 0,
-                                    mimeType: '',
-                                    isPrimary: false,
-                                    createdAt: DateTime.now(),
-                                    updatedAt: DateTime.now(),
-                                  ),
-                          );
+                  // Hero image with multiple Cover Images support
+                  // Show optimistic local image instantly after pick,
+                  // then switch to server data once upload completes.
+                  Builder(
+                    builder: (context) {
+                      if (_optimisticThumbnailPath != null) {
+                        return GestureDetector(
+                          onTap: _updateThumbnail,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.file(
+                              File(_optimisticThumbnailPath!),
+                              height: 220,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        );
+                      }
+                      return ref
+                          .watch(projectDetailsProvider(widget.projectId))
+                          .when(
+                            skipLoadingOnReload: true,
+                            data: (projectResp) {
+                              // Always prefer _serverCoverImages first (most recent upload)
+                              // then fall back to details endpoint, then empty
+                              final coverImages = _serverCoverImages.isNotEmpty
+                                  ? _serverCoverImages
+                                  : (projectResp.data?.coverImages ?? []);
 
-                          return Stack(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: primaryImage.fileUrl.isNotEmpty
-                                    ? Image.network(
-                                        primaryImage.fileUrl,
-                                        height: 200,
-                                        width: double.infinity,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (
-                                              context,
-                                              error,
-                                              stackTrace,
-                                            ) => Image.asset(
-                                              'assets/images/lekki-complex.png',
-                                              height: 200,
-                                              width: double.infinity,
-                                              fit: BoxFit.cover,
-                                            ),
-                                      )
-                                    : Image.asset(
-                                        'assets/images/lekki-complex.png', // Temporary placeholder
-                                        height: 200,
-                                        width: double.infinity,
-                                        fit: BoxFit.cover,
-                                      ),
-                              ),
-                              Positioned(
-                                bottom: 16,
-                                right: 16,
-                                child: GestureDetector(
-                                  onTap: () => _updateThumbnail(),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: const Color(0xFFEAECF0),
-                                      ),
-                                    ),
-                                    child: Row(
+                              if (coverImages.isEmpty) {
+                                return GestureDetector(
+                                  onTap: _updateThumbnail,
+                                  child: _buildHeroPlaceholder(),
+                                );
+                              }
+
+                              return Column(
+                                children: [
+                                  SizedBox(
+                                    height: 220,
+                                    child: Stack(
                                       children: [
-                                        SvgPicture.asset(
-                                          'assets/images/camera.svg',
-                                          width: 16,
-                                          height: 16,
-                                          colorFilter: const ColorFilter.mode(
-                                            Color(0xFF344054),
-                                            BlendMode.srcIn,
+                                        PageView.builder(
+                                          itemCount: coverImages.length,
+                                          onPageChanged: (index) {
+                                            // Optional: update local state if needed for dots
+                                          },
+                                          itemBuilder: (context, index) {
+                                            final img = coverImages[index];
+                                            return Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 4,
+                                                  ),
+                                              child: Stack(
+                                                children: [
+                                                  ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          16,
+                                                        ),
+                                                    child: Image.network(
+                                                      '${img.fileUrl}${img.fileUrl.contains('?') ? '&' : '?'}t=${DateTime.now().millisecondsSinceEpoch}',
+                                                      height: 220,
+                                                      width: double.infinity,
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder:
+                                                          (
+                                                            context,
+                                                            error,
+                                                            stackTrace,
+                                                          ) =>
+                                                              _buildHeroPlaceholder(),
+                                                    ),
+                                                  ),
+                                                  // Only show delete icon if at limit (3 images)
+                                                  // This keeps UI clean for new projects
+                                                  if (coverImages.length >= 3)
+                                                    Positioned(
+                                                      top: 12,
+                                                      right: 12,
+                                                      child: GestureDetector(
+                                                        onTap: () =>
+                                                            _confirmDeleteThumbnail(
+                                                              img,
+                                                            ),
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets.all(
+                                                                8,
+                                                              ),
+                                                          decoration:
+                                                              const BoxDecoration(
+                                                                color:
+                                                                    Colors.red,
+                                                                shape: BoxShape
+                                                                    .circle,
+                                                                boxShadow: [
+                                                                  BoxShadow(
+                                                                    color: Colors
+                                                                        .black12,
+                                                                    blurRadius:
+                                                                        4,
+                                                                    offset:
+                                                                        Offset(
+                                                                          0,
+                                                                          2,
+                                                                        ),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                          child: const Icon(
+                                                            Icons
+                                                                .delete_outline,
+                                                            color: Colors.white,
+                                                            size: 20,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  if (img.isPrimary)
+                                                    Positioned(
+                                                      top: 12,
+                                                      left: 12,
+                                                      child: Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 8,
+                                                              vertical: 4,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: const Color(
+                                                            0xFF276572,
+                                                          ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                8,
+                                                              ),
+                                                        ),
+                                                        child: const Text(
+                                                          'PRIMARY',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 10,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        Positioned(
+                                          bottom: 12,
+                                          right: 12,
+                                          child: Row(
+                                            children: [
+                                              if (coverImages.length < 3) ...[
+                                                _buildHeroAction(
+                                                  'assets/images/camera.svg',
+                                                  'Add',
+                                                  _updateThumbnail,
+                                                ),
+                                                const SizedBox(width: 8),
+                                              ] else ...[
+                                                // At max capacity - show helpful hint
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 6,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.red.shade100,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          16,
+                                                        ),
+                                                    border: Border.all(
+                                                      color:
+                                                          Colors.red.shade300,
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    'Max 3 images',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color:
+                                                          Colors.red.shade700,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                              ],
+                                              _buildHeroAction(
+                                                'assets/images/camera.svg',
+                                                'Manage All',
+                                                () => showModalBottomSheet(
+                                                  context: context,
+                                                  isScrollControlled: true,
+                                                  backgroundColor:
+                                                      Colors.transparent,
+                                                  builder: (context) =>
+                                                      ProjectImagesModal(
+                                                        projectId:
+                                                            widget.projectId,
+                                                      ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
-                                        const Text(
-                                          'Update Thumbnail',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 13,
+                                        // Simple page indicator
+                                        if (coverImages.length > 1)
+                                          Positioned(
+                                            bottom: 12,
+                                            left: 0,
+                                            right: 0,
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: List.generate(
+                                                coverImages.length,
+                                                (index) => Container(
+                                                  width: 8,
+                                                  height: 8,
+                                                  margin:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 4,
+                                                      ),
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                        color: Colors.white,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                ),
+                                              ),
+                                            ),
                                           ),
-                                        ),
                                       ],
                                     ),
                                   ),
-                                ),
+                                ],
+                              );
+                            },
+                            loading: () => Container(
+                              height: 220,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                            ],
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            ),
+                            error: (e, _) => Container(
+                              height: 220,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Center(child: Icon(Icons.error)),
+                            ),
                           );
-                        },
-                        loading: () => Container(
-                          height: 200,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),
-                        error: (e, _) => Container(
-                          height: 200,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Center(child: Icon(Icons.error)),
-                        ),
-                      ),
+                    },
+                  ),
                   const SizedBox(height: 16),
 
                   // Action buttons: Update Progress & Submit Milestone
@@ -516,23 +746,6 @@ class _ContractorProjectDetailsScreenState
                                     color: Color(0xFF101828),
                                   ),
                                 ),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.star,
-                                      color: Color(0xFFFDB022),
-                                      size: 14,
-                                    ),
-                                    const SizedBox(width: 2),
-                                    const Text(
-                                      '4.9',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF475467),
-                                      ),
-                                    ),
-                                  ],
-                                ),
                               ],
                             ),
                           ],
@@ -625,152 +838,137 @@ class _ContractorProjectDetailsScreenState
                           ],
                         ),
                         const SizedBox(height: 12),
-                        Text(
-                          project.description.isNotEmpty
+                        _ExpandableDescription(
+                          description: project.description.isNotEmpty
                               ? project.description
                               : 'No description provided.',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF475467),
-                            height: 1.5,
-                          ),
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: const Color(0xFFD0D5DD),
-                                ),
-                              ),
-                              child: const Text(
-                                '8/12 Phases Complete',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: Color(0xFF344054),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: const Color(0xFFD0D5DD),
-                                ),
-                              ),
-                              child: const Text(
-                                '92% Quality Score',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: Color(0xFF344054),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // Ball-in-court card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7ED),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFFEDF89)),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
+                  // Ball-in-court card — dynamic via /responsibility endpoint
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final responsibilityAsync = ref.watch(
+                        projectResponsibilityProvider(widget.projectId),
+                      );
+                      return responsibilityAsync.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (e, st) => const SizedBox.shrink(),
+                        data: (response) {
+                          final responsibility = response.data;
+                          // Only show when there are items for the current user
+                          if (responsibility == null ||
+                              !responsibility.hasItemsForYou) {
+                            return const SizedBox.shrink();
+                          }
+
+                          final isPending =
+                              responsibility.cardStatus == 'pending';
+                          final bgColor = isPending
+                              ? const Color(0xFFFFF6ED)
+                              : const Color(0xFFECFDF5);
+                          final borderColor = isPending
+                              ? const Color(0xFFFED0AA)
+                              : const Color(0xFFA7F3D0);
+                          final textColor = isPending
+                              ? const Color(0xFFEB460B)
+                              : const Color(0xFF027A48);
+
+                          return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFFEE4E2),
-                                      borderRadius: BorderRadius.circular(12),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: bgColor,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: borderColor),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.04,
+                                      ),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
                                     ),
-                                    child: const Icon(
-                                      Icons.error_outline,
-                                      size: 20,
-                                      color: Color(0xFFD92D20),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Ball-in-court',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Color(0xFF475467),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    // Red bouncing basketball when pending,
+                                    // static green basketball when approved
+                                    if (isPending)
+                                      const BouncingBall(size: 44)
+                                    else
+                                      Container(
+                                        width: 44,
+                                        height: 44,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFB5E3C4),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: const Color(0xFF91D6A8),
+                                          ),
+                                        ),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.sports_basketball,
+                                            color: Color(0xFF027A48),
+                                            size: 24,
+                                          ),
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
-                                      const Text(
-                                        'You',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF101828),
-                                        ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if (isPending)
+                                            const Text(
+                                              'Ball currently with',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Color(0xFF475467),
+                                              ),
+                                            ),
+                                          if (isPending)
+                                            const SizedBox(height: 2),
+                                          Text(
+                                            responsibility.assigneeLabel,
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF101828),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${isPending ? 'Action required:' : 'Update:'} '
+                                            '${responsibility.actionText}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: textColor,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              ElevatedButton(
-                                onPressed: () {},
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF276572),
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 10,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Address Now',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
+                              const SizedBox(height: 16),
                             ],
-                          ),
-                        ),
-                      ],
-                    ),
+                          );
+                        },
+                      );
+                    },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 8),
 
                   // Tab section: Overview, Documents, Team, Financial, Bids
                   Container(
@@ -798,55 +996,55 @@ class _ContractorProjectDetailsScreenState
                             'Overview',
                             0,
                             false,
-                            () => _openHub(0, isAssigned),
+                            () => _openHub(0, canAccessProjectHub),
                           ),
                           const SizedBox(width: 4),
                           _buildTabItem(
                             'assets/images/calendar-3.svg',
                             'Schedule',
                             1,
-                            !isAssigned,
-                            () => _openHub(1, isAssigned),
+                            !canAccessProjectHub,
+                            () => _openHub(1, canAccessProjectHub),
                           ),
                           const SizedBox(width: 4),
                           _buildTabItem(
                             'assets/images/field_inspection.svg',
                             'Inspections',
                             2,
-                            !isAssigned,
-                            () => _openHub(2, isAssigned),
+                            !canAccessProjectHub,
+                            () => _openHub(2, canAccessProjectHub),
                           ),
                           const SizedBox(width: 4),
                           _buildTabItem(
                             'assets/images/document-1.svg',
                             'Daily Reports',
                             3,
-                            !isAssigned,
-                            () => _openHub(3, isAssigned),
+                            !canAccessProjectHub,
+                            () => _openHub(3, canAccessProjectHub),
                           ),
                           const SizedBox(width: 4),
                           _buildTabItem(
                             'assets/images/document.svg',
                             'Documents',
                             4,
-                            !isAssigned,
-                            () => _openHub(4, isAssigned),
+                            !canAccessProjectHub,
+                            () => _openHub(4, canAccessProjectHub),
                           ),
                           const SizedBox(width: 4),
                           _buildTabItem(
                             'assets/images/camera.svg',
                             'Images',
                             5,
-                            !isAssigned,
-                            () => _openHub(5, isAssigned),
+                            !canAccessProjectHub,
+                            () => _openHub(5, canAccessProjectHub),
                           ),
                           const SizedBox(width: 4),
                           _buildTabItem(
                             'assets/images/team.svg',
                             'Team',
                             6,
-                            !isAssigned,
-                            () => _openHub(6, isAssigned),
+                            !canAccessProjectHub,
+                            () => _openHub(6, canAccessProjectHub),
                           ),
                           const SizedBox(width: 4),
                           _buildTabItem(
@@ -854,7 +1052,7 @@ class _ContractorProjectDetailsScreenState
                             'Site',
                             7,
                             false, // Always viewable
-                            () => _openHub(7, isAssigned),
+                            () => _openHub(7, canAccessProjectHub),
                           ),
                         ],
                       ),
@@ -867,123 +1065,6 @@ class _ContractorProjectDetailsScreenState
             ),
           );
         },
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 12 / 255),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: const Color(0xFF276572),
-          unselectedItemColor: Colors.black87,
-          selectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 12,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.w500,
-            fontSize: 12,
-          ),
-          currentIndex: 1,
-          onTap: (index) {
-            if (index == 0) {
-              Navigator.popUntil(context, (route) => route.isFirst);
-            }
-          },
-          items: [
-            BottomNavigationBarItem(
-              icon: SvgPicture.asset(
-                'assets/images/home.svg',
-                width: 24,
-                height: 24,
-                colorFilter: const ColorFilter.mode(
-                  Colors.black87,
-                  BlendMode.srcIn,
-                ),
-              ),
-              activeIcon: SvgPicture.asset(
-                'assets/images/home.svg',
-                width: 24,
-                height: 24,
-                colorFilter: const ColorFilter.mode(
-                  Color(0xFF276572),
-                  BlendMode.srcIn,
-                ),
-              ),
-              label: 'Dashboard',
-            ),
-            BottomNavigationBarItem(
-              icon: SvgPicture.asset(
-                'assets/images/projects.svg',
-                width: 24,
-                height: 24,
-                colorFilter: const ColorFilter.mode(
-                  Colors.black87,
-                  BlendMode.srcIn,
-                ),
-              ),
-              activeIcon: SvgPicture.asset(
-                'assets/images/projects.svg',
-                width: 24,
-                height: 24,
-                colorFilter: const ColorFilter.mode(
-                  Color(0xFF276572),
-                  BlendMode.srcIn,
-                ),
-              ),
-              label: 'Projects',
-            ),
-            BottomNavigationBarItem(
-              icon: SvgPicture.asset(
-                'assets/images/store.svg',
-                width: 24,
-                height: 24,
-                colorFilter: const ColorFilter.mode(
-                  Colors.black87,
-                  BlendMode.srcIn,
-                ),
-              ),
-              activeIcon: SvgPicture.asset(
-                'assets/images/store.svg',
-                width: 24,
-                height: 24,
-                colorFilter: const ColorFilter.mode(
-                  Color(0xFF276572),
-                  BlendMode.srcIn,
-                ),
-              ),
-              label: 'Marketplace',
-            ),
-            BottomNavigationBarItem(
-              icon: SvgPicture.asset(
-                'assets/images/case-1.svg',
-                width: 24,
-                height: 24,
-                colorFilter: const ColorFilter.mode(
-                  Colors.black87,
-                  BlendMode.srcIn,
-                ),
-              ),
-              activeIcon: SvgPicture.asset(
-                'assets/images/case-1.svg',
-                width: 24,
-                height: 24,
-                colorFilter: const ColorFilter.mode(
-                  Color(0xFF276572),
-                  BlendMode.srcIn,
-                ),
-              ),
-              label: 'Tools',
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1084,6 +1165,81 @@ class _ContractorProjectDetailsScreenState
 
   Future<void> _updateThumbnail() async {
     debugPrint('[Contractor] Update Thumbnail clicked');
+
+    // Check current image count first
+    final imagesAsync = ref.read(projectImagesProvider(widget.projectId));
+    final images = imagesAsync.asData?.value ?? [];
+
+    // If at 3 images, show deletion interface first
+    if (images.length >= 3) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Delete an Image First'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    'You have reached the maximum of 3 cover images. Please delete one to continue:',
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: images.length,
+                    itemBuilder: (context, index) {
+                      final img = images[index];
+                      return ListTile(
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: Image.network(
+                            '${img.fileUrl}?w=50&h=50',
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                                  width: 50,
+                                  height: 50,
+                                  color: Colors.grey.shade300,
+                                  child: const Icon(Icons.image),
+                                ),
+                          ),
+                        ),
+                        title: Text(
+                          'Image ${index + 1}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            await _confirmDeleteThumbnail(img);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
+    // If under 3 images, proceed with normal upload
     final source = await _showSourceDialog();
     debugPrint('[Contractor] Selected source: $source');
     if (source == null) return;
@@ -1092,31 +1248,240 @@ class _ContractorProjectDetailsScreenState
           .read(appImagePickerProvider)
           .pickImage(
             source: source,
-            imageQuality: 70,
-            maxWidth: 1920,
-            maxHeight: 1080,
+            imageQuality: 50,
+            maxWidth: 1024,
+            maxHeight: 1024,
           );
       debugPrint('[Contractor] Image picked: ${image?.path}');
 
       if (image != null) {
-        await ref
-            .read(projectImageNotifierProvider.notifier)
-            .uploadThumbnail(
-              projectId: widget.projectId,
-              filePath: image.path,
+        // Show local image instantly (optimistic update)
+        setState(() => _optimisticThumbnailPath = image.path);
+        try {
+          final uploadedImages = await ref
+              .read(projectImageNotifierProvider.notifier)
+              .uploadThumbnail(
+                projectId: widget.projectId,
+                filePath: image.path,
+              );
+
+          // Store images from upload response and clear optimistic path
+          if (mounted) {
+            setState(() {
+              _optimisticThumbnailPath = null;
+              if (uploadedImages.isNotEmpty) {
+                _serverCoverImages = uploadedImages;
+              }
+            });
+            // Defer invalidation to avoid concurrent modification error
+            Future.microtask(() {
+              if (mounted) {
+                ref.invalidate(projectDetailsProvider(widget.projectId));
+              }
+            });
+          }
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Thumbnail updated successfully')),
             );
-        if (mounted) {
+          }
+        } catch (uploadErr) {
+          // Revert optimistic update on failure
+          if (mounted) {
+            setState(() => _optimisticThumbnailPath = null);
+          }
+
+          final errorMsg = uploadErr.toString().replaceAll('Exception: ', '');
+          if (!mounted) return;
+
+          // Specific handling for site coordinates not configured
+          if (errorMsg.contains('site coordinates') ||
+              errorMsg.contains('Site Coordinates') ||
+              errorMsg.contains('must be configured')) {
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Site Not Ready'),
+                content: const Text(
+                  'The project owner needs to configure the site coordinates first. This establishes the geofence and location context for the project. Please check back later.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+            return;
+          }
+
+          // Specific handling for the 3-image limit error
+          if (errorMsg.contains('Maximum of 3 cover images')) {
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Limit Reached'),
+                content: const Text(
+                  'You already have 3 cover images. Please delete one of the existing thumbnails before uploading a new one.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+            return;
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Thumbnail updated successfully')),
+            SnackBar(content: Text('Error updating thumbnail: $errorMsg')),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        final errorMsg = e.toString().replaceAll('Exception: ', '');
+        String errorMsg = e.toString().replaceAll('Exception: ', '');
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(errorMsg)));
+      }
+    }
+  }
+
+  Widget _buildHeroPlaceholder() {
+    return Container(
+      height: 220,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F4F7),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF276572).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: SvgPicture.asset(
+              'assets/images/camera.svg',
+              width: 32,
+              height: 32,
+              colorFilter: const ColorFilter.mode(
+                Color(0xFF276572),
+                BlendMode.srcIn,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Add Project Thumbnail',
+            style: TextStyle(
+              color: Color(0xFF475467),
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+          const Text(
+            'Showcase your project with a cover image',
+            style: TextStyle(color: Color(0xFF667085), fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroAction(String iconPath, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFEAECF0)),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SvgPicture.asset(
+              iconPath,
+              width: 14,
+              height: 14,
+              colorFilter: const ColorFilter.mode(
+                Color(0xFF344054),
+                BlendMode.srcIn,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+                color: Color(0xFF344054),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteThumbnail(ProjectImage image) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Image'),
+        content: const Text(
+          'Are you sure you want to remove this project image? This will free up a slot in your 3-image limit.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ref
+            .read(projectImageNotifierProvider.notifier)
+            .deleteThumbnail(
+              projectId: widget.projectId,
+              coverImageId: image.id,
+            );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Image removed successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          final errorMsg = e.toString().replaceAll('Exception: ', '');
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(errorMsg)));
+        }
       }
     }
   }
@@ -1196,19 +1561,74 @@ class _ContractorProjectDetailsScreenState
   }
 }
 
+class _ExpandableDescription extends StatefulWidget {
+  final String description;
+  const _ExpandableDescription({required this.description});
+
+  @override
+  State<_ExpandableDescription> createState() => _ExpandableDescriptionState();
+}
+
+class _ExpandableDescriptionState extends State<_ExpandableDescription> {
+  bool _expanded = false;
+  static const int _maxLines = 4;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AnimatedCrossFade(
+          firstChild: Text(
+            widget.description,
+            maxLines: _maxLines,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF475467),
+              height: 1.5,
+            ),
+          ),
+          secondChild: Text(
+            widget.description,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF475467),
+              height: 1.5,
+            ),
+          ),
+          crossFadeState: _expanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 250),
+        ),
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Text(
+            _expanded ? 'Read less' : 'Read more',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF276572),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ── Financial Modal ──
 class _FinancialModal extends ConsumerWidget {
   final String projectId;
   const _FinancialModal({required this.projectId});
 
-  final List<Map<String, String>> payments = const [
-    {'amount': '₦4.2M', 'status': 'Pending', 'date': '4/21/12'},
-    {'amount': '₦4.2M', 'status': 'Paid', 'date': '4/4/18'},
-    {'amount': '₦4.2M', 'status': 'Paid', 'date': '4/4/18'},
-  ];
+  final List<Map<String, String>> payments = const [];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final projectAsync = ref.watch(projectDetailsProvider(projectId));
     final scheduleAsync = ref.watch(projectScheduleProvider(projectId));
     final financialsAsync = ref.watch(projectFinancialsProvider(projectId));
 
@@ -1296,13 +1716,24 @@ class _FinancialModal extends ConsumerWidget {
                             color: Colors.white,
                           ),
                         ),
-                        Text(
-                          financials.formattedContractValue,
-                          style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                        projectAsync.when(
+                          data: (response) {
+                            final p = response.data;
+                            return Text(
+                              financials.hasContractValue
+                                  ? financials.formattedContractValue(
+                                      p?.currency ?? '',
+                                    )
+                                  : (p?.formattedBudget ?? '--'),
+                              style: const TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            );
+                          },
+                          loading: () => const SizedBox(),
+                          error: (_, _) => const SizedBox(),
                         ),
                       ],
                     ),
@@ -1321,11 +1752,14 @@ class _FinancialModal extends ConsumerWidget {
                           final errStr = error.toString().toLowerCase();
                           bool isNotFound = false;
                           if (error is ApiException &&
-                              error.statusCode == 404) {
+                              (error.statusCode == 404 ||
+                                  error.statusCode == 403)) {
                             isNotFound = true;
                           }
                           if (errStr.contains('404') ||
-                              errStr.contains('no query results')) {
+                              errStr.contains('403') ||
+                              errStr.contains('no query results') ||
+                              errStr.contains('unauthorized')) {
                             isNotFound = true;
                           }
 
@@ -1338,8 +1772,8 @@ class _FinancialModal extends ConsumerWidget {
                           );
                         },
                         data: (schedule) {
-                          final currentPhase = schedule.phases.isNotEmpty
-                              ? schedule.phases.first.name
+                          final currentPhase = (schedule?.phases.isNotEmpty ?? false)
+                              ? schedule!.phases.first.name
                               : 'N/A';
                           return Text(
                             currentPhase,
@@ -1370,10 +1804,10 @@ class _FinancialModal extends ConsumerWidget {
                       ),
                     ),
                     data: (schedule) {
-                      final completedCount = schedule.phases
+                      final completedCount = (schedule?.phases ?? [])
                           .where((p) => p.status == 'completed')
                           .length;
-                      final totalCount = schedule.phases.length;
+                      final totalCount = (schedule?.phases ?? []).length;
                       final progress = totalCount > 0
                           ? completedCount / totalCount
                           : 0.0;
@@ -1440,7 +1874,9 @@ class _FinancialModal extends ConsumerWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              financials.formattedEarnedValue,
+                              financials.formattedEarnedValue(
+                                projectAsync.value?.data?.currency ?? '',
+                              ),
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,

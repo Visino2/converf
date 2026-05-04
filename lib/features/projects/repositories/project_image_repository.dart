@@ -18,10 +18,20 @@ class ProjectImageRepository {
 
   Future<ProjectImageListResponse> fetchImages(String projectId) async {
     final response = await _apiClient.get('/api/v1/projects/$projectId/images');
+    debugPrint('[ProjectImageRepo] fetchImages raw response: ${response.data}');
     if (response.data is! Map<String, dynamic>) {
       throw Exception("Invalid response format from server");
     }
-    return ProjectImageListResponse.fromJson(response.data);
+    final result = ProjectImageListResponse.fromJson(response.data);
+    debugPrint(
+      '[ProjectImageRepo] fetchImages parsed ${result.data.length} images',
+    );
+    for (final img in result.data) {
+      debugPrint(
+        '[ProjectImageRepo]   -> id=${img.id} fileUrl=${img.fileUrl} isPrimary=${img.isPrimary}',
+      );
+    }
+    return result;
   }
 
   Future<ProjectImage> uploadImage({
@@ -56,29 +66,28 @@ class ProjectImageRepository {
         '/api/v1/projects/$projectId/images',
         data: formData,
       );
-      
+
       debugPrint('Upload response status: ${response.statusCode}');
       debugPrint('Upload response data: ${response.data}');
       if (response.data is! Map<String, dynamic>) {
         throw Exception("Invalid response format from server");
       }
       final data = response.data as Map<String, dynamic>;
-      
+
       // Some APIs return data directly, others wrap it in a 'data' field
       final imageData = data['data'] ?? data;
       if (imageData is! Map<String, dynamic>) {
-         throw Exception(data['message'] ?? 'Failed to upload image');
+        throw Exception(data['message'] ?? 'Failed to upload image');
       }
-      
-      return ProjectImage.fromJson(imageData);
 
+      return ProjectImage.fromJson(imageData);
     } catch (e) {
       debugPrint('ProjectImageRepository: Error uploading image: $e');
       if (e is DioException) {
-         final resData = e.response?.data;
-         if (resData is Map<String, dynamic> && resData['message'] != null) {
-            throw Exception(resData['message']);
-         }
+        final resData = e.response?.data;
+        if (resData is Map<String, dynamic> && resData['message'] != null) {
+          throw Exception(resData['message']);
+        }
       }
       rethrow;
     }

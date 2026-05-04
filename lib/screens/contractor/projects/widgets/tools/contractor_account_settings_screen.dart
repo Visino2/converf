@@ -133,6 +133,7 @@ class _ContractorAccountSettingsScreenState
       ),
       body: SafeArea(
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           padding: const EdgeInsets.all(20),
           child: Form(
             key: _formKey,
@@ -187,6 +188,8 @@ class _ContractorAccountSettingsScreenState
                         label: 'Phone Number',
                         controller: _phoneController,
                         keyboardType: TextInputType.phone,
+                        hint: '+234 801 234 5678',
+                        prefixText: '+234 ',
                       ),
                       const SizedBox(height: 32),
                       SizedBox(
@@ -282,6 +285,8 @@ class _ContractorAccountSettingsScreenState
     required TextEditingController controller,
     TextInputType? keyboardType,
     bool readOnly = false,
+    String? hint,
+    String? prefixText,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,6 +305,10 @@ class _ContractorAccountSettingsScreenState
           keyboardType: keyboardType,
           readOnly: readOnly,
           decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.grey.shade400),
+            prefixText: prefixText,
+            prefixStyle: const TextStyle(color: Color(0xFF374151)),
             filled: true,
             fillColor: readOnly ? Colors.grey.shade100 : Colors.white,
             contentPadding: const EdgeInsets.symmetric(

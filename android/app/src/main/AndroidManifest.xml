@@ -9,6 +9,9 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
 
     <application
         android:label="converf"
@@ -41,12 +44,16 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
             
-            <!-- App Links handling for converf-fe.netlify.app (Google/Apple social auth callback) -->
+            <!-- App Links handling for social auth and billing callbacks -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="converf-fe.netlify.app" />
+                <data android:scheme="https" android:host="converf.io" />
+                <data android:scheme="https" android:host="www.converf.io" />
+                <data android:scheme="https" android:host="api-dev.converf.com" />
+                <data android:scheme="https" android:host="api.converf.com" />
             </intent-filter>
 
             <!-- Custom URI scheme as fallback for deep links (e.g. converf://auth/callback) -->

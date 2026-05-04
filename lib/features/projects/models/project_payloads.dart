@@ -173,7 +173,7 @@ class UpdateTimelineBudgetPayload {
   final String budget;
   final String currency;
   final String urgencyLevel;
-  final String assignmentMethod;
+  final String? assignmentMethod;
   final String? contractorId;
   final String? biddingDeadline;
   final String? title;
@@ -195,7 +195,7 @@ class UpdateTimelineBudgetPayload {
     required this.budget,
     required this.currency,
     required this.urgencyLevel,
-    required this.assignmentMethod,
+    this.assignmentMethod,
     this.contractorId,
     this.biddingDeadline,
     this.title,
@@ -219,7 +219,7 @@ class UpdateTimelineBudgetPayload {
       'budget': budget,
       'currency': currency,
       'urgency_level': urgencyLevel,
-      'assignment_method': assignmentMethod,
+      if (assignmentMethod != null) 'assignment_method': assignmentMethod,
       if (contractorId != null) 'contractor_id': contractorId,
       if (biddingDeadline != null) 'bidding_deadline': biddingDeadline,
       if (title != null) 'title': title,

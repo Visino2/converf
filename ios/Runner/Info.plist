@@ -83,9 +83,30 @@
 	<string>This app requires access to the microphone for video recording.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We capture your photo location to meet project documentation requirements.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Use Face ID to quickly unlock your Converf session on this device.</string>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.215124506289-9jbqenrlgjbqj9cagk5k54tu1oa9mp4d</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>converf</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

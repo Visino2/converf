@@ -25,7 +25,7 @@ class ProjectDocumentsTab extends ConsumerStatefulWidget {
 class _ProjectDocumentsTabState extends ConsumerState<ProjectDocumentsTab> {
   Future<void> _uploadDocument() async {
     try {
-      final result = await FilePicker.platform.pickFiles();
+      final result = await FilePicker.pickFiles();
       if (result != null && result.files.single.path != null) {
         final file = result.files.single;
         await ref

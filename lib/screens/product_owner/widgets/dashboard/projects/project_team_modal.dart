@@ -243,21 +243,57 @@ class _AssignMemberSheet extends ConsumerWidget {
               error: (err, _) => Center(child: Text('Error: $err')),
               data: (teamResponse) {
                 final allMembers = teamResponse.data;
-                
-                final assignedIds = currentProjectTeamAsync.value?.map((pm) => pm.teamMember?.id).toSet() ?? {};
-                final availableMembers = allMembers.where((m) => !assignedIds.contains(m.id)).toList();
 
-                if (availableMembers.isEmpty) {
-                   return const Center(child: Text('All platform members are already assigned to this project.', style: TextStyle(color: Color(0xFF667085))));
+                if (allMembers.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'No team members in your workspace. Invite members from the Team section first.',
+                        style: TextStyle(color: Color(0xFF667085)),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
                 }
 
-                return ListView.separated(
-                  padding: const EdgeInsets.all(24),
-                  itemCount: availableMembers.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final member = availableMembers[index];
-                    return _buildSelectableCard(context, ref, member);
+                return currentProjectTeamAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (_, _) => ListView.separated(
+                    padding: const EdgeInsets.all(24),
+                    itemCount: allMembers.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) => _buildSelectableCard(context, ref, allMembers[index]),
+                  ),
+                  data: (projectMembers) {
+                    final assignedIds = projectMembers
+                        .map((pm) => pm.teamMemberId ?? pm.teamMember?.id)
+                        .whereType<String>()
+                        .where((id) => id.isNotEmpty)
+                        .toSet();
+                    final availableMembers = allMembers
+                        .where((m) => m.id.isNotEmpty && !assignedIds.contains(m.id))
+                        .toList();
+
+                    if (availableMembers.isEmpty) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            'All team members are already assigned to this project.',
+                            style: TextStyle(color: Color(0xFF667085)),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.all(24),
+                      itemCount: availableMembers.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) => _buildSelectableCard(context, ref, availableMembers[index]),
+                    );
                   },
                 );
               },

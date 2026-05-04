@@ -20,23 +20,25 @@ class PaginatedBidsResponse {
     PaginationMeta? metaData;
 
     if (dataField is Map<String, dynamic>) {
-       if (dataField.containsKey('data')) {
-         dataList = dataField['data'] as List<dynamic>? ?? [];
-       }
-       metaData = dataField['meta'] != null 
+      if (dataField.containsKey('data')) {
+        dataList = dataField['data'] as List<dynamic>? ?? [];
+      }
+      metaData = dataField['meta'] != null
           ? PaginationMeta.fromJson(dataField['meta'] as Map<String, dynamic>)
           : null;
     } else if (dataField is List<dynamic>) {
-       dataList = dataField;
-       metaData = json['meta'] != null 
-          ? PaginationMeta.fromJson(json['meta'] as Map<String, dynamic>) 
+      dataList = dataField;
+      metaData = json['meta'] != null
+          ? PaginationMeta.fromJson(json['meta'] as Map<String, dynamic>)
           : null;
     }
-    
+
     return PaginatedBidsResponse(
       status: json['status'] as bool? ?? false,
       message: json['message'] as String? ?? '',
-      data: dataList.map((e) => Bid.fromJson(e as Map<String, dynamic>)).toList(),
+      data: dataList
+          .map((e) => Bid.fromJson(e as Map<String, dynamic>))
+          .toList(),
       meta: metaData,
     );
   }
@@ -47,17 +49,15 @@ class BidResponse {
   final String message;
   final Bid? data;
 
-  BidResponse({
-    required this.status,
-    required this.message,
-    this.data,
-  });
+  BidResponse({required this.status, required this.message, this.data});
 
   factory BidResponse.fromJson(Map<String, dynamic> json) {
     return BidResponse(
       status: json['status'] as bool? ?? false,
       message: json['message'] as String? ?? '',
-      data: json['data'] != null ? Bid.fromJson(json['data'] as Map<String, dynamic>) : null,
+      data: json['data'] != null
+          ? Bid.fromJson(json['data'] as Map<String, dynamic>)
+          : null,
     );
   }
 }
@@ -86,25 +86,13 @@ class BookmarkResponse {
 class SubmitBidPayload {
   final double amount;
   final String proposal;
-  final String? duration;
-  final String? paymentPreference;
-  final List<Map<String, dynamic>>? milestones;
-  final List<String>? teamMembers;
-  final List<String>? equipment;
-  final List<String>? portfolioProjects;
-  final List<Map<String, dynamic>>? certifications;
+  final String? scheduleId;
   final List<String>? documentPaths;
 
   const SubmitBidPayload({
     required this.amount,
     required this.proposal,
-    this.duration,
-    this.paymentPreference,
-    this.milestones,
-    this.teamMembers,
-    this.equipment,
-    this.portfolioProjects,
-    this.certifications,
+    this.scheduleId,
     this.documentPaths,
   });
 
@@ -112,13 +100,7 @@ class SubmitBidPayload {
     return {
       'amount': amount,
       'proposal': proposal,
-      if (duration != null) 'duration': duration,
-      if (paymentPreference != null) 'payment_preference': paymentPreference,
-      if (milestones != null) 'milestones': milestones,
-      if (teamMembers != null) 'team_members': teamMembers,
-      if (equipment != null) 'equipment': equipment,
-      if (portfolioProjects != null) 'portfolio_projects': portfolioProjects,
-      if (certifications != null) 'certifications': certifications,
+      if (scheduleId != null) 'schedule_id': scheduleId,
     };
   }
 }

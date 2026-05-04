@@ -1,40 +1,62 @@
 import 'dart:async';
 
+import 'package:converf/core/config/shared_prefs_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/billing_models.dart';
 import '../repositories/billing_repository.dart';
 
 class PendingPaymentReferenceNotifier extends Notifier<String?> {
+  static const _storageKey = 'pending_payment_reference';
+  late final SharedPreferences _prefs;
+
   @override
-  String? build() => null;
+  String? build() {
+    _prefs = ref.read(sharedPreferencesProvider);
+    return _prefs.getString(_storageKey);
+  }
 
-  void setReference(String? value) => state = value;
+  void setReference(String? value) {
+    final normalizedValue = value?.trim();
+    state = (normalizedValue == null || normalizedValue.isEmpty)
+        ? null
+        : normalizedValue;
 
-  void clear() => state = null;
+    if (state == null) {
+      unawaited(_prefs.remove(_storageKey));
+      return;
+    }
+
+    unawaited(_prefs.setString(_storageKey, state!));
+  }
+
+  void clear() => setReference(null);
 }
 
 final pendingPaymentReferenceProvider =
     NotifierProvider<PendingPaymentReferenceNotifier, String?>(
-  PendingPaymentReferenceNotifier.new,
-);
+      PendingPaymentReferenceNotifier.new,
+    );
 
-final billingTransactionsProvider =
-    FutureProvider.autoDispose.family<PaginatedTransactions, int?>((ref, page) async {
-  final repository = ref.read(billingRepositoryProvider);
-  return repository.fetchTransactions(page: page);
-});
+final billingTransactionsProvider = FutureProvider.autoDispose
+    .family<PaginatedTransactions, int?>((ref, page) async {
+      final repository = ref.read(billingRepositoryProvider);
+      return repository.fetchTransactions(page: page);
+    });
 
-final billingPlansProvider = FutureProvider.autoDispose<BillingPlansResponse>((ref) async {
+final billingPlansProvider = FutureProvider.autoDispose<BillingPlansResponse>((
+  ref,
+) async {
   final repository = ref.read(billingRepositoryProvider);
   return repository.fetchPlans();
 });
 
 final billingSubscriptionProvider =
     FutureProvider.autoDispose<BillingSubscription>((ref) async {
-  final repository = ref.read(billingRepositoryProvider);
-  return repository.fetchSubscription();
-});
+      final repository = ref.read(billingRepositoryProvider);
+      return repository.fetchSubscription();
+    });
 
 class BillingActionNotifier extends AsyncNotifier<void> {
   late BillingRepository _repository;
@@ -92,9 +114,7 @@ class BillingActionNotifier extends AsyncNotifier<void> {
   Future<PaymentIntent> buyAiCredits(String packKey) =>
       _buyAddon(() => _repository.purchaseAiCreditsAddon(packKey));
 
-  Future<PaymentIntent> _buyAddon(
-    Future<PaymentIntent> Function() fn,
-  ) async {
+  Future<PaymentIntent> _buyAddon(Future<PaymentIntent> Function() fn) async {
     state = const AsyncLoading();
     try {
       final intent = await fn();
@@ -109,5 +129,5 @@ class BillingActionNotifier extends AsyncNotifier<void> {
 
 final billingActionProvider =
     AsyncNotifierProvider<BillingActionNotifier, void>(
-  BillingActionNotifier.new,
-);
+      BillingActionNotifier.new,
+    );

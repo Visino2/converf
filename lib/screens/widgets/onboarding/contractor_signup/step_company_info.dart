@@ -26,8 +26,7 @@ class ContractorCompanyInfoStep extends StatefulWidget {
 class _ContractorCompanyInfoStepState extends State<ContractorCompanyInfoStep> {
   final _formKey = GlobalKey<FormState>();
 
- // Actually removing them check by check.
-   void _showYearsPicker() {
+  void _showYearsPicker() {
     final yearsOptions = ['1-2 Years', '3-5 Years', '5-10 Years', '10+ Years'];
     showModalBottomSheet(
       context: context,
@@ -284,6 +283,8 @@ class _ContractorCompanyInfoStepState extends State<ContractorCompanyInfoStep> {
                   'Enter license',
                   controller: widget.licenseNumberController,
                   validator: (v) {
+                    if (v == null || v.isEmpty) return 'Enter license number';
+                    if (v.length < 3) return 'Invalid license';
                     return null;
                   },
                 ),

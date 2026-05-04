@@ -89,6 +89,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                   }
 
                   return ListView.separated(
+                    physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                     padding: EdgeInsets.zero,
                     cacheExtent: 500,
                     itemCount: projects.length,

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dio/dio.dart';
@@ -21,32 +22,19 @@ class MarketplaceRepository {
     int page = 1,
     MarketplaceFilters? filters,
   }) async {
-    try {
-      final Map<String, dynamic> queryParams = {'page': page};
-      if (filters != null) {
-        queryParams.addAll(filters.toJson());
-      }
-
-      final response = await _apiClient.get(
-        '/api/v1/marketplace/projects',
-        queryParameters: queryParams,
-      );
-      if (response.data is! Map<String, dynamic>) {
-        throw Exception("Invalid response format from server");
-      }
-      return PaginatedProjectsResponse.fromJson(response.data);
-    } on ApiException catch (e) {
-      if (e.statusCode == 403 && (e.message.contains('not verified') || e.message.contains('verify your email'))) {
-        // Return an empty projects list instead of crashing for the unverified bypass.
-        return PaginatedProjectsResponse(
-          status: true,
-          message: 'Offline (Unverified)',
-          data: [],
-          meta: null,
-        );
-      }
-      rethrow;
+    final Map<String, dynamic> queryParams = {'page': page};
+    if (filters != null) {
+      queryParams.addAll(filters.toJson());
     }
+
+    final response = await _apiClient.get(
+      '/api/v1/marketplace/projects',
+      queryParameters: queryParams,
+    );
+    if (response.data is! Map<String, dynamic>) {
+      throw Exception("Invalid response format from server");
+    }
+    return PaginatedProjectsResponse.fromJson(response.data);
   }
 
   Future<PaginatedBidsResponse> fetchMyBids({int page = 1}) async {
@@ -61,6 +49,8 @@ class MarketplaceRepository {
   }
 
   Future<BidResponse> submitBid(String projectId, SubmitBidPayload payload) async {
+    debugPrint('[MarketplaceRepo] >>> POST /api/v1/projects/$projectId/bids');
+    debugPrint('[MarketplaceRepo] Payload: ${payload.toJson()}');
     dynamic data;
     if (payload.documentPaths != null && payload.documentPaths!.isNotEmpty) {
       final formData = FormData.fromMap(payload.toJson());
@@ -75,18 +65,25 @@ class MarketplaceRepository {
       data = payload.toJson();
     }
 
-    final response = await _apiClient.post(
-      '/api/v1/projects/$projectId/bids',
-      data: data,
-    );
-    if (response.data is! Map<String, dynamic>) {
+    try {
+      final response = await _apiClient.post(
+        '/api/v1/projects/$projectId/bids',
+        data: data,
+      );
+      debugPrint('[MarketplaceRepo] <<< ${response.statusCode} POST /bids');
+      if (response.data is! Map<String, dynamic>) {
         throw Exception("Invalid response format from server");
+      }
+      final responseData = response.data as Map<String, dynamic>;
+      debugPrint('[MarketplaceRepo] Response status: ${responseData['status']}, message: ${responseData['message']}');
+      if (responseData['status'] == false) {
+        throw Exception(responseData['message'] ?? 'Failed to submit bid');
+      }
+      return BidResponse.fromJson(responseData);
+    } catch (e) {
+      debugPrint('[MarketplaceRepo] !!! Bid submission error: $e');
+      rethrow;
     }
-    final responseData = response.data as Map<String, dynamic>;
-    if (responseData['status'] == false) {
-       throw Exception(responseData['message'] ?? 'Failed to submit bid');
-    }
-    return BidResponse.fromJson(responseData);
   }
 
   Future<PaginatedBidsResponse> fetchProjectBids(String projectId, {int page = 1}) async {

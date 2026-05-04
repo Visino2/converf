@@ -1,10 +1,12 @@
 import 'package:converf/features/billing/models/billing_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../dialogs/change_plan_dialog.dart';
+import '../dialogs/cancel_subscription_dialog.dart';
 import '../utils/billing_formatters.dart';
 import 'error_box.dart';
 
-class SubscriptionCardSection extends StatelessWidget {
+class SubscriptionCardSection extends StatefulWidget {
   final AsyncValue<BillingSubscription> subscriptionState;
   final AsyncValue<BillingPlansResponse> plansState;
   final AsyncValue<void> actionState;
@@ -23,15 +25,21 @@ class SubscriptionCardSection extends StatelessWidget {
   });
 
   @override
+  State<SubscriptionCardSection> createState() =>
+      _SubscriptionCardSectionState();
+}
+
+class _SubscriptionCardSectionState extends State<SubscriptionCardSection> {
+  @override
   Widget build(BuildContext context) {
-    return subscriptionState.when(
+    return widget.subscriptionState.when(
       loading: () => const Center(
         child: CircularProgressIndicator(color: Color(0xFF276572)),
       ),
       error: (err, _) => ErrorBox(
         title: 'Subscription',
         message: err.toString(),
-        onRetry: onRetry,
+        onRetry: widget.onRetry,
       ),
       data: (sub) {
         final hasPlan = (sub.planName ?? '').isNotEmpty;
@@ -49,7 +57,9 @@ class SubscriptionCardSection extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                Positioned.fill(child: CustomPaint(painter: _CrossPatternPainter())),
+                Positioned.fill(
+                  child: CustomPaint(painter: _CrossPatternPainter()),
+                ),
                 Positioned(
                   bottom: -20,
                   right: -20,
@@ -66,9 +76,14 @@ class SubscriptionCardSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
-                          color: hasPlan ? const Color(0xFF0F973D) : const Color(0xFFF79009),
+                          color: hasPlan
+                              ? const Color(0xFF0F973D)
+                              : const Color(0xFFF79009),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -82,7 +97,9 @@ class SubscriptionCardSection extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        hasPlan ? (sub.planName ?? 'Subscription') : 'Choose a plan to continue',
+                        hasPlan
+                            ? (sub.planName ?? 'Subscription')
+                            : 'Choose a plan to continue',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,
@@ -92,8 +109,8 @@ class SubscriptionCardSection extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         hasPlan
-                            ? 'Status: ${sub.status ?? 'active'}  ·  Renews: ${formatDate(sub.renewsAt)}'
-                            : 'Start a plan to unlock full billing features.',
+                            ? 'Renews on ${formatDate(sub.renewsAt ?? DateTime.now().add(const Duration(days: 30)))}  ·  Status: ${sub.status ?? 'active'}'
+                            : 'Start a plan to unlock full subscription features.',
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 13,
@@ -106,29 +123,53 @@ class SubscriptionCardSection extends StatelessWidget {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
                               foregroundColor: const Color(0xFF276572),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(24),
                               ),
                             ),
-                            onPressed: actionState.isLoading
+                            onPressed: widget.actionState.isLoading
                                 ? null
                                 : () async {
-                                    final plans = plansState.asData?.value;
-                                    final defaultPlan = plans?.plans.isNotEmpty == true ? plans!.plans.first : null;
-                                    if (defaultPlan == null) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('No plans available yet.')),
+                                    final plans =
+                                        widget.plansState.asData?.value;
+                                    final availablePlans = plans?.plans ?? [];
+                                    if (availablePlans.isEmpty) {
+                                      if (!mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'No plans available yet.',
+                                          ),
+                                        ),
                                       );
                                       return;
                                     }
-                                    await onStartPlan(defaultPlan.id);
+                                    if (!mounted) return;
+                                    showDialog(
+                                      context: context,
+                                      builder: (_) => ChangePlanDialog(
+                                        currentSubscription: sub,
+                                        plans: availablePlans,
+                                        isLoading: widget.actionState.isLoading,
+                                        onConfirm: (planId) async {
+                                          await widget.onStartPlan(planId);
+                                        },
+                                      ),
+                                    );
                                   },
-                            child: actionState.isLoading
+                            child: widget.actionState.isLoading
                                 ? const SizedBox(
                                     width: 18,
                                     height: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : Text(hasPlan ? 'Change Plan' : 'Start Plan'),
                           ),
@@ -138,12 +179,37 @@ class SubscriptionCardSection extends StatelessWidget {
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(color: Colors.white),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(24),
                                 ),
                               ),
-                              onPressed: actionState.isLoading ? null : onCancel,
+                              onPressed: widget.actionState.isLoading
+                                  ? null
+                                  : () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (_) => CancelSubscriptionDialog(
+                                          planName: sub.planName ?? 'Plan',
+                                          expiryDate: sub.renewsAt,
+                                          onGoBack: () =>
+                                              Navigator.pop(context),
+                                          onConfirmCancel: () async {
+                                            final navContext = context;
+                                            await widget.onCancel();
+                                            if (mounted) {
+                                              // ignore: use_build_context_synchronously
+                                              Navigator.pop(navContext);
+                                            }
+                                          },
+                                          isLoading:
+                                              widget.actionState.isLoading,
+                                        ),
+                                      );
+                                    },
                               child: const Text('Cancel'),
                             ),
                         ],

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/project.dart';
 import '../models/project_advisory.dart';
 import '../repositories/project_repository.dart';
+import '../../billing/providers/billing_providers.dart';
 
 /// Fetches the AI Advisory for a specific project
 final projectAdvisoryProvider = FutureProvider.autoDispose.family<ProjectAdvisoryResponse, String>((ref, projectId) async {
@@ -18,8 +19,17 @@ final projectHealthScoreProvider = FutureProvider.autoDispose.family<ProjectAdvi
 /// Identifies the "most critical" project from the list of active projects
 /// and fetches its advisory for the dashboard.
 final dashboardAdvisoryProvider = FutureProvider.autoDispose<ProjectAdvisoryResponse?>((ref) async {
+  // Skip the API call entirely if the user has no AI credits — prevents a
+  // guaranteed 402 error on every dashboard load for free-tier users.
+  try {
+    final subscription = await ref.watch(billingSubscriptionProvider.future);
+    if ((subscription.limits?.aiCredits ?? 0) <= 0) return null;
+  } catch (_) {
+    return null;
+  }
+
   final repository = ref.watch(projectRepositoryProvider);
-  
+
   // 1. Fetch all projects (we limit to page 1 for the dashboard)
   final projectsResp = await repository.fetchProjects(page: 1);
   final projects = projectsResp.data;

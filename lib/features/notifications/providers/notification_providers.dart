@@ -11,20 +11,16 @@ final notificationsProvider =
       return repository.fetchNotifications(unreadOnly: unreadOnly);
     });
 
-final unreadNotificationsCountProvider = FutureProvider.autoDispose<int>((ref) async {
-  final unreadNotifications = await ref.watch(
-    notificationsProvider(true).future,
-  );
-  return unreadNotifications.length;
+// Synchronous providers — derive from the shared notificationsProvider(true)
+// instance so no duplicate API calls are made when counts are needed.
+final unreadNotificationsCountProvider = Provider.autoDispose<int>((ref) {
+  return ref.watch(notificationsProvider(true)).asData?.value.length ?? 0;
 });
 
-final unreadMessageNotificationsCountProvider = FutureProvider.autoDispose<int>((
-  ref,
-) async {
-  final unreadNotifications = await ref.watch(
-    notificationsProvider(true).future,
-  );
-  return unreadNotifications
+final unreadMessageNotificationsCountProvider = Provider.autoDispose<int>((ref) {
+  final notifications =
+      ref.watch(notificationsProvider(true)).asData?.value ?? [];
+  return notifications
       .where((notification) => notification.isMessageNotification)
       .length;
 });
@@ -94,8 +90,7 @@ class NotificationActionNotifier extends AsyncNotifier<void> {
   void _invalidateNotificationState() {
     ref.invalidate(notificationsProvider(false));
     ref.invalidate(notificationsProvider(true));
-    ref.invalidate(unreadNotificationsCountProvider);
-    ref.invalidate(unreadMessageNotificationsCountProvider);
+    // Count providers auto-derive from notificationsProvider(true) — no explicit invalidation needed
   }
 }
 

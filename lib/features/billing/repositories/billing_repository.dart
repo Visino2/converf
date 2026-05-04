@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_client.dart';
@@ -40,7 +41,16 @@ class BillingRepository {
     if (response.data is! Map<String, dynamic>) {
       throw Exception('Invalid response format from server');
     }
-    return BillingSubscription.fromJson(response.data as Map<String, dynamic>);
+    final data = response.data as Map<String, dynamic>;
+    debugPrint('[BillingRepo] Subscription response: $data');
+    final subscription = BillingSubscription.fromJson(data);
+    debugPrint(
+      '[BillingRepo] Parsed subscription - status: ${subscription.status}, limits: ${subscription.limits}',
+    );
+    debugPrint(
+      '[BillingRepo] maxProjects: ${subscription.limits?.maxProjects}, teamMembers: ${subscription.limits?.teamMembers}',
+    );
+    return subscription;
   }
 
   Future<PaymentIntent> subscribe(String planId) async {
@@ -66,10 +76,7 @@ class BillingRepository {
   }
 
   Future<PaymentIntent> purchaseAddon(String path, String packKey) async {
-    final response = await _apiClient.post(
-      path,
-      data: {'pack_key': packKey},
-    );
+    final response = await _apiClient.post(path, data: {'pack_key': packKey});
     if (response.data is! Map<String, dynamic>) {
       throw Exception('Invalid response format from server');
     }

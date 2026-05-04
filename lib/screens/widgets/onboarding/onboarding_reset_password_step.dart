@@ -58,8 +58,8 @@ class _OnboardingResetPasswordStepState
     }
     final email = _emailController.text.trim();
     final token = _tokenController.text.trim();
-    final password = _passwordController.text.trim();
-    final confirmPassword = _confirmPasswordController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
 
     await ref
         .read(authProvider.notifier)
@@ -237,7 +237,9 @@ class _OnboardingResetPasswordStepState
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Almost there! Enter your email, 6-digit reset code, and new password.',
+                          widget.initialEmail != null
+                              ? 'Enter the 6-digit reset code sent to ${widget.initialEmail} and your new password.'
+                              : 'Almost there! Enter your email, 6-digit reset code, and new password.',
                           style: TextStyle(
                             fontSize: 15,
                             color: Colors.grey.shade600,
@@ -249,28 +251,29 @@ class _OnboardingResetPasswordStepState
                           key: _formKey,
                           child: Column(
                             children: [
-                              _buildTextField(
-                                'Email Address',
-                                'you@example.com',
-                                controller: _emailController,
-                                isValid: _isEmailValid,
-                                validator: (v) {
-                                  if (v == null ||
-                                      !v.contains('@') ||
-                                      !v.contains('.')) {
-                                    return 'Enter valid email';
-                                  }
-                                  WidgetsBinding.instance.addPostFrameCallback((
-                                    _,
-                                  ) {
-                                    if (!_isEmailValid) {
-                                      setState(() => _isEmailValid = true);
+                              if (widget.initialEmail == null) ...[
+                                _buildTextField(
+                                  'Email Address',
+                                  'you@example.com',
+                                  controller: _emailController,
+                                  isValid: _isEmailValid,
+                                  validator: (v) {
+                                    if (v == null ||
+                                        !v.contains('@') ||
+                                        !v.contains('.')) {
+                                      return 'Enter valid email';
                                     }
-                                  });
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 16),
+                                    WidgetsBinding.instance
+                                        .addPostFrameCallback((_) {
+                                      if (!_isEmailValid) {
+                                        setState(() => _isEmailValid = true);
+                                      }
+                                    });
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                              ],
                               _buildTextField(
                                 'Reset Code',
                                 'Enter 6-digit code',

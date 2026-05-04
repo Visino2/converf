@@ -7,19 +7,21 @@ import '../repositories/schedule_library_repository.dart';
 
 
 
-final projectScheduleProvider = FutureProvider.family<Schedule, String>((ref, projectId) async {
+final projectScheduleProvider = FutureProvider.family<Schedule?, String>((ref, projectId) async {
   final repo = ref.read(scheduleRepositoryProvider);
   return repo.getProjectScheduleDetail(projectId);
 });
 
-final bidScheduleProvider = FutureProvider.family<Schedule, String>((ref, bidId) async {
-  final repo = ref.read(scheduleRepositoryProvider);
-  return repo.getBidScheduleDetail(bidId);
-});
+
 
 final schedulePhasesProvider = FutureProvider.autoDispose.family<List<SchedulePhase>, String>((ref, scheduleId) async {
   final repo = ref.read(scheduleRepositoryProvider);
   return repo.getPhases(scheduleId);
+});
+
+final phaseActivitiesProvider = FutureProvider.autoDispose.family<List<ScheduleActivity>, ({String scheduleId, String phaseId})>((ref, ids) async {
+  final repo = ref.read(scheduleRepositoryProvider);
+  return repo.getActivities(ids.scheduleId, ids.phaseId);
 });
 
 final scheduleLibraryPhasesProvider = FutureProvider.autoDispose<List<TemplatePhase>>((ref) async {
@@ -47,13 +49,16 @@ class ScheduleNotifier extends AsyncNotifier<void> {
     _repository = ref.read(scheduleRepositoryProvider);
   }
 
-  Future<void> createScheduleFromBid(String bidId, String contractorNotes) async {
+  Future<Schedule?> createScheduleFromBid(String bidId, String contractorNotes, {String? projectId}) async {
     state = const AsyncLoading();
     try {
-      await _repository.createScheduleFromBid(bidId, contractorNotes);
+      final schedule = await _repository.createScheduleFromBid(bidId, contractorNotes);
       state = const AsyncData(null);
+      if (projectId != null) ref.invalidate(projectScheduleProvider(projectId));
+      return schedule;
     } catch (e, st) {
       state = AsyncError(e, st);
+      return null;
     }
   }
 
@@ -73,7 +78,7 @@ class ScheduleNotifier extends AsyncNotifier<void> {
     try {
       await _repository.createActivity(scheduleId, phaseId, data);
       state = const AsyncData(null);
-      _invalidate(projectId, bidId);
+      _invalidate(projectId, bidId, scheduleId: scheduleId, phaseId: phaseId);
     } catch (e, st) {
       state = AsyncError(e, st);
     }
@@ -84,7 +89,7 @@ class ScheduleNotifier extends AsyncNotifier<void> {
     try {
       await _repository.updateActivity(scheduleId, phaseId, activityId, data);
       state = const AsyncData(null);
-      _invalidate(projectId, bidId);
+      _invalidate(projectId, bidId, scheduleId: scheduleId, phaseId: phaseId);
     } catch (e, st) {
       state = AsyncError(e, st);
     }
@@ -95,7 +100,7 @@ class ScheduleNotifier extends AsyncNotifier<void> {
     try {
       await _repository.deleteActivity(scheduleId, phaseId, activityId);
       state = const AsyncData(null);
-      _invalidate(projectId, bidId);
+      _invalidate(projectId, bidId, scheduleId: scheduleId, phaseId: phaseId);
     } catch (e, st) {
       state = AsyncError(e, st);
     }
@@ -145,9 +150,11 @@ class ScheduleNotifier extends AsyncNotifier<void> {
     }
   }
 
-  void _invalidate(String? projectId, String? bidId) {
+  void _invalidate(String? projectId, String? bidId, {String? scheduleId, String? phaseId}) {
     if (projectId != null) ref.invalidate(projectScheduleProvider(projectId));
-    if (bidId != null) ref.invalidate(bidScheduleProvider(bidId));
+    if (scheduleId != null && phaseId != null) {
+      ref.invalidate(phaseActivitiesProvider((scheduleId: scheduleId, phaseId: phaseId)));
+    }
   }
 
   Future<void> submitSchedule(String scheduleId, String? projectId, String? bidId, String contractorNotes) async {
@@ -160,7 +167,6 @@ class ScheduleNotifier extends AsyncNotifier<void> {
       }
       state = const AsyncData(null);
       if (projectId != null) ref.invalidate(projectScheduleProvider(projectId));
-      if (bidId != null) ref.invalidate(bidScheduleProvider(bidId));
     } catch (e, st) {
       state = AsyncError(e, st);
     }

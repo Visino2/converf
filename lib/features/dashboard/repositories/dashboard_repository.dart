@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/dio_provider.dart';
 import '../../../core/api/api_client.dart';
@@ -14,14 +15,47 @@ class DashboardRepository {
   DashboardRepository(this._apiClient);
 
   Future<DashboardResponse> fetchDashboardStats() async {
+    debugPrint('[DashboardRepo] Calling /api/v1/dashboard...');
     try {
       final response = await _apiClient.get('/api/v1/dashboard');
+      debugPrint('[DashboardRepo] Response received: ${response.statusCode}');
       if (response.data is! Map<String, dynamic>) {
         throw Exception("Invalid response format from server");
       }
-      return DashboardResponse.fromJson(response.data);
+      final result = DashboardResponse.fromJson(response.data);
+      debugPrint(
+        '[DashboardRepo] Parsing successful. Active projects: ${result.data?.activeProjects}',
+      );
+      return result;
     } on ApiException catch (e) {
-      if (e.statusCode == 403 && (e.message.contains('not verified') || e.message.contains('verify your email'))) {
+      debugPrint(
+        '[DashboardRepo] ApiException: ${e.statusCode} - ${e.message}',
+      );
+
+      // Handle 401 Unauthenticated - show empty dashboard gracefully
+      if (e.statusCode == 401) {
+        debugPrint(
+          '[DashboardRepo] Received 401 Unauthenticated - showing empty dashboard',
+        );
+        return DashboardResponse(
+          status: true,
+          message: 'Dashboard data unavailable',
+          data: DashboardData(
+            activeProjects: 0,
+            avgQualityScore: 0.0,
+            ballInCourts: 0,
+            portfolioValue: 0,
+            activeTasks: 0,
+            pendingInvoices: 0,
+            upcomingMilestones: 0,
+            totalEarned: '₦0',
+          ),
+        );
+      }
+
+      if (e.statusCode == 403 &&
+          (e.message.contains('not verified') ||
+              e.message.contains('verify your email'))) {
         // Return an empty stats response instead of crashing for the unverified bypass.
         return DashboardResponse(
           status: true,

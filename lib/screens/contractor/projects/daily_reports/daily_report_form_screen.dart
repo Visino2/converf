@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import '../../../../core/media/app_image_picker.dart';
 import '../../../../features/daily_reports/models/daily_report_models.dart';
 import '../../../../features/daily_reports/providers/daily_report_providers.dart';
+import '../../../../features/projects/providers/project_image_providers.dart';
 
 class DailyReportFormScreen extends ConsumerStatefulWidget {
   final String projectId;
@@ -24,6 +28,11 @@ class DailyReportFormScreen extends ConsumerStatefulWidget {
 class _DailyReportFormScreenState extends ConsumerState<DailyReportFormScreen> {
   int _currentStep = 0;
   bool _isLoading = false;
+  bool _isUploadingPhoto = false;
+
+  // Photo upload state
+  final List<String> _linkedPhotoIds = [];
+  final List<String> _linkedPhotoUrls = [];
 
   // Form State
   String? _selectedDate;
@@ -250,6 +259,71 @@ class _DailyReportFormScreenState extends ConsumerState<DailyReportFormScreen> {
     );
   }
 
+  Future<void> _pickAndUploadPhoto() async {
+    final pickedFile = await ref
+        .read(appImagePickerProvider)
+        .pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 1920, maxHeight: 1080);
+    if (pickedFile == null) return;
+
+    setState(() => _isUploadingPhoto = true);
+    try {
+      await ref.read(projectImageNotifierProvider.notifier).uploadImage(
+        projectId: widget.projectId,
+        filePath: pickedFile.path,
+        caption: 'Daily report photo',
+      );
+      final images = await ref.read(projectImagesProvider(widget.projectId).future);
+      if (images.isNotEmpty && mounted) {
+        final latest = images.last;
+        setState(() {
+          if (!_linkedPhotoIds.contains(latest.id)) {
+            _linkedPhotoIds.add(latest.id);
+            _linkedPhotoUrls.add(latest.fileUrl);
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Photo upload failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingPhoto = false);
+    }
+  }
+
+  bool _validateStep(int step) {
+    switch (step) {
+      case 0:
+        if (_selectedDate == null || _selectedDate!.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please select a report date before proceeding.')),
+          );
+          return false;
+        }
+        return true;
+      case 1:
+        if (_weatherData['weather_condition'] == null || (_weatherData['weather_condition'] as String).isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Weather condition is required. Please select one before proceeding.')),
+          );
+          return false;
+        }
+        return true;
+      case 4:
+        if (_linkedPhotoIds.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('At least one site photo is required to submit the report.')),
+          );
+          return false;
+        }
+        return true;
+      default:
+        return true;
+    }
+  }
+
   Widget _buildFormContent(DailyReportFormMeta meta) {
     // Initialize updates from meta if completely empty (new report)
     if (_activityUpdates.isEmpty &&
@@ -265,6 +339,17 @@ class _DailyReportFormScreenState extends ConsumerState<DailyReportFormScreen> {
             },
           )
           .toList();
+    }
+
+    // Auto-initialize weather condition from meta defaults (new report only)
+    if (_weatherData['weather_condition'] == null && widget.reportId == null) {
+      final defaultCondition = meta.defaults['weather_condition'];
+      final options = (meta.options['weather_conditions'] as List?)?.map((e) => e.toString()).toList() ?? ['clear'];
+      if (defaultCondition != null && options.contains(defaultCondition.toString())) {
+        _weatherData['weather_condition'] = defaultCondition.toString();
+      } else if (options.isNotEmpty) {
+        _weatherData['weather_condition'] = options.first;
+      }
     }
 
     if (_tomorrowPlan.isEmpty &&
@@ -287,6 +372,7 @@ class _DailyReportFormScreenState extends ConsumerState<DailyReportFormScreen> {
       type: StepperType.horizontal,
       currentStep: _currentStep,
       onStepContinue: () {
+        if (!_validateStep(_currentStep)) return;
         if (_currentStep < 4) {
           setState(() => _currentStep++);
         } else {
@@ -345,27 +431,27 @@ class _DailyReportFormScreenState extends ConsumerState<DailyReportFormScreen> {
         Step(
           title: const Text('1'),
           isActive: _currentStep >= 0,
-          content: _buildDateStep(),
+          content: SingleChildScrollView(child: _buildDateStep()),
         ),
         Step(
           title: const Text('2'),
           isActive: _currentStep >= 1,
-          content: _buildSiteStep(meta),
+          content: SingleChildScrollView(child: _buildSiteStep(meta)),
         ),
         Step(
           title: const Text('3'),
           isActive: _currentStep >= 2,
-          content: _buildWorkStep(meta),
+          content: SingleChildScrollView(child: _buildWorkStep(meta)),
         ),
         Step(
           title: const Text('4'),
           isActive: _currentStep >= 3,
-          content: _buildIssuesStep(meta),
+          content: SingleChildScrollView(child: _buildIssuesStep(meta)),
         ),
         Step(
           title: const Text('5'),
           isActive: _currentStep >= 4,
-          content: _buildTomorrowStep(meta),
+          content: SingleChildScrollView(child: _buildTomorrowStep(meta)),
         ),
       ],
     );
@@ -404,7 +490,9 @@ class _DailyReportFormScreenState extends ConsumerState<DailyReportFormScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  _selectedDate ?? 'Select Date',
+                  _selectedDate != null
+                      ? DateFormat('MMMM d, yyyy').format(DateTime.parse(_selectedDate!))
+                      : 'Select Date',
                   style: const TextStyle(fontSize: 16),
                 ),
                 SvgPicture.asset(
@@ -819,6 +907,118 @@ class _DailyReportFormScreenState extends ConsumerState<DailyReportFormScreen> {
             ),
           ),
         ..._tomorrowPlan.map((update) => _buildTomorrowItem(update, meta)),
+        const SizedBox(height: 24),
+        _buildPhotoUploadSection(),
+      ],
+    );
+  }
+
+  Widget _buildPhotoUploadSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            _buildSectionHeader('Site Photos'),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFEDD5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Required',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFEA580C)),
+              ),
+            ),
+          ],
+        ),
+        const Text(
+          'Upload at least one photo from the site to submit this report.',
+          style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+        ),
+        const SizedBox(height: 12),
+        if (_linkedPhotoUrls.isNotEmpty) ...[
+          SizedBox(
+            height: 90,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _linkedPhotoUrls.length,
+              separatorBuilder: (_, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) => Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      _linkedPhotoUrls[index],
+                      width: 90,
+                      height: 90,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 90,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF3F4F6),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: GestureDetector(
+                      onTap: () => setState(() {
+                        _linkedPhotoIds.removeAt(index);
+                        _linkedPhotoUrls.removeAt(index);
+                      }),
+                      child: Container(
+                        decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                        child: const Icon(Icons.close, color: Colors.white, size: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        GestureDetector(
+          onTap: _isUploadingPhoto ? null : _pickAndUploadPhoto,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: _linkedPhotoIds.isEmpty ? const Color(0xFFEA580C) : const Color(0xFFD1D5DB),
+                width: 1.5,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFFAFAFA),
+            ),
+            child: _isUploadingPhoto
+                ? const Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF276572)),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      const Icon(Icons.add_a_photo_outlined, color: Color(0xFF276572), size: 28),
+                      const SizedBox(height: 6),
+                      Text(
+                        _linkedPhotoIds.isEmpty ? 'Add Site Photo (Required)' : 'Add Another Photo',
+                        style: const TextStyle(fontSize: 14, color: Color(0xFF276572), fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
       ],
     );
   }
@@ -1014,6 +1214,7 @@ class _DailyReportFormScreenState extends ConsumerState<DailyReportFormScreen> {
         tomorrowPlan: _tomorrowPlan,
         siteAccessible: _siteAccessible,
         weatherStoppage: _weatherStoppage,
+        linkedPhotoIds: _linkedPhotoIds.isEmpty ? null : List.from(_linkedPhotoIds),
       );
 
       await ref
@@ -1064,6 +1265,7 @@ class _DailyReportFormScreenState extends ConsumerState<DailyReportFormScreen> {
         tomorrowPlan: _tomorrowPlan,
         siteAccessible: _siteAccessible,
         weatherStoppage: _weatherStoppage,
+        linkedPhotoIds: _linkedPhotoIds.isEmpty ? null : List.from(_linkedPhotoIds),
       );
 
       final response = await ref

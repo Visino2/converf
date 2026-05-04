@@ -323,6 +323,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
     }
 
     return ListView.separated(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: projects.length,
       separatorBuilder: (_, _) => const SizedBox(height: 16),
@@ -342,6 +343,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
     }
 
     return ListView.separated(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: bids.length,
       separatorBuilder: (_, _) => const SizedBox(height: 16),

@@ -8,6 +8,7 @@ import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/notifications/models/notification_models.dart';
 import '../../../features/notifications/providers/notification_providers.dart';
 import '../../../features/notifications/services/notification_lifecycle_service.dart';
+import '../../../features/notifications/services/push_token_source.dart';
 import '../../../features/profile/models/profile_models.dart';
 import '../../../features/profile/providers/profile_providers.dart';
 import '../../../features/projects/providers/project_providers.dart';
@@ -43,8 +44,6 @@ class _NotificationCenterScreenState
         debugPrint('[Notifications] Auto-refreshing notifications...');
         ref.invalidate(notificationsProvider(false));
         ref.invalidate(notificationsProvider(true));
-        ref.invalidate(unreadNotificationsCountProvider);
-        ref.invalidate(unreadMessageNotificationsCountProvider);
       }
     });
   }
@@ -308,6 +307,7 @@ class _NotificationCenterScreenState
         await ref.read(notificationsProvider(_showUnreadOnly).future);
       },
       child: ListView.separated(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         itemCount: notifications.length,
         separatorBuilder: (context, index) => const SizedBox(height: 12),
@@ -498,6 +498,7 @@ class _NotificationCenterScreenState
         final sections = _buildPreferenceSections(role, settings);
 
         return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

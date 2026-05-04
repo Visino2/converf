@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 import 'dart:async';
 
 import '../overview_modal.dart';
@@ -11,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:converf/core/media/app_image_picker.dart';
 import '../../../../../features/projects/providers/project_providers.dart';
+import '../../../../../features/phases/providers/phase_providers.dart';
 import '../../../../../features/projects/providers/project_image_providers.dart';
 import '../../../../../features/projects/models/project_image.dart';
 import '../../../../../features/marketplace/providers/marketplace_providers.dart';
@@ -32,6 +32,7 @@ class ProjectDetailsScreen extends ConsumerStatefulWidget {
   ConsumerState<ProjectDetailsScreen> createState() =>
       _ProjectDetailsScreenState();
 }
+
 class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
   Timer? _refreshTimer;
 
@@ -49,10 +50,11 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       if (mounted) {
-        debugPrint('[ProjectDetails] Auto-refreshing data for ${widget.projectId}...');
+        debugPrint(
+          '[ProjectDetails] Auto-refreshing data for ${widget.projectId}...',
+        );
         ref.invalidate(projectDetailsProvider(widget.projectId));
         ref.invalidate(projectFinancialsProvider(widget.projectId));
-        ref.invalidate(projectImagesProvider(widget.projectId));
         ref.invalidate(projectScheduleProvider(widget.projectId));
         ref.invalidate(projectBidsProvider);
         ref.invalidate(projectOpenBidsCountProvider(widget.projectId));
@@ -65,6 +67,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
     _refreshTimer?.cancel();
     super.dispose();
   }
+
 
   Future<ImageSource?> _showSourceDialog() async {
     return showModalBottomSheet<ImageSource>(
@@ -99,6 +102,81 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
 
   Future<void> _updateThumbnail() async {
     debugPrint('[ProductOwner] Update Thumbnail clicked');
+
+    // Check current cover image count first
+    final imagesAsync = ref.read(projectCoverImagesProvider(widget.projectId));
+    final images = imagesAsync.asData?.value ?? [];
+
+    // If at 3 images, show deletion interface first
+    if (images.length >= 3) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Delete an Image First'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    'You have reached the maximum of 3 cover images. Please delete one to continue:',
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: images.length,
+                    itemBuilder: (context, index) {
+                      final img = images[index];
+                      return ListTile(
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: Image.network(
+                            '${img.fileUrl}?w=50&h=50',
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                                  width: 50,
+                                  height: 50,
+                                  color: Colors.grey.shade300,
+                                  child: const Icon(Icons.image),
+                                ),
+                          ),
+                        ),
+                        title: Text(
+                          'Image ${index + 1}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            await _confirmDeleteThumbnail(img);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
+    // If under 3 images, proceed with normal upload
     final source = await _showSourceDialog();
     debugPrint('[ProductOwner] Selected source: $source');
     if (source == null) return;
@@ -114,25 +192,217 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
           );
       debugPrint('[ProductOwner] Image picked: ${image?.path}');
       if (image != null) {
-        await ref
-            .read(projectImageNotifierProvider.notifier)
-            .uploadThumbnail(
-              projectId: widget.projectId,
-              filePath: image.path,
+        try {
+          await ref
+              .read(projectImageNotifierProvider.notifier)
+              .uploadThumbnail(
+                projectId: widget.projectId,
+                filePath: image.path,
+              );
+
+          // Add delay to ensure backend has processed the upload
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Thumbnail updated successfully')),
             );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Thumbnail updated successfully')),
-          );
+            // Refresh project details — cover images derive from it automatically
+            ref.invalidate(projectDetailsProvider(widget.projectId));
+          }
+        } catch (uploadErr) {
+          if (mounted) {
+            String errorMsg = uploadErr.toString().replaceAll(
+              'Exception: ',
+              '',
+            );
+
+            // Specific handling for site coordinates not configured
+            if (errorMsg.contains('site coordinates') ||
+                errorMsg.contains('Site Coordinates') ||
+                errorMsg.contains('must be configured')) {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Setup Site Coordinates'),
+                  content: const Text(
+                    'Before uploading photos, you need to configure the project site coordinates. This helps establish the geofence and location context for the project.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _showModal(
+                          context,
+                          ProjectSiteModal(projectId: widget.projectId),
+                        );
+                      },
+                      child: const Text('Setup Site'),
+                    ),
+                  ],
+                ),
+              );
+              return;
+            }
+
+            // Specific handling for the 3-image limit error
+            if (errorMsg.contains('Maximum of 3 cover images')) {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Limit Reached'),
+                  content: const Text(
+                    'You already have 3 cover images. Please delete one of the existing thumbnails before uploading a new one.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
+              return;
+            }
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error updating thumbnail: $errorMsg')),
+            );
+          }
         }
       }
     } catch (e) {
       if (mounted) {
+        String errorMsg = e.toString().replaceAll('Exception: ', '');
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error updating thumbnail: $e')));
+        ).showSnackBar(SnackBar(content: Text('Error: $errorMsg')));
       }
     }
+  }
+
+  Future<void> _confirmDeleteThumbnail(ProjectImage image) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Image'),
+        content: const Text(
+          'Are you sure you want to remove this project image? This will free up a slot in your 3-image limit.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ref
+            .read(projectImageNotifierProvider.notifier)
+            .deleteThumbnail(
+              projectId: widget.projectId,
+              coverImageId: image.id,
+            );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Image removed successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          final errorMsg = e.toString().replaceAll('Exception: ', '');
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(errorMsg)));
+        }
+      }
+    }
+  }
+
+  Widget _buildHeroPlaceholder() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F4F7),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF276572).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.camera_alt_outlined,
+              color: Color(0xFF276572),
+              size: 32,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Add Project Thumbnail',
+            style: TextStyle(
+              color: Color(0xFF475467),
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+          const Text(
+            'Recommended for a better profile',
+            style: TextStyle(color: Color(0xFF667085), fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroAction(IconData icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: const Color(0xFF276572), size: 16),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF276572),
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -141,7 +411,8 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
     final financialsAsync = ref.watch(
       projectFinancialsProvider(widget.projectId),
     );
-    final imagesAsync = ref.watch(projectImagesProvider(widget.projectId));
+    final imagesAsync = ref.watch(projectCoverImagesProvider(widget.projectId));
+    final phasesAsync = ref.watch(phasesProvider(widget.projectId));
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -164,26 +435,77 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.menu, color: Color(0xFF667085)),
-            onPressed: () {},
-          ),
-          const SizedBox(width: 8),
-        ],
+        actions: const [],
       ),
       body: projectAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('DEBUG ERROR: $error')),
+        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),
+        error: (error, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Color(0xFF667085)),
+                const SizedBox(height: 16),
+                const Text(
+                  'Unable to load project',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF101828)),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Something went wrong. Please try again.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(projectDetailsProvider(widget.projectId)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF276572),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Try Again'),
+                ),
+              ],
+            ),
+          ),
+        ),
         data: (projectData) {
           final project = projectData.data;
           if (project == null) {
-            return const Center(child: Text('DEBUG: PROJECT DATA IS NULL'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.folder_open_outlined, size: 48, color: Color(0xFF667085)),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Project not found',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF101828)),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => ref.invalidate(projectDetailsProvider(widget.projectId)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF276572),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
 
           return ExcludeSemantics(
             child: SafeArea(
               child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,9 +540,15 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                         Row(
                           children: [
                             _buildBadge(
-                              project.status.label.toUpperCase(),
-                              project.status.bgColor,
-                              project.status.textColor,
+                              project.assignmentMethod == 'self_managed'
+                                  ? 'SELF MANAGED'
+                                  : project.status.label.toUpperCase(),
+                              project.assignmentMethod == 'self_managed'
+                                  ? const Color(0xFFF0FBFB)
+                                  : project.status.bgColor,
+                              project.assignmentMethod == 'self_managed'
+                                  ? const Color(0xFF276572)
+                                  : project.status.textColor,
                             ),
                             const SizedBox(width: 8),
                             _buildBadge(
@@ -236,120 +564,184 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
 
                     imagesAsync.when(
                       data: (images) {
-                        final primaryImage = images.firstWhere(
-                          (img) => img.isPrimary,
-                          orElse: () => images.isNotEmpty
-                              ? images.first
-                              : ProjectImage(
-                                  id: '',
-                                  projectId: '',
-                                  fileUrl: '',
-                                  fileSize: 0,
-                                  mimeType: '',
-                                  isPrimary: false,
-                                  createdAt: DateTime.now(),
-                                  updatedAt: DateTime.now(),
-                                ),
-                        );
-                        return Container(
-                          height: 220,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            color: Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
+                        final coverImages = images;
+
+                        if (coverImages.isEmpty) {
+                          return GestureDetector(
+                            onTap: _updateThumbnail,
+                            child: Container(
+                              height: 220,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                color: Colors.white,
                               ),
-                            ],
-                          ),
-                          clipBehavior: Clip.antiAlias,
+                              clipBehavior: Clip.antiAlias,
+                              child: _buildHeroPlaceholder(),
+                            ),
+                          );
+                        }
+
+                        return SizedBox(
+                          height: 220,
                           child: Stack(
-                            fit: StackFit.expand,
                             children: [
-                              primaryImage.fileUrl.isNotEmpty
-                                  ? Image.network(
-                                      primaryImage.fileUrl,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (
-                                            context,
-                                            error,
-                                            stackTrace,
-                                          ) => Image.asset(
-                                            'assets/images/lekki-complex.png',
-                                            fit: BoxFit.cover,
-                                          ),
-                                    )
-                                  : Image.asset(
-                                      'assets/images/lekki-complex.png',
-                                      fit: BoxFit.cover,
+                              PageView.builder(
+                                itemCount: coverImages.length,
+                                itemBuilder: (context, index) {
+                                  final img = coverImages[index];
+                                  return Container(
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(20),
+                                      color: const Color(0xFFE4E7EC),
                                     ),
+                                    clipBehavior: Clip.antiAlias,
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        Image.network(
+                                          img.fileUrl,
+                                          fit: BoxFit.cover,
+                                          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                                            if (wasSynchronouslyLoaded || frame != null) return child;
+                                            return AnimatedOpacity(
+                                              opacity: 0,
+                                              duration: Duration.zero,
+                                              child: child,
+                                            );
+                                          },
+                                          loadingBuilder: (context, child, progress) {
+                                            if (progress == null) return child;
+                                            return const _ImageSkeleton();
+                                          },
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  _buildHeroPlaceholder(),
+                                        ),
+                                        if (img.isPrimary)
+                                          Positioned(
+                                            top: 12,
+                                            left: 12,
+                                            child: _buildBadge(
+                                              'PRIMARY',
+                                              const Color(0xFF276572),
+                                              Colors.white,
+                                            ),
+                                          ),
+                                        // Only show delete icon if at limit (3 images)
+                                        // This keeps UI clean for new projects
+                                        if (coverImages.length >= 3)
+                                          Positioned(
+                                            top: 12,
+                                            right: 12,
+                                            child: GestureDetector(
+                                              onTap: () =>
+                                                  _confirmDeleteThumbnail(img),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(
+                                                  8,
+                                                ),
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.red,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.delete_outline,
+                                                  color: Colors.white,
+                                                  size: 20,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
                               Align(
                                 alignment: Alignment.bottomRight,
                                 child: Padding(
                                   padding: const EdgeInsets.all(16),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: BackdropFilter(
-                                      filter: ImageFilter.blur(
-                                        sigmaX: 5,
-                                        sigmaY: 5,
-                                      ),
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.2,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (coverImages.length < 3) ...[
+                                        _buildHeroAction(
+                                          Icons.camera_alt_outlined,
+                                          'Add',
+                                          _updateThumbnail,
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ] else ...[
+                                        // At max capacity - show helpful hint
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
                                           ),
-                                          border: Border.all(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.3,
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.shade100,
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.red.shade300,
                                             ),
                                           ),
-                                          borderRadius: BorderRadius.circular(
-                                            10,
+                                          child: Text(
+                                            'Max 3 images',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.red.shade700,
+                                            ),
                                           ),
                                         ),
-                                        child: Material(
-                                          color: Colors.transparent,
-                                          child: InkWell(
-                                            onTap: _updateThumbnail,
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                    vertical: 8,
-                                                  ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: const [
-                                                  Icon(
-                                                    Icons.camera_alt_outlined,
-                                                    color: Colors.white,
-                                                    size: 18,
-                                                  ),
-                                                  SizedBox(width: 8),
-                                                  Text(
-                                                    'Update Thumbnail',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 13,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      _buildHeroAction(
+                                        Icons.apps,
+                                        'All',
+                                        () => _showModal(
+                                          context,
+                                          ProjectImagesModal(
+                                            projectId: widget.projectId,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if (coverImages.length > 1)
+                                Align(
+                                  alignment: Alignment.bottomCenter,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: List.generate(
+                                        coverImages.length,
+                                        (index) => Container(
+                                          width: 8,
+                                          height: 8,
+                                          margin: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                          ),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.white,
+                                            shape: BoxShape.circle,
                                           ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
                             ],
                           ),
                         );
@@ -377,20 +769,56 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: _buildStatCard(
-                            'OVERALL PROGRESS',
-                            '68%',
-                            progress: 0.68,
+                          child: phasesAsync.when(
+                            data: (phasesResponse) {
+                              final phases = phasesResponse.data;
+                              final pct = phases.isEmpty
+                                  ? 0
+                                  : ((phases.where((p) => p.status == 'completed').length /
+                                          phases.length) *
+                                      100)
+                                      .round();
+                              return _buildStatCard(
+                                'OVERALL PROGRESS',
+                                '$pct%',
+                                progress: pct / 100,
+                              );
+                            },
+                            loading: () => _buildStatCard('OVERALL PROGRESS', '...'),
+                            error: (err, st) => _buildStatCard('OVERALL PROGRESS', '0%', progress: 0),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: financialsAsync.when(
-                            data: (financials) => _buildStatCard(
-                              'BUDGET UTILIZED',
-                              '${financials.budgetUtilizedPercentage}%',
-                              subtext:
-                                  '${financials.formattedEarnedValue} / ${financials.formattedContractValue}',
+                            data: (financials) => projectAsync.when(
+                              data: (pResponse) {
+                                final p = pResponse.data;
+                                final currency = p?.currency ?? '';
+                                final contractDisplay =
+                                    financials.hasContractValue
+                                    ? financials.formattedContractValue(
+                                        currency,
+                                      )
+                                    : (p?.formattedBudget ?? '--');
+
+                                return _buildStatCard(
+                                  'BUDGET UTILIZED',
+                                  '${financials.budgetUtilizedPercentage}%',
+                                  subtext:
+                                      '${financials.formattedEarnedValue(currency)} / $contractDisplay',
+                                );
+                              },
+                              loading: () => _buildStatCard(
+                                'BUDGET UTILIZED',
+                                '${financials.budgetUtilizedPercentage}%',
+                                subtext: 'Loading...',
+                              ),
+                              error: (_, _) => _buildStatCard(
+                                'BUDGET UTILIZED',
+                                '${financials.budgetUtilizedPercentage}%',
+                                subtext: 'Error',
+                              ),
                             ),
                             loading: () => _buildStatCard(
                               'BUDGET UTILIZED',
@@ -431,17 +859,32 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                                 'Overview',
                                 isActive: true,
                                 onTapped: () {
-                                  final scheduleAsync = ref.read(projectScheduleProvider(widget.projectId));
-                                  if (scheduleAsync.hasError || (scheduleAsync.hasValue && (scheduleAsync.value == null || scheduleAsync.value!.phases.isEmpty))) {
+                                  final scheduleAsync = ref.read(
+                                    projectScheduleProvider(widget.projectId),
+                                  );
+                                  if (scheduleAsync.hasError ||
+                                      (scheduleAsync.hasValue &&
+                                          (scheduleAsync.value == null ||
+                                              scheduleAsync
+                                                  .value!
+                                                  .phases
+                                                  .isEmpty))) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Wait for the contractor to create a project schedule to view the overview.'),
+                                      SnackBar(
+                                        content: Text(
+                                          project.assignmentMethod == 'self_managed'
+                                              ? 'Create a project schedule first to view the overview.'
+                                              : 'Wait for the contractor to create a project schedule to view the overview.',
+                                        ),
                                         backgroundColor: Colors.orange,
                                       ),
                                     );
                                     return;
                                   }
-                                  _showModal(context, OverviewModal(projectId: widget.projectId));
+                                  _showModal(
+                                    context,
+                                    OverviewModal(projectId: widget.projectId),
+                                  );
                                 },
                               ),
                             ),
@@ -455,30 +898,32 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                                 ScheduleModal(projectId: widget.projectId),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Consumer(
-                              builder: (context, ref, child) {
-                                final openBidsCountAsync = ref.watch(
-                                  projectOpenBidsCountProvider(
-                                    widget.projectId,
-                                  ),
-                                );
-                                final badgeCount =
-                                    openBidsCountAsync.asData?.value;
-                                return _buildTabItemWithBadge(
-                                  Icons.gavel,
-                                  'Bids',
-                                  isActive: false,
-                                  badge: badgeCount != null && badgeCount > 0
-                                      ? badgeCount
-                                      : null,
-                                  onTapped: () => _showModal(
-                                    context,
-                                    BidsModal(projectId: widget.projectId),
-                                  ),
-                                );
-                              },
-                            ),
+                            if (project.assignmentMethod != 'self_managed') ...[
+                              const SizedBox(width: 12),
+                              Consumer(
+                                builder: (context, ref, child) {
+                                  final openBidsCountAsync = ref.watch(
+                                    projectOpenBidsCountProvider(
+                                      widget.projectId,
+                                    ),
+                                  );
+                                  final badgeCount =
+                                      openBidsCountAsync.asData?.value;
+                                  return _buildTabItemWithBadge(
+                                    Icons.gavel,
+                                    'Bids',
+                                    isActive: false,
+                                    badge: badgeCount != null && badgeCount > 0
+                                        ? badgeCount
+                                        : null,
+                                    onTapped: () => _showModal(
+                                      context,
+                                      BidsModal(projectId: widget.projectId),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                             const SizedBox(width: 12),
                             _buildTabItem(
                               'assets/images/field_inspection.svg',
@@ -498,17 +943,32 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                                 'Reports',
                                 isActive: false,
                                 onTapped: () {
-                                  final scheduleAsync = ref.read(projectScheduleProvider(widget.projectId));
-                                  if (scheduleAsync.hasError || (scheduleAsync.hasValue && (scheduleAsync.value == null || scheduleAsync.value!.phases.isEmpty))) {
+                                  final scheduleAsync = ref.read(
+                                    projectScheduleProvider(widget.projectId),
+                                  );
+                                  if (scheduleAsync.hasError ||
+                                      (scheduleAsync.hasValue &&
+                                          (scheduleAsync.value == null ||
+                                              scheduleAsync
+                                                  .value!
+                                                  .phases
+                                                  .isEmpty))) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text('Daily reports will be available once the project schedule is created.'),
+                                        content: Text(
+                                          'Daily reports will be available once the project schedule is created.',
+                                        ),
                                         backgroundColor: Colors.orange,
                                       ),
                                     );
                                     return;
                                   }
-                                  _showModal(context, ProjectDailyReportsModal(projectId: widget.projectId));
+                                  _showModal(
+                                    context,
+                                    ProjectDailyReportsModal(
+                                      projectId: widget.projectId,
+                                    ),
+                                  );
                                 },
                               ),
                             ),
@@ -560,13 +1020,15 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
                               'Messages',
                               isActive: false,
                               onTapped: () {
-                                if (projectAsync.hasValue && projectAsync.value!.data != null) {
+                                if (projectAsync.hasValue &&
+                                    projectAsync.value!.data != null) {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => MessageDetailsScreen(
-                                        project: projectAsync.value!.data!,
-                                      ),
+                                      builder: (context) =>
+                                          MessageDetailsScreen(
+                                            project: projectAsync.value!.data!,
+                                          ),
                                     ),
                                   );
                                 }
@@ -768,6 +1230,46 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => modal,
+    );
+  }
+}
+
+class _ImageSkeleton extends StatefulWidget {
+  const _ImageSkeleton();
+
+  @override
+  State<_ImageSkeleton> createState() => _ImageSkeletonState();
+}
+
+class _ImageSkeletonState extends State<_ImageSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<Color?> _color;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _color = ColorTween(
+      begin: const Color(0xFFE4E7EC),
+      end: const Color(0xFFF2F4F7),
+    ).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _color,
+      builder: (_, _) => ColoredBox(color: _color.value!),
     );
   }
 }

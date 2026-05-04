@@ -49,6 +49,16 @@ class TeamRepository {
     await _apiClient.post('/api/v1/team/invitations', data: payload.toJson());
   }
 
+  /// Adds an existing Converf user to the workspace team by email.
+  /// Used as a fallback when the invitation endpoint rejects an already-registered email.
+  Future<void> addExistingMember(InviteMemberPayload payload) async {
+    await _apiClient.post('/api/v1/team/members', data: {
+      'email': payload.email,
+      'role': payload.role,
+      if (payload.projectId != null) 'project_id': payload.projectId,
+    });
+  }
+
   Future<dynamic> exportTeamMembers() async {
     final response = await _apiClient.get('/api/v1/team/export');
     return response.data;

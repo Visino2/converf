@@ -44,11 +44,12 @@ class _ContractorProjectSettingsScreenState
         centerTitle: true,
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+/*
               const Text(
                 'Visibility & Public Profile',
                 style: TextStyle(
@@ -92,6 +93,8 @@ class _ContractorProjectSettingsScreenState
                   ),
                 ),
               ),
+*/
+              const Center(child: Text('Settings Coming Soon')),
             ],
           ),
         ),
@@ -99,6 +102,7 @@ class _ContractorProjectSettingsScreenState
     );
   }
 
+  // ignore: unused_element
   Widget _buildSettingItem(String title, String subtitle) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

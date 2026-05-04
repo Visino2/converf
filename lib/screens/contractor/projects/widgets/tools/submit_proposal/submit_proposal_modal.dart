@@ -7,6 +7,28 @@ import 'package:converf/features/marketplace/models/marketplace_responses.dart';
 import 'package:converf/features/marketplace/providers/marketplace_providers.dart';
 import 'package:converf/screens/contractor/projects/schedule/schedule_screen.dart';
 import 'package:converf/screens/contractor/projects/widgets/tools/marketplace_screen.dart';
+import 'package:intl/intl.dart';
+
+class _CurrencyInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.selection.baseOffset == 0) return newValue;
+
+    final text = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (text.isEmpty) return newValue.copyWith(text: '');
+
+    final value = int.parse(text);
+    final formatted = NumberFormat('#,###').format(value);
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
 
 class SubmitProposalModal extends ConsumerStatefulWidget {
   final String projectId;
@@ -21,35 +43,16 @@ class SubmitProposalModal extends ConsumerStatefulWidget {
 class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
   final _bidAmountController = TextEditingController();
   final _proposalController = TextEditingController();
-  final _equipmentController = TextEditingController();
-
-  String? _duration;
-  String? _paymentPreference;
-  final List<Map<String, dynamic>> _milestones = [];
   final List<String> _documentPaths = [];
+  String? _selectedScheduleId;
 
   bool _isSuccess = false;
   String? _submittedBidId;
-
-  final List<String> _durationOptions = [
-    '1 Month',
-    '3 Months',
-    '6 Months',
-    '12 Months',
-    'Flexible',
-  ];
-  final List<String> _paymentOptions = [
-    'Milestone-based',
-    'Lump Sum',
-    'Weekly',
-    'Monthly',
-  ];
 
   @override
   void dispose() {
     _bidAmountController.dispose();
     _proposalController.dispose();
-    _equipmentController.dispose();
     super.dispose();
   }
 
@@ -60,7 +63,8 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
     final amount = double.tryParse(text);
     return amount != null &&
         amount > 0 &&
-        _proposalController.text.trim().length >= 20;
+        _proposalController.text.trim().length >= 20 &&
+        _selectedScheduleId != null;
   }
 
   Future<void> _submitBid() async {
@@ -72,12 +76,6 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
     final amount = double.tryParse(amountText) ?? 0.0;
 
     try {
-      final equipmentList = _equipmentController.text
-          .split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList();
-
       final response = await ref
           .read(marketplaceActionProvider.notifier)
           .submitBid(
@@ -85,10 +83,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
             SubmitBidPayload(
               amount: amount,
               proposal: _proposalController.text.trim(),
-              duration: _duration,
-              paymentPreference: _paymentPreference,
-              equipment: equipmentList.isNotEmpty ? equipmentList : null,
-              milestones: _milestones.isNotEmpty ? _milestones : null,
+              scheduleId: _selectedScheduleId,
               documentPaths: _documentPaths.isNotEmpty ? _documentPaths : null,
             ),
           );
@@ -96,7 +91,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
       if (mounted) {
         setState(() {
           _isSuccess = true;
-          _submittedBidId = response.data?.id ?? 'N/A';
+          _submittedBidId = response.data?.id;
         });
       }
     } catch (e) {
@@ -110,10 +105,19 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
   }
 
   Future<void> _pickDocuments() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg'],
+      allowedExtensions: [
+        'pdf',
+        'doc',
+        'docx',
+        'xls',
+        'xlsx',
+        'png',
+        'jpg',
+        'jpeg',
+      ],
     );
 
     if (result != null && result.files.isNotEmpty) {
@@ -131,6 +135,45 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
     setState(() {
       _documentPaths.removeAt(index);
     });
+  }
+
+  void _selectSchedule() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Schedule'),
+        content: const Text(
+          'Create your schedule now. It will be linked to your bid when you submit.',
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final scheduleId = await Navigator.push<String>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ScheduleScreen(
+                    projectId: widget.projectId,
+                    isEmbedded: true,
+                  ),
+                ),
+              );
+              if (scheduleId != null) {
+                setState(() {
+                  _selectedScheduleId = scheduleId;
+                });
+              }
+            },
+            child: const Text('Create Schedule'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -194,7 +237,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    const Text(
                       'Enter your bid amount and proposal.',
                       style: TextStyle(fontSize: 14, color: Color(0xFF667085)),
                     ),
@@ -213,10 +256,14 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
         // Scrollable Body
         Flexible(
           child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Amount
                 const Text(
                   'Your bid amount',
                   style: TextStyle(
@@ -229,6 +276,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                 TextField(
                   controller: _bidAmountController,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [_CurrencyInputFormatter()],
                   style: const TextStyle(
                     fontSize: 16,
                     color: Color(0xFF101828),
@@ -264,206 +312,120 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                 ),
                 const SizedBox(height: 24),
 
-                // Duration & Payment Preference
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Duration',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF344054),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: const Color(0xFFD0D5DD),
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: DropdownButton<String>(
-                              value: _duration,
-                              hint: const Text('Select'),
-                              isExpanded: true,
-                              underline: const SizedBox(),
-                              items: _durationOptions
-                                  .map(
-                                    (e) => DropdownMenuItem(
-                                      value: e,
-                                      child: Text(e),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (v) => setState(() => _duration = v),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Payment',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF344054),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: const Color(0xFFD0D5DD),
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: DropdownButton<String>(
-                              value: _paymentPreference,
-                              hint: const Text('Select'),
-                              isExpanded: true,
-                              underline: const SizedBox(),
-                              items: _paymentOptions
-                                  .map(
-                                    (e) => DropdownMenuItem(
-                                      value: e,
-                                      child: Text(e),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (v) =>
-                                  setState(() => _paymentPreference = v),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Milestones Builder
+                // Attach Schedule
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Milestones',
+                      'Attach Schedule',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF344054),
                       ),
                     ),
-                    TextButton.icon(
-                      onPressed: _showAddMilestoneDialog,
-                      icon: const Icon(
-                        Icons.add,
-                        size: 16,
-                        color: Color(0xFF276572),
-                      ),
-                      label: const Text(
-                        'Add',
-                        style: TextStyle(color: Color(0xFF276572)),
+                    const Text(
+                      'Required',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFB42318),
                       ),
                     ),
                   ],
                 ),
-                if (_milestones.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFFEAECF0)),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _milestones.length,
-                      separatorBuilder: (c, i) =>
-                          const Divider(height: 1, color: Color(0xFFEAECF0)),
-                      itemBuilder: (context, index) {
-                        final m = _milestones[index];
-                        return ListTile(
-                          title: Text(
-                            m['title'],
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '₦${m['amount']} • Due: ${m['due_date']}',
-                            style: const TextStyle(
-                              color: Colors.black54,
-                              fontSize: 12,
-                            ),
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.red,
-                              size: 18,
-                            ),
-                            onPressed: () =>
-                                setState(() => _milestones.removeAt(index)),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 24),
-
-                // Equipment Section
-                const Text(
-                  'Equipment (comma-separated)',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF344054),
-                  ),
-                ),
                 const SizedBox(height: 8),
-                TextField(
-                  controller: _equipmentController,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF101828),
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'e.g., Excavator, Crane',
-                    contentPadding: const EdgeInsets.all(14),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFFD0D5DD)),
+                if (_selectedScheduleId != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
                     ),
-                    enabledBorder: OutlineInputBorder(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFFD0D5DD)),
+                      border: Border.all(color: const Color(0xFF6EE7B7)),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.check_circle,
+                          color: Color(0xFF059669),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Schedule attached',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF065F46),
+                                ),
+                              ),
+                              Text(
+                                'Your schedule is ready and will be submitted with your bid.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF047857),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: isLoading ? null : _selectSchedule,
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'Change',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF276572),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  OutlinedButton.icon(
+                    onPressed: isLoading ? null : _selectSchedule,
+                    icon: const Icon(
+                      Icons.calendar_today,
+                      size: 18,
+                      color: Color(0xFF276572),
+                    ),
+                    label: const Text(
+                      'Create a schedule',
+                      style: TextStyle(
                         color: Color(0xFF276572),
-                        width: 2,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 16,
+                      ),
+                      side: const BorderSide(color: Color(0xFFD0D5DD)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      minimumSize: const Size(double.infinity, 48),
+                      alignment: Alignment.centerLeft,
+                    ),
                   ),
-                ),
                 const SizedBox(height: 24),
 
-                // Proposal Section
+                // Proposal
                 const Text(
                   'Proposal',
                   style: TextStyle(
@@ -475,9 +437,9 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: _proposalController,
-                  maxLines: 8,
+                  maxLines: 6,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     color: Color(0xFF101828),
                   ),
                   decoration: InputDecoration(
@@ -516,7 +478,11 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: isLoading ? null : _pickDocuments,
-                  icon: const Icon(Icons.upload, size: 20, color: Color(0xFF276572)),
+                  icon: const Icon(
+                    Icons.upload,
+                    size: 20,
+                    color: Color(0xFF276572),
+                  ),
                   label: const Text(
                     'Add documents',
                     style: TextStyle(
@@ -525,7 +491,10 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 16,
+                    ),
                     side: const BorderSide(color: Color(0xFFD0D5DD)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -548,14 +517,21 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                       final sizeStr = (size / (1024 * 1024)).toStringAsFixed(2);
 
                       return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           border: Border.all(color: const Color(0xFFE4E7EC)),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.attach_file, size: 18, color: Color(0xFF667185)),
+                            const Icon(
+                              Icons.attach_file,
+                              size: 18,
+                              color: Color(0xFF667185),
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Column(
@@ -582,8 +558,14 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Color(0xFFB42318), size: 20),
-                              onPressed: isLoading ? null : () => _removeDocument(index),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Color(0xFFB42318),
+                                size: 20,
+                              ),
+                              onPressed: isLoading
+                                  ? null
+                                  : () => _removeDocument(index),
                             ),
                           ],
                         ),
@@ -591,7 +573,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                     },
                   ),
                 ],
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 const Text(
                   'Up to 5 files, 10MB each. Allowed: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, JPEG.',
                   style: TextStyle(fontSize: 12, color: Color(0xFF667085)),
@@ -602,6 +584,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
         ),
 
         // Footer
+        const Divider(height: 1, color: Color(0xFFF2F4F7)),
         Padding(
           padding: const EdgeInsets.all(24.0),
           child: Row(
@@ -665,7 +648,8 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
   }
 
   Widget _buildSuccessScreen() {
-    return Padding(
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -673,7 +657,7 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: const BoxDecoration(
-              color: Color(0xFF16A34A), // Vibrant green from screenshot
+              color: Color(0xFF099137),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.check, size: 48, color: Colors.white),
@@ -724,39 +708,46 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
             style: TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
           ),
           const SizedBox(height: 48),
-          // Submit Schedule Button (Primary)
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Close modal
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ScheduleScreen(projectId: widget.projectId),
+
+          // Submit Schedule (creates schedule linked to this specific bid)
+          if (_submittedBidId != null)
+            ElevatedButton(
+              onPressed: () {
+                final bidId = _submittedBidId!;
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ScheduleScreen(
+                      bidId: bidId,
+                      projectId: widget.projectId,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF276572),
+                minimumSize: const Size(double.infinity, 56),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF276572),
-              minimumSize: const Size(double.infinity, 56),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                elevation: 0,
               ),
-              elevation: 0,
-            ),
-            child: const Text(
-              'Submit Schedule',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+              child: const Text(
+                'Submit Schedule',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ),
-          ),
           const SizedBox(height: 12),
-          // Go to My Bids Button (Outlined with Arrow Icon)
+
+          // Go to My Bids
           OutlinedButton(
             onPressed: () {
-              Navigator.pop(context); // Close modal
+              Navigator.pop(context);
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -787,72 +778,6 @@ class _SubmitProposalModalState extends ConsumerState<SubmitProposalModal> {
                 Icon(Icons.north_east, size: 18, color: Color(0xFF276572)),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddMilestoneDialog() {
-    final titleCtrl = TextEditingController();
-    final amountCtrl = TextEditingController();
-    final dateCtrl =
-        TextEditingController(); // Simple string for now, could use DatePicker
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Milestone', style: TextStyle(fontSize: 18)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                hintText: 'e.g., Foundation completion',
-              ),
-            ),
-            TextField(
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Amount (₦)'),
-            ),
-            TextField(
-              controller: dateCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Due Date',
-                hintText: 'YYYY-MM-DD',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.black54),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (titleCtrl.text.isNotEmpty && amountCtrl.text.isNotEmpty) {
-                setState(() {
-                  _milestones.add({
-                    'title': titleCtrl.text.trim(),
-                    'amount': double.tryParse(amountCtrl.text.trim()) ?? 0.0,
-                    'due_date': dateCtrl.text.trim(),
-                  });
-                });
-                Navigator.pop(ctx);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF276572),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Add'),
           ),
         ],
       ),

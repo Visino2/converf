@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../../features/team/providers/team_providers.dart';
 import '../../../../../../features/team/models/invite_member_payload.dart';
 import '../../../../../../features/projects/providers/project_providers.dart';
+import '../../../../../../features/auth/repositories/auth_repository.dart';
 
 class AddTeamModal extends ConsumerStatefulWidget {
   final VoidCallback onNavigateToProjects;
@@ -54,17 +55,36 @@ class _AddTeamModalState extends ConsumerState<AddTeamModal> {
           _selectedCountry != null;
     }
     if (_currentStep == 2) {
-      return _selectedRole != null && _assignedProject != null;
+      return _selectedRole != null;
     }
     return true;
   }
 
   bool _isLoading = false;
+  String? _emailError;
 
   void _nextStep() async {
     if (!_isStepValid()) return;
-    
+
     if (_currentStep == 1) {
+      setState(() { _isLoading = true; _emailError = null; });
+      try {
+        final exists = await ref
+            .read(authRepositoryProvider)
+            .checkEmailExists(_emailController.text.trim());
+        if (!mounted) return;
+        if (exists) {
+          setState(() {
+            _isLoading = false;
+            _emailError = 'This email is already registered';
+          });
+          return;
+        }
+      } catch (_) {
+        // If check fails, let the server catch it later
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
       setState(() => _currentStep++);
     } else if (_currentStep == 2) {
       setState(() => _isLoading = true);
@@ -342,12 +362,12 @@ class _AddTeamModalState extends ConsumerState<AddTeamModal> {
           'Recipient\'s Email Address',
           _emailController,
           hint: 'Enter Recipient\'s Email Address',
-          errorText: _isEmailDirty && !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(_emailController.text.trim())
+          errorText: _emailError ?? (_isEmailDirty && !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(_emailController.text.trim())
               ? 'Please enter a valid email address'
-              : null,
+              : null),
           onChanged: (val) {
             if (!_isEmailDirty) setState(() => _isEmailDirty = true);
-            setState(() {});
+            setState(() => _emailError = null);
           },
         ),
         const SizedBox(height: 24),
@@ -477,14 +497,22 @@ class _AddTeamModalState extends ConsumerState<AddTeamModal> {
             color: Color(0xFF111827),
           ),
         ),
+        const SizedBox(height: 4),
+        const Text(
+          'Tap a project below to assign this member (optional)',
+          style: TextStyle(
+            fontSize: 12,
+            color: Color(0xFF6B7280),
+          ),
+        ),
         const SizedBox(height: 12),
         projectsAsync.when(
           data: (projectsData) {
             final projectList = projectsData.data;
             if (projectList.isEmpty) {
               return Text(
-                'No projects found. Please create a project first.',
-                style: TextStyle(color: Colors.grey.shade500),
+                'No projects yet — you can assign this member to a project later.',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
               );
             }
             return Column(

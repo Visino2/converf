@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/new_project/models/new_project_state.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/new_project/providers/wizard_provider.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/new_project/widgets/shared_widgets.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class StepReview extends ConsumerWidget {
   const StepReview({super.key});
@@ -104,7 +106,13 @@ class StepReview extends ConsumerWidget {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(color: const Color(0xFFF0FBFB), borderRadius: BorderRadius.circular(12)),
                   child: SvgPicture.asset(
-                    state.assignmentMethod == 'tender' ? 'assets/images/projects.svg' : (state.assignmentMethod == 'direct' ? 'assets/images/group-1.svg' : 'assets/images/Calendar-1.svg'),
+                    state.assignmentMethod == 'tender'
+                        ? 'assets/images/projects.svg'
+                        : state.assignmentMethod == 'direct'
+                            ? 'assets/images/group-1.svg'
+                            : state.assignmentMethod == 'self_managed'
+                                ? 'assets/images/edit-profile.svg'
+                                : 'assets/images/Calendar-1.svg',
                     width: 24,
                     height: 24,
                     colorFilter: const ColorFilter.mode(Color(0xFF276572), BlendMode.srcIn),
@@ -116,7 +124,13 @@ class StepReview extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        state.assignmentMethod == 'tender' ? 'Public Tender' : (state.assignmentMethod == 'direct' ? 'Direct Assignment' : 'Decide Later'),
+                        state.assignmentMethod == 'tender'
+                            ? 'Public Tender'
+                            : state.assignmentMethod == 'direct'
+                                ? 'Direct Assignment'
+                                : state.assignmentMethod == 'self_managed'
+                                    ? 'Self Managed'
+                                    : 'Decide Later',
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF111827)),
                       ),
                       if (state.assignmentMethod == 'tender' && state.biddingDeadline != null)
@@ -166,27 +180,67 @@ class StepReview extends ConsumerWidget {
     return Column(
       children: [
         _buildCheckboxRow(
-          state.confirmInfo,
-          (val) => notifier.updateReview(confirmInfo: val ?? false),
-          'I confirm all information provided is accurate and reflect the true scope of the project.',
+          value: state.confirmInfo,
+          onChanged: (val) => notifier.updateReview(confirmInfo: val ?? false),
+          child: Text(
+            'I confirm all information provided is accurate and reflect the true scope of the project.',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.4),
+          ),
         ),
         const SizedBox(height: 16),
         _buildCheckboxRow(
-          state.agreeTerms,
-          (val) => notifier.updateReview(agreeTerms: val ?? false),
-          'I agree to Converf\'s Terms & Conditions regarding project quality monitoring.',
+          value: state.agreeTerms,
+          onChanged: (val) => notifier.updateReview(agreeTerms: val ?? false),
+          child: RichText(
+            text: TextSpan(
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.4),
+              children: [
+                const TextSpan(text: "I agree to Converf's "),
+                TextSpan(
+                  text: 'Terms & Conditions',
+                  style: const TextStyle(
+                    color: Color(0xFF2A8090),
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.underline,
+                  ),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () async {
+                      final uri = Uri.parse('https://converf.com/terms-of-use');
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                ),
+                const TextSpan(text: ' regarding project quality monitoring.'),
+              ],
+            ),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildCheckboxRow(bool value, Function(bool?)? onChanged, String text) {
+  Widget _buildCheckboxRow({
+    required bool value,
+    required Function(bool?)? onChanged,
+    required Widget child,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 24, height: 24, child: Checkbox(value: value, onChanged: onChanged, activeColor: const Color(0xFF309DAA))),
+        SizedBox(
+          width: 24,
+          height: 24,
+          child: Checkbox(
+            value: value,
+            onChanged: onChanged,
+            activeColor: const Color(0xFF309DAA),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            side: const BorderSide(color: Color(0xFFD0D5DD)),
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: Text(text, style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.4))),
+        Expanded(child: Padding(padding: const EdgeInsets.only(top: 2), child: child)),
       ],
     );
   }

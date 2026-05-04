@@ -11,9 +11,15 @@ num? _parseNum(dynamic value, [String? fieldName]) {
   if (value is Map) {
     if (value.isEmpty) return null;
     debugPrint('DEBUG: field $fieldName expected num? but got Map: $value');
-    if (value.containsKey('amount')) return _parseNum(value['amount'], fieldName);
-    if (value.containsKey('value')) return _parseNum(value['value'], fieldName);
-    if (value.containsKey('id')) return _parseNum(value['id'], fieldName);
+    if (value.containsKey('amount')) {
+      return _parseNum(value['amount'], fieldName);
+    }
+    if (value.containsKey('value')) {
+      return _parseNum(value['value'], fieldName);
+    }
+    if (value.containsKey('id')) {
+      return _parseNum(value['id'], fieldName);
+    }
   }
   return null;
 }
@@ -225,10 +231,13 @@ class ProjectParty {
     // Web API can have company_name at top level or inside profile
     String? companyName = json['company_name']?.toString();
     if (companyName == null && json['profile'] is Map) {
-      companyName = (json['profile'] as Map<String, dynamic>)['company_name']?.toString();
+      companyName = (json['profile'] as Map<String, dynamic>)['company_name']
+          ?.toString();
     }
     if (companyName == null && json['contractor_profile'] is Map) {
-      companyName = (json['contractor_profile'] as Map<String, dynamic>)['company_name']?.toString();
+      companyName =
+          (json['contractor_profile'] as Map<String, dynamic>)['company_name']
+              ?.toString();
     }
 
     return ProjectParty(
@@ -237,14 +246,22 @@ class ProjectParty {
       lastName: json['last_name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       companyName: companyName,
-      avatar: ProjectImage.normalizeImageUrl(json['avatar']?.toString()),
-      avatarUrl: ProjectImage.normalizeImageUrl(json['avatar_url']?.toString()),
+      avatar: ProjectImage.normalizeImageUrl(
+        json['avatar']?.toString(),
+        timestamp: json['updated_at']?.toString(),
+      ),
+      avatarUrl: ProjectImage.normalizeImageUrl(
+        json['avatar_url']?.toString(),
+        timestamp: json['updated_at']?.toString(),
+      ),
     );
   }
 
-  String get displayName => companyName != null && companyName!.isNotEmpty 
-      ? companyName! 
-      : '$firstName $lastName'.trim().isEmpty ? 'Unknown' : '$firstName $lastName'.trim();
+  String get displayName => companyName != null && companyName!.isNotEmpty
+      ? companyName!
+      : '$firstName $lastName'.trim().isEmpty
+      ? 'Unknown'
+      : '$firstName $lastName'.trim();
 }
 
 class Project {
@@ -276,6 +293,7 @@ class Project {
   final String createdAt;
   final String? updatedAt;
   final String? coverImage;
+  final List<ProjectImage> coverImages;
   final Message? latestMessage;
   final double? siteLatitude;
   final double? siteLongitude;
@@ -298,16 +316,19 @@ class Project {
       if (value == null || value.isEmpty) return '';
       return value
           .split(' ')
-          .map((word) => word.isNotEmpty
-              ? word[0].toUpperCase() + word.substring(1).toLowerCase()
-              : '')
+          .map(
+            (word) => word.isNotEmpty
+                ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+                : '',
+          )
           .join(' ');
     }
 
-    final segments = [city, state, country]
-        .map(formatSegment)
-        .where((s) => s.isNotEmpty)
-        .toList();
+    final segments = [
+      city,
+      state,
+      country,
+    ].map(formatSegment).where((s) => s.isNotEmpty).toList();
     return segments.isNotEmpty
         ? segments.join(', ')
         : (location.isNotEmpty ? location : 'Location N/A');
@@ -376,11 +397,12 @@ class Project {
     required this.createdAt,
     this.updatedAt,
     this.coverImage,
+    List<ProjectImage>? coverImages,
     this.latestMessage,
     this.siteLatitude,
     this.siteLongitude,
     this.siteGeofenceRadiusM,
-  });
+  }) : coverImages = coverImages ?? [];
 
   factory Project.fromJson(Map<String, dynamic> json) {
     return Project(
@@ -389,7 +411,8 @@ class Project {
       description: json['description']?.toString() ?? '',
       constructionType: json['construction_type']?.toString() ?? '',
       status: ProjectStatus.fromString(json['status']?.toString() ?? ''),
-      currentStep: _parseNum(json['current_step'], 'current_step')?.toInt() ?? 1,
+      currentStep:
+          _parseNum(json['current_step'], 'current_step')?.toInt() ?? 0,
       isBookmarked: json['is_bookmarked'] == true,
       budget: json['budget']?.toString() ?? '0',
       currency: json['currency']?.toString() ?? '',
@@ -399,7 +422,9 @@ class Project {
       city: json['city']?.toString() ?? '',
       state: json['state']?.toString() ?? '',
       country: json['country']?.toString() ?? '',
-      urgencyLevel: UrgencyLevel.fromString(json['urgency_level']?.toString() ?? 'medium'),
+      urgencyLevel: UrgencyLevel.fromString(
+        json['urgency_level']?.toString() ?? 'medium',
+      ),
       assignmentMethod: json['assignment_method']?.toString() ?? '',
       biddingDeadline: json['bidding_deadline']?.toString(),
       bidsCount: _parseNum(json['bids_count'], 'bids_count')?.toInt(),
@@ -412,8 +437,15 @@ class Project {
           : null,
       matchRate: _parseNum(json['match_rate'], 'match_rate'),
       constructionSubType: json['construction_sub_type']?.toString(),
-      specialisations: (json['specialisations'] as List<dynamic>?)
-              ?.map((e) => (e is Map ? e['specialisation']?.toString() : e.toString()) ?? '')
+      specialisations:
+          (json['specialisations'] as List<dynamic>?)
+              ?.map(
+                (e) =>
+                    (e is Map
+                        ? e['specialisation']?.toString()
+                        : e.toString()) ??
+                    '',
+              )
               .where((s) => s.isNotEmpty)
               .cast<String>()
               .toList() ??
@@ -421,44 +453,106 @@ class Project {
       createdAt: json['created_at']?.toString() ?? '',
       updatedAt: json['updated_at']?.toString(),
       coverImage: ProjectImage.normalizeImageUrl(
-          json['cover_image']?.toString() ?? json['thumbnail']?.toString()),
-      latestMessage: json['latest_message'] != null 
-          ? Message.fromJson(json['latest_message'] as Map<String, dynamic>) 
+        json['cover_image']?.toString() ?? json['thumbnail']?.toString(),
+        timestamp: json['updated_at']?.toString(),
+      ),
+      coverImages:
+          (json['cover_images'] as List<dynamic>?)
+              ?.map((e) => ProjectImage.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      latestMessage: json['latest_message'] != null
+          ? Message.fromJson(json['latest_message'] as Map<String, dynamic>)
           : null,
-      siteLatitude: _parseNum(json['site_latitude'], 'site_latitude')?.toDouble(),
-      siteLongitude: _parseNum(json['site_longitude'], 'site_longitude')?.toDouble(),
-      siteGeofenceRadiusM: _parseNum(json['site_geofence_radius_m'], 'site_geofence_radius_m')?.toInt(),
+      siteLatitude: _parseNum(
+        json['site_latitude'],
+        'site_latitude',
+      )?.toDouble(),
+      siteLongitude: _parseNum(
+        json['site_longitude'],
+        'site_longitude',
+      )?.toDouble(),
+      siteGeofenceRadiusM: _parseNum(
+        json['site_geofence_radius_m'],
+        'site_geofence_radius_m',
+      )?.toInt(),
     );
   }
 }
 
 class ProjectFinancials {
-  final num totalContractValue;
+  final num? totalContractValue;
   final num totalEarned;
   final num totalPaid;
-  final String currency;
+  final String? currency;
 
   ProjectFinancials({
-    required this.totalContractValue,
+    this.totalContractValue,
     required this.totalEarned,
     required this.totalPaid,
-    required this.currency,
+    this.currency,
   });
 
-  String get formattedContractValue => '${currency == 'NGN' ? '₦' : currency} ${(totalContractValue / 1000000).toStringAsFixed(1)}M';
-  String get formattedEarnedValue => '${currency == 'NGN' ? '₦' : currency} ${(totalEarned / 1000000).toStringAsFixed(1)}M';
-  String get formattedPaidValue => '${currency == 'NGN' ? '₦' : currency} ${(totalPaid / 1000000).toStringAsFixed(1)}M';
-  
-  int get budgetUtilizedPercentage => totalContractValue > 0 
-      ? ((totalEarned / totalContractValue) * 100).toInt() 
+  bool get hasContractValue =>
+      totalContractValue != null && totalContractValue! > 0;
+
+  String formattedContractValue(String fallbackCurrency) {
+    final cur = (currency != null && currency!.isNotEmpty)
+        ? currency!
+        : fallbackCurrency;
+    final symbol = cur == 'NGN' ? '₦' : (cur == 'USD' ? '\$' : cur);
+    final val = totalContractValue ?? 0;
+
+    if (val >= 1000000) {
+      return '$symbol ${(val / 1000000).toStringAsFixed(1)}M';
+    } else if (val >= 1000) {
+      return '$symbol ${(val / 1000).toStringAsFixed(1)}K';
+    }
+    return '$symbol $val';
+  }
+
+  String formattedEarnedValue(String fallbackCurrency) {
+    final cur = (currency != null && currency!.isNotEmpty)
+        ? currency!
+        : fallbackCurrency;
+    final symbol = cur == 'NGN' ? '₦' : (cur == 'USD' ? '\$' : cur);
+
+    if (totalEarned >= 1000000) {
+      return '$symbol ${(totalEarned / 1000000).toStringAsFixed(1)}M';
+    } else if (totalEarned >= 1000) {
+      return '$symbol ${(totalEarned / 1000).toStringAsFixed(1)}K';
+    }
+    return '$symbol $totalEarned';
+  }
+
+  String formattedPaidValue(String fallbackCurrency) {
+    final cur = (currency != null && currency!.isNotEmpty)
+        ? currency!
+        : fallbackCurrency;
+    final symbol = cur == 'NGN' ? '₦' : (cur == 'USD' ? '\$' : cur);
+
+    if (totalPaid >= 1000000) {
+      return '$symbol ${(totalPaid / 1000000).toStringAsFixed(1)}M';
+    } else if (totalPaid >= 1000) {
+      return '$symbol ${(totalPaid / 1000).toStringAsFixed(1)}K';
+    }
+    return '$symbol $totalPaid';
+  }
+
+  int get budgetUtilizedPercentage =>
+      (totalContractValue != null && totalContractValue! > 0)
+      ? ((totalEarned / totalContractValue!) * 100).toInt()
       : 0;
 
   factory ProjectFinancials.fromJson(Map<String, dynamic> json) {
     return ProjectFinancials(
-      totalContractValue: _parseNum(json['total_contract_value'], 'total_contract_value') ?? 0,
+      totalContractValue: _parseNum(
+        json['total_contract_value'],
+        'total_contract_value',
+      ),
       totalEarned: _parseNum(json['total_earned'], 'total_earned') ?? 0,
       totalPaid: _parseNum(json['total_paid'], 'total_paid') ?? 0,
-      currency: json['currency'] as String? ?? '',
+      currency: json['currency'] as String?,
     );
   }
 }

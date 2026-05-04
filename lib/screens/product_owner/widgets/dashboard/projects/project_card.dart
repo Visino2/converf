@@ -1,22 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../features/projects/models/project.dart';
+import '../../../../../features/projects/providers/project_summary_providers.dart';
 import 'project_details_screen.dart';
 import '../new_project_modal.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class ProjectCard extends StatelessWidget {
+class ProjectCard extends ConsumerWidget {
   final Project project;
   final bool hasAlert;
 
-  const ProjectCard({
-    super.key,
-    required this.project,
-    this.hasAlert = false,
-  });
+  const ProjectCard({super.key, required this.project, this.hasAlert = false});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summaryAsync = ref.watch(projectSummaryProvider(project.id));
+
+    return summaryAsync.when(
+      data: (summary) => _buildProjectCard(context, summary.progressValue),
+      loading: () => _buildProjectCard(context, 0),
+      error: (err, stack) => _buildProjectCard(context, 0),
+    );
+  }
+
+  Widget _buildProjectCard(BuildContext context, int progressPercentage) {
     return GestureDetector(
       onTap: () {
         if (project.status == ProjectStatus.draft || project.currentStep < 5) {
@@ -49,7 +57,9 @@ class ProjectCard extends StatelessWidget {
             height: 380,
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: (project.coverImage != null && project.coverImage!.isNotEmpty)
+                image:
+                    (project.coverImage != null &&
+                        project.coverImage!.isNotEmpty)
                     ? NetworkImage(project.coverImage!) as ImageProvider
                     : const AssetImage('assets/images/bg-1.png'),
                 fit: BoxFit.cover,
@@ -58,7 +68,9 @@ class ProjectCard extends StatelessWidget {
             child: Container(
               // If we have a real thumbnail, add an overlay to ensure text is readable
               decoration: BoxDecoration(
-                color: (project.coverImage != null && project.coverImage!.isNotEmpty)
+                color:
+                    (project.coverImage != null &&
+                        project.coverImage!.isNotEmpty)
                     ? Colors.white.withValues(alpha: 0.65)
                     : Colors.transparent,
               ),
@@ -112,21 +124,35 @@ class ProjectCard extends StatelessWidget {
                       ),
                       Row(
                         children: [
+                          // Main status badge
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: project.assignmentMethod == 'decide_later'
+                                  ? const Color(
+                                      0xFFFFF3E0,
+                                    ) // Orange background for awaiting
+                                  : Colors.white,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              project.status.label,
+                              project.assignmentMethod == 'decide_later'
+                                  ? '⏸️ Awaiting Assignment'
+                                  : project.assignmentMethod == 'self_managed'
+                                  ? 'Self Managed'
+                                  : project.status.label,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: project.status.color,
+                                color:
+                                    project.assignmentMethod == 'decide_later'
+                                    ? const Color(0xFFF57C00) // Orange text
+                                    : project.assignmentMethod == 'self_managed'
+                                    ? const Color(0xFF276572)
+                                    : project.status.color,
                               ),
                             ),
                           ),
@@ -144,87 +170,132 @@ class ProjectCard extends StatelessWidget {
                     ],
                   ),
 
-                    // Alert or Spacer
-                    if (hasAlert)
-                      Container(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3F2),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFFEE4E2)),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFEE4E2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: SvgPicture.asset('assets/images/shield-warning.svg',
-                                width: 20,
-                                height: 20,
-                                colorFilter: const ColorFilter.mode(Color(0xFFD92D20), BlendMode.srcIn),
+                  // Alert or Spacer
+                  if (hasAlert)
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3F2),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFFEE4E2)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEE4E2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: SvgPicture.asset(
+                              'assets/images/shield-warning.svg',
+                              width: 20,
+                              height: 20,
+                              colorFilter: const ColorFilter.mode(
+                                Color(0xFFD92D20),
+                                BlendMode.srcIn,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            const Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Ball-in-court', style: TextStyle(fontSize: 12, color: Color(0xFF475467))),
-                                SizedBox(height: 2),
-                                Text('Project Owner', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF101828))),
-                              ],
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      const Spacer(),
+                          ),
+                          const SizedBox(width: 12),
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Ball-in-court',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF475467),
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Project Owner',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF101828),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    const Spacer(),
 
-                    // Bottom Section
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            SvgPicture.asset('assets/images/map.svg', colorFilter: const ColorFilter.mode(Color(0xFF0F973D), BlendMode.srcIn), width: 14, height: 14),
-                            const SizedBox(width: 4),
-                            const Text('Current Phase', style: TextStyle(color: Colors.white, fontSize: 13)),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: const LinearProgressIndicator(
-                                  value: 0.15,
-                                  minHeight: 8,
-                                  backgroundColor: Colors.white,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF276572)),
+                  // Bottom Section
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          SvgPicture.asset(
+                            'assets/images/map.svg',
+                            colorFilter: const ColorFilter.mode(
+                              Color(0xFF0F973D),
+                              BlendMode.srcIn,
+                            ),
+                            width: 14,
+                            height: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            'Current Phase',
+                            style: TextStyle(color: Colors.white, fontSize: 13),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: progressPercentage / 100,
+                                minHeight: 8,
+                                backgroundColor: Colors.white,
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF276572),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildBottomChip('assets/images/bill-list.svg', project.formattedBudget, flex: 2),
-                            const SizedBox(width: 8),
-                            _buildBottomChip('assets/images/Calendar.svg', project.daysRemaining, flex: 1),
-                            const SizedBox(width: 8),
-                            _buildBottomChip('assets/images/team.svg', '--', flex: 1),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildBottomChip(
+                            'assets/images/bill-list.svg',
+                            project.formattedBudget,
+                            flex: 2,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildBottomChip(
+                            'assets/images/Calendar.svg',
+                            project.daysRemaining,
+                            flex: 1,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildBottomChip(
+                            'assets/images/team.svg',
+                            '--',
+                            flex: 1,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
         ),
+      ),
     );
   }
 
@@ -233,16 +304,31 @@ class ProjectCard extends StatelessWidget {
       flex: flex,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SvgPicture.asset(iconPath, width: 16, height: 16, colorFilter: const ColorFilter.mode(Color(0xFF475467), BlendMode.srcIn)),
+            SvgPicture.asset(
+              iconPath,
+              width: 16,
+              height: 16,
+              colorFilter: const ColorFilter.mode(
+                Color(0xFF475467),
+                BlendMode.srcIn,
+              ),
+            ),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
                 label,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF101828)),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF101828),
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),

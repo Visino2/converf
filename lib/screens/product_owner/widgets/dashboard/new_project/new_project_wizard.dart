@@ -4,8 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:converf/features/projects/models/project.dart';
 import 'package:converf/features/projects/providers/project_providers.dart';
 import 'package:converf/features/projects/models/project_payloads.dart';
+import 'package:converf/features/auth/providers/auth_provider.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/new_project/models/new_project_state.dart';
-import 'package:converf/screens/product_owner/widgets/dashboard/more/billing/billing_screen.dart';
 import 'providers/wizard_provider.dart';
 import 'steps/step_type.dart';
 import 'steps/step_details.dart';
@@ -14,6 +14,7 @@ import 'steps/step_timeline.dart';
 import 'steps/step_specialisations.dart';
 import 'steps/step_review.dart';
 import 'widgets/success_view.dart';
+import 'package:converf/screens/widgets/modals/upgrade_plan_modal.dart';
 
 class NewProjectWizard extends ConsumerStatefulWidget {
   final Project? initialProject;
@@ -24,6 +25,9 @@ class NewProjectWizard extends ConsumerStatefulWidget {
 }
 
 class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
+  final ScrollController _scrollController = ScrollController();
+  int _renderedStep = -1;
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +56,7 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     debugPrint('NewProjectWizard: disposed');
     super.dispose();
   }
@@ -79,187 +84,188 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
       );
     }
 
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
-          ),
-        ),
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
-        ),
-        child: Material(
-          // Added Material for standard widget behavior
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Drag Handle
-              const SizedBox(height: 12),
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE4E7EC),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
+    // Scroll to top whenever the step changes — done here (in build) so it
+    // fires every time we rebuild for a new step without needing a listener.
+    if (state.currentStep != _renderedStep) {
+      _renderedStep = state.currentStep;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.jumpTo(0);
+        }
+      });
+    }
 
-              // Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Create New Project',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF111827),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Step ${state.currentStep + 1} of 6',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF6B7280),
-                          ),
-                        ),
-                      ],
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF3F4F6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          size: 20,
-                          color: Color(0xFF4B5563),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    // Use a tight SizedBox so Column / Expanded always have a definite height.
+    // Container(maxHeight) gives loose constraints which can make Expanded
+    // collapse to zero on certain frames, causing the blank-step bug.
+    final double modalHeight = MediaQuery.of(context).size.height * 0.9;
+    final double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
-              // Progress Bar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: ClipRRect(
+    return SizedBox(
+      height: modalHeight,
+      child: Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+        child: Column(
+          children: [
+            // Drag Handle
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE4E7EC),
                   borderRadius: BorderRadius.circular(2),
-                  child: LinearProgressIndicator(
-                    value: (state.currentStep + 1) / 6,
-                    backgroundColor: const Color(0xFFF3F4F6),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF309DAA),
-                    ),
-                    minHeight: 4,
-                  ),
                 ),
               ),
+            ),
 
-              // Step Content
-              Flexible(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.all(24),
-                  child: _buildStepContent(state.currentStep),
-                ),
-              ),
-
-              // Footer
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  24,
-                  16,
-                  24,
-                  MediaQuery.of(context).padding.bottom + 24,
-                ),
-                child: Row(
-                  children: [
-                    if (state.currentStep > 0)
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: state.isLoading
-                              ? null
-                              : () =>
-                                    notifier.updateStep(state.currentStep - 1),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                          child: const Text(
-                            'Back',
-                            style: TextStyle(
-                              color: Color(0xFF4B5563),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Create New Project',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF111827),
                         ),
                       ),
-                    if (state.currentStep > 0) const SizedBox(width: 16),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Step ${state.currentStep + 1} of 6',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF3F4F6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 20,
+                        color: Color(0xFF4B5563),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Progress Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value: (state.currentStep + 1) / 6,
+                  backgroundColor: const Color(0xFFF3F4F6),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    Color(0xFF309DAA),
+                  ),
+                  minHeight: 4,
+                ),
+              ),
+            ),
+
+            // Step Content — no ValueKey here; tight SizedBox above ensures
+            // Expanded always has a definite height, preventing blank frames.
+            Expanded(
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + keyboardHeight),
+                child: _buildStepContent(state.currentStep),
+              ),
+            ),
+
+            // Footer
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                16,
+                24,
+                MediaQuery.of(context).padding.bottom + 24,
+              ),
+              child: Row(
+                children: [
+                  if (state.currentStep > 0)
                     Expanded(
-                      child: ElevatedButton(
-                        onPressed: (_isStepValid(state) && !state.isLoading)
-                            ? () => _handleNext(context, ref)
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF276572),
+                      child: OutlinedButton(
+                        onPressed: state.isLoading
+                            ? null
+                            : () => notifier.updateStep(state.currentStep - 1),
+                        style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
-                          elevation: 0,
                         ),
-                        child: state.isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Text(
-                                state.currentStep == 5
-                                    ? 'Confirm & Create'
-                                    : 'Continue',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                        child: const Text(
+                          'Back',
+                          style: TextStyle(
+                            color: Color(0xFF4B5563),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  if (state.currentStep > 0) const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: (_isStepValid(state) && !state.isLoading)
+                          ? () => _handleNext(context, ref)
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF276572),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: state.isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              state.currentStep == 5
+                                  ? 'Confirm & Create'
+                                  : 'Continue',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -311,6 +317,9 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
             state.budget.isEmpty ||
             state.assignmentMethod == null) {
           isValid = false;
+        } else if (state.assignmentMethod == 'decide_later') {
+          // "Decide Later" is always valid - no additional requirements
+          isValid = true;
         } else if (state.assignmentMethod == 'direct' &&
             state.selectedContractorId == null) {
           isValid = false;
@@ -444,6 +453,12 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
           }
 
           notifier.setProjectId(res.id);
+          notifier.setMaxSavedStep(1);
+        } else if (state.maxSavedStep >= 1) {
+          // Already saved — skip re-calling the API and just advance.
+          debugPrint(
+            'Step 1: Already saved (maxSavedStep=${state.maxSavedStep}), advancing locally.',
+          );
         } else {
           // PATCH: send ALL fields to satisfy backend validation
           final payload = _buildFullPayload(state, 1);
@@ -476,6 +491,7 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
             ),
           );
           debugPrint('Step 1: UpdateBasicInfo Success');
+          notifier.setMaxSavedStep(1);
         }
         notifier.updateStep(2);
       } else {
@@ -492,6 +508,11 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
         debugPrint('Step ${state.currentStep} PATCH payload: $payload');
 
         if (state.currentStep == 2) {
+          if (state.maxSavedStep >= 2) {
+            debugPrint('Step 2: Already saved, advancing locally.');
+            notifier.updateStep(3);
+            return;
+          }
           await apiNotifier.updateLocation(
             state.projectId!,
             UpdateLocationPayload(
@@ -509,19 +530,19 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
               budget: payload['budget'],
               currency: payload['currency'],
               urgencyLevel: payload['urgency_level'],
-              assignmentMethod: payload['assignment_method'],
-              contractorId: payload['contractor_id'],
-              biddingDeadline: payload['bidding_deadline'],
-              specialisations: payload['specialisations'] != null
-                  ? List<String>.from(payload['specialisations'])
-                  : null,
               confirm: payload['confirm'],
               agreeTerms: payload['agree_terms'],
             ),
           );
           debugPrint('Step 2: UpdateLocation Success');
+          notifier.setMaxSavedStep(2);
           notifier.updateStep(3);
         } else if (state.currentStep == 3) {
+          if (state.maxSavedStep >= 3) {
+            debugPrint(
+              'Step 3: Already saved, checking if assignment changed...',
+            );
+          }
           await apiNotifier.updateTimelineBudget(
             state.projectId!,
             UpdateTimelineBudgetPayload(
@@ -531,7 +552,7 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
               budget: payload['budget'],
               currency: payload['currency'],
               urgencyLevel: payload['urgency_level'],
-              assignmentMethod: payload['assignment_method']!,
+              assignmentMethod: payload['assignment_method'],
               contractorId: payload['contractor_id'],
               biddingDeadline: payload['bidding_deadline'],
               title: payload['title'],
@@ -550,8 +571,45 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
             ),
           );
           debugPrint('Step 3: UpdateTimelineBudget Success');
+          notifier.setMaxSavedStep(3);
+
+          // If self-contractor was selected, add them as contractor participant
+          if (state.selectedContractorId != null &&
+              payload['contractor_id'] != null) {
+            final authState = ref.read(authProvider);
+            if (authState.hasValue && authState.value != null) {
+              final currentUserId = authState.value!.user['id'] as String?;
+              if (currentUserId == state.selectedContractorId) {
+                debugPrint(
+                  'Self-contractor detected. Adding as project participant...',
+                );
+                try {
+                  await apiNotifier.addContractorParticipant(
+                    state.projectId!,
+                    state.selectedContractorId!,
+                  );
+                  debugPrint('Self-contractor participant added successfully');
+                } catch (e) {
+                  debugPrint(
+                    'Warning: Failed to add self-contractor participant: $e',
+                  );
+                  // Don't fail the entire wizard if this fails
+                }
+              }
+            }
+          }
+
+          // Continue to step 4 for all assignment methods (including decide_later)
           notifier.updateStep(4);
         } else if (state.currentStep == 4) {
+          // When transitioning from decide_later to a real assignment method,
+          // we need to call updateSpecialisations even if already saved at step 4
+          if (state.maxSavedStep >= 4 &&
+              state.assignmentMethod != 'decide_later') {
+            debugPrint('Step 4: Already saved, advancing locally.');
+            notifier.updateStep(5);
+            return;
+          }
           await apiNotifier.updateSpecialisations(
             state.projectId!,
             UpdateSpecialisationsPayload(
@@ -570,14 +628,12 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
               budget: payload['budget'],
               currency: payload['currency'],
               urgencyLevel: payload['urgency_level'],
-              assignmentMethod: payload['assignment_method'],
-              contractorId: payload['contractor_id'],
-              biddingDeadline: payload['bidding_deadline'],
               confirm: payload['confirm'],
               agreeTerms: payload['agree_terms'],
             ),
           );
           debugPrint('Step 4: UpdateSpecialisations Success');
+          notifier.setMaxSavedStep(4);
           notifier.updateStep(5);
         } else if (state.currentStep == 5) {
           await apiNotifier.confirmProject(
@@ -599,9 +655,6 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
               budget: payload['budget'],
               currency: payload['currency'],
               urgencyLevel: payload['urgency_level'],
-              assignmentMethod: payload['assignment_method'],
-              contractorId: payload['contractor_id'],
-              biddingDeadline: payload['bidding_deadline'],
               specialisations: payload['specialisations'] != null
                   ? List<String>.from(payload['specialisations'])
                   : null,
@@ -634,7 +687,6 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
                 budget: payload['budget'],
                 currency: payload['currency'],
                 urgencyLevel: payload['urgency_level'],
-                assignmentMethod: payload['assignment_method'],
                 biddingDeadline: payload['bidding_deadline'],
                 specialisations: payload['specialisations'] != null
                     ? List<String>.from(payload['specialisations'])
@@ -651,113 +703,24 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
     } catch (e) {
       debugPrint('Wizard Error: $e');
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
         final message = e.toString();
-        if (_isPlanLimitError(message)) {
-          _showUpgradeDialog(context, message);
+        if (message.toLowerCase().contains('402') ||
+            message.toLowerCase().contains('free plan allows')) {
+          // It's a payment/plan limitation. Close the wizard and show the premium modal.
+          Navigator.of(context).pop(); // Close NewProjectWizard
+          showUpgradePlanModal(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
       }
     } finally {
       notifier.setLoading(false);
     }
-  }
-
-  bool _isPlanLimitError(String message) {
-    final lower = message.toLowerCase();
-    return lower.contains('free plan allows') ||
-        lower.contains('upgrade to create more');
-  }
-
-  void _showUpgradeDialog(BuildContext context, String message) {
-    showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Upgrade Required',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  height: 1.4,
-                  color: Color(0xFF475467),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        side: const BorderSide(color: Color(0xFFE5E7EB)),
-                      ),
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                      child: const Text(
-                        'Maybe Later',
-                        style: TextStyle(
-                          color: Color(0xFF0EA5E9),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0EA5E9),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      onPressed: () {
-                        Navigator.of(ctx).pop(true);
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const BillingScreen(),
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        'Go to Billing',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
