@@ -241,7 +241,40 @@ class OnboardingAuthStep extends ConsumerWidget {
                             color: Colors.grey.shade600,
                           ),
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F9FF),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: const Color(0xFFBAE6FD)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.wifi_off_rounded,
+                                size: 16,
+                                color: Color(0xFF0369A1),
+                              ),
+                              SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  'Works online & offline — sync when you\'re back',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF0369A1),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
                         _buildSocialButton(
                           title: 'Continue with Google',
                           iconWidget: Image.asset(

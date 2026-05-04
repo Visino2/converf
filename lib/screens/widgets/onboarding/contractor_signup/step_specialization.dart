@@ -1,10 +1,10 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 class ContractorSpecializationStep extends StatefulWidget {
   final Future<void> Function() onSignupSubmit;
   final TextEditingController addressController;
-  final TextEditingController tinController;
   final TextEditingController passwordController;
   final TextEditingController confirmPasswordController;
   final Map<String, bool> specializations;
@@ -14,12 +14,15 @@ class ContractorSpecializationStep extends StatefulWidget {
   final bool infoAccurate;
   final Function(bool) onInfoAccurateChanged;
   final bool isLoading;
+  final String? insuranceDocumentName;
+  final Function(String? path, String? name) onInsuranceDocumentPicked;
+  final String? selectedProfessionalBody;
+  final Function(String?) onProfessionalBodyChanged;
 
   const ContractorSpecializationStep({
     super.key,
     required this.onSignupSubmit,
     required this.addressController,
-    required this.tinController,
     required this.passwordController,
     required this.confirmPasswordController,
     required this.specializations,
@@ -28,7 +31,11 @@ class ContractorSpecializationStep extends StatefulWidget {
     required this.onTermsChanged,
     required this.infoAccurate,
     required this.onInfoAccurateChanged,
+    required this.onInsuranceDocumentPicked,
+    required this.onProfessionalBodyChanged,
     this.isLoading = false,
+    this.insuranceDocumentName,
+    this.selectedProfessionalBody,
   });
 
   @override
@@ -497,13 +504,125 @@ class _ContractorSpecializationStepState
             },
           ),
           const SizedBox(height: 16),
-          _buildTextField(
-            'Tax Identification Number (TIN)',
-            'Enter your TIN',
-            controller: widget.tinController,
-            validator: (v) {
-              return null;
-            },
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Insurance Documentation *',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () async {
+                  final result = await FilePicker.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+                  );
+                  if (result != null && result.files.isNotEmpty) {
+                    widget.onInsuranceDocumentPicked(
+                      result.files.single.path,
+                      result.files.single.name,
+                    );
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFD1D5DB)),
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.upload_file, color: Color(0xFF276572), size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          widget.insuranceDocumentName ?? 'Upload insurance document (PDF/Image)',
+                          style: TextStyle(
+                            color: widget.insuranceDocumentName != null
+                                ? Colors.black87
+                                : Colors.grey.shade500,
+                            fontSize: 14,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (widget.insuranceDocumentName != null)
+                        const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Professional Registration Body *',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Select the professional body your registered personnel belongs to',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: widget.selectedProfessionalBody,
+                decoration: InputDecoration(
+                  hintText: 'Select professional body',
+                  hintStyle:
+                      TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF276572)),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.red),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        const BorderSide(color: Colors.red, width: 2),
+                  ),
+                ),
+                validator: (v) => (v == null || v.isEmpty)
+                    ? 'Please select a professional registration body'
+                    : null,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                items: const [
+                  DropdownMenuItem(
+                      value: 'COREN',
+                      child: Text('COREN – Council for Regulation of Engineering')),
+                  DropdownMenuItem(
+                      value: 'ARCON',
+                      child: Text('ARCON – Architects Registration Council')),
+                  DropdownMenuItem(
+                      value: 'NIA',
+                      child: Text('NIA – Nigerian Institute of Architects')),
+                  DropdownMenuItem(
+                      value: 'NIQS',
+                      child:
+                          Text('NIQS – Nigerian Institute of Quantity Surveyors')),
+                ],
+                onChanged: (v) => widget.onProfessionalBodyChanged(v),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Container(
@@ -520,7 +639,7 @@ class _ContractorSpecializationStepState
                 const Text(
                   'Additional verification required',
                   style: TextStyle(
-                    color: Color(0xFF166534), // green-800
+                    color: Color(0xFF166534),
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -570,7 +689,7 @@ class _ContractorSpecializationStepState
           ),
           const SizedBox(height: 16),
           _buildTermsCheckbox(
-            'I confirm that all company information provided is accurate and I will submit verification documents (company registration certificate, valid ID, tax documents, and proof of past projects) within 7 days to complete my profile verification.',
+            'I confirm that all company information provided is accurate and I will submit verification documents (company registration certificate, valid ID, insurance documentation, professional registration certificate, and proof of past projects) within 7 days to complete my profile verification.',
             widget.infoAccurate,
             (v) => widget.onInfoAccurateChanged(v ?? false),
           ),

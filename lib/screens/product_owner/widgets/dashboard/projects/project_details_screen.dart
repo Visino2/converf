@@ -68,6 +68,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
     super.dispose();
   }
 
+
   Future<ImageSource?> _showSourceDialog() async {
     return showModalBottomSheet<ImageSource>(
       context: context,
@@ -434,13 +435,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.menu, color: Color(0xFF667085)),
-            onPressed: () {},
-          ),
-          const SizedBox(width: 8),
-        ],
+        actions: const [],
       ),
       body: projectAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF276572))),

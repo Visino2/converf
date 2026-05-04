@@ -7,9 +7,9 @@ String _planDescription(String planName) {
   if (name.contains('free')) return 'Basic access · 1 project · limited features';
   if (name.contains('starter')) return '10 projects · team management · AI credits';
   if (name.contains('professional')) return '20 projects · advanced tools · priority support';
-  if (name.contains('elite')) return 'Unlimited projects · elite support · all features';
+  if (name.contains('elite')) return 'Unlimited projects · elite support · all features · Free QAQC Training (3 seats)';
   if (name.contains('builder')) return 'Unlimited projects · advanced analytics · priority support';
-  if (name.contains('enterprise')) return 'Custom limits · dedicated support · SLA guarantee';
+  if (name.contains('enterprise')) return 'Custom limits · dedicated support · SLA guarantee · Free QAQC Training (10 seats)';
   return 'Contact us for details';
 }
 
@@ -331,6 +331,36 @@ class _ChangePlanDialogState extends State<ChangePlanDialog> {
                       color: Color(0xFF309DAA),
                     ),
                   ),
+                  if (!plan.name.toLowerCase().contains('free') &&
+                      !plan.name.toLowerCase().contains('basic')) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF3),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFABEFC6)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.star_rounded, size: 11, color: Color(0xFF067647)),
+                          SizedBox(width: 3),
+                          Text(
+                            'Free Setup & Training',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF067647),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

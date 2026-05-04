@@ -54,12 +54,38 @@ class _PlansSectionState extends State<PlansSection> {
       return '30 projects, 75 team members, 100 GB storage';
     }
     if (lower.contains('elite')) {
-      return 'Unlimited projects, Unlimited team members, 500 GB storage';
+      return 'Unlimited projects, Unlimited team members, 500 GB storage · Free QAQC Training (3 seats)';
     }
     if (lower.contains('enterprise')) {
-      return 'Unlimited projects, Unlimited team members, 2000 GB storage';
+      return 'Unlimited projects, Unlimited team members, 2000 GB storage · Free QAQC Training (10 seats)';
     }
     return 'Upgrade to unlock higher limits.';
+  }
+
+  String _getPricingText(BillingPlan plan) {
+    final monthlyPrice = plan.price ?? 0;
+    final yearlyPrice = (monthlyPrice * 12 * 0.9).toStringAsFixed(0);
+    final currency = plan.currency ?? '₦';
+
+    if (monthlyPrice > 0) {
+      return '$currency${monthlyPrice.toStringAsFixed(0)}/month or $currency$yearlyPrice/year (10% savings)';
+    }
+    return 'Contact for pricing';
+  }
+
+  bool _isFreePlan(BillingPlan plan) {
+    final lower = plan.name.toLowerCase();
+    return lower.contains('free') ||
+        lower.contains('basic') ||
+        (plan.price ?? 0) == 0;
+  }
+
+  bool _isCurrentPlanPaid() {
+    if (widget.currentSubscription == null) return false;
+    final currentPlanName =
+        widget.currentSubscription!.planName?.toLowerCase() ?? '';
+    return !currentPlanName.contains('free') &&
+        !currentPlanName.contains('basic');
   }
 
   @override
@@ -147,7 +173,7 @@ class _PlansSectionState extends State<PlansSection> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    priceText(plan),
+                                    _getPricingText(plan),
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
@@ -189,6 +215,42 @@ class _PlansSectionState extends State<PlansSection> {
                               ),
                           ],
                         ),
+                        if (!plan.name.toLowerCase().contains('free') &&
+                            !plan.name.toLowerCase().contains('basic')) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFECFDF3),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFFABEFC6),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.star_rounded,
+                                  size: 13,
+                                  color: Color(0xFF067647),
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Free Setup & Training Included',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF067647),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         const Divider(height: 1, color: Color(0xFFF2F4F7)),
                         const SizedBox(height: 16),
@@ -221,47 +283,66 @@ class _PlansSectionState extends State<PlansSection> {
                         const SizedBox(height: 20),
                         SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isCurrent
-                                  ? const Color(0xFFF2F4F7)
-                                  : const Color(0xFF276572),
-                              foregroundColor: isCurrent
-                                  ? const Color(0xFF667085)
-                                  : Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                          child: Tooltip(
+                            message: (_isFreePlan(plan) && _isCurrentPlanPaid())
+                                ? 'Cannot change to Free plan. Use Cancel Subscription instead.'
+                                : '',
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isCurrent
+                                    ? const Color(0xFFF2F4F7)
+                                    : ((_isFreePlan(plan) &&
+                                              _isCurrentPlanPaid())
+                                          ? const Color(0xFFE5E7EB)
+                                          : const Color(0xFF276572)),
+                                foregroundColor: isCurrent
+                                    ? const Color(0xFF667085)
+                                    : ((_isFreePlan(plan) &&
+                                              _isCurrentPlanPaid())
+                                          ? const Color(0xFF9CA3AF)
+                                          : Colors.white),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
                               ),
-                              elevation: 0,
-                            ),
-                            onPressed: isCurrent || _loadingPlanId != null
-                                ? null
-                                : () async {
-                                    setState(() => _loadingPlanId = plan.id);
-                                    try {
-                                      await widget.onSelectPlan(plan.id);
-                                    } finally {
-                                      if (mounted) {
-                                        setState(() => _loadingPlanId = null);
+                              onPressed:
+                                  isCurrent ||
+                                      _loadingPlanId != null ||
+                                      (_isFreePlan(plan) &&
+                                          _isCurrentPlanPaid())
+                                  ? null
+                                  : () async {
+                                      setState(() => _loadingPlanId = plan.id);
+                                      try {
+                                        await widget.onSelectPlan(plan.id);
+                                      } finally {
+                                        if (mounted) {
+                                          setState(() => _loadingPlanId = null);
+                                        }
                                       }
-                                    }
-                                  },
-                            child: _loadingPlanId == plan.id
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
+                                    },
+                              child: _loadingPlanId == plan.id
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(
+                                      isCurrent
+                                          ? 'Current Plan'
+                                          : 'Choose Plan',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                  )
-                                : Text(
-                                    isCurrent ? 'Current Plan' : 'Choose Plan',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
+                            ),
                           ),
                         ),
                       ],

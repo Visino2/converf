@@ -21,7 +21,21 @@ String formatFeatureName(String key) => key.replaceAll('_', ' ').toTitleCase();
 
 String formatDate(DateTime? date) {
   if (date == null) return '—';
-  return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  final months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  return '${months[date.month - 1]} ${date.day}, ${date.year}';
 }
 
 extension StringCapitalizeExtension on String {

@@ -42,13 +42,14 @@ class _OnboardingContractorSignupStepState
   final _registrationNumberController = TextEditingController();
   final _licenseNumberController = TextEditingController();
   final _addressController = TextEditingController();
-  final _tinController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
   // State for all steps
   String? _selectedCountry = 'Nigeria';
   String? _yearsInBusiness;
+  String? _insuranceDocumentName;
+  String? _selectedProfessionalBody;
   final Map<String, bool> _specializations = {
     'residential': false,
     'infrastructure': false,
@@ -69,7 +70,6 @@ class _OnboardingContractorSignupStepState
     _registrationNumberController.dispose();
     _licenseNumberController.dispose();
     _addressController.dispose();
-    _tinController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -179,7 +179,8 @@ class _OnboardingContractorSignupStepState
       licenseNumber: _licenseNumberController.text,
       constructionSpecialisations: selectedSpecs,
       businessAddress: _addressController.text,
-      taxIdentificationNumber: _tinController.text,
+      insuranceDocumentName: _insuranceDocumentName,
+      professionalBody: _selectedProfessionalBody,
       agreedToTerms: _termsAgreed,
       confirmedInformationAccuracy: _infoAccurate,
       password: _passwordController.text,
@@ -393,7 +394,6 @@ class _OnboardingContractorSignupStepState
         return ContractorSpecializationStep(
           onSignupSubmit: _handleSignup,
           addressController: _addressController,
-          tinController: _tinController,
           passwordController: _passwordController,
           confirmPasswordController: _confirmPasswordController,
           specializations: _specializations,
@@ -404,6 +404,13 @@ class _OnboardingContractorSignupStepState
           infoAccurate: _infoAccurate,
           onInfoAccurateChanged: (v) => setState(() => _infoAccurate = v),
           isLoading: authState.isLoading,
+          insuranceDocumentName: _insuranceDocumentName,
+          onInsuranceDocumentPicked: (path, name) => setState(() {
+            _insuranceDocumentName = name;
+          }),
+          selectedProfessionalBody: _selectedProfessionalBody,
+          onProfessionalBodyChanged: (v) =>
+              setState(() => _selectedProfessionalBody = v),
         );
       default:
         return ContractorPersonalInfoStep(

@@ -416,4 +416,15 @@ class ProjectRepository {
       rethrow;
     }
   }
+
+  Future<void> archiveProject(String projectId) async {
+    await _apiClient.patch(
+      '/api/v1/projects/$projectId',
+      data: {'status': 'archived'},
+    );
+  }
+
+  Future<void> deleteProject(String projectId) async {
+    await _apiClient.delete('/api/v1/projects/$projectId');
+  }
 }

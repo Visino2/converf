@@ -88,7 +88,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Billing & Subscription',
+              'Subscription',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,

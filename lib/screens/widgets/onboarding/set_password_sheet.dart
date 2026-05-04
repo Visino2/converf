@@ -63,8 +63,8 @@ class _SetPasswordSheetState extends ConsumerState<SetPasswordSheet> {
         ),
         child: Form(
           key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: SingleChildScrollView(
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Center(
@@ -153,6 +153,7 @@ class _SetPasswordSheetState extends ConsumerState<SetPasswordSheet> {
                 ),
               ),
             ],
+          ),
           ),
         ),
       ),

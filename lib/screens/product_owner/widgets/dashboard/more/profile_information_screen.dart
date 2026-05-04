@@ -31,6 +31,7 @@ class _ProfileInformationScreenState
   bool _hasChanges = false;
   bool _isSyncing = false;
   String? _formError;
+  int _imageCacheKey = 0;
 
   @override
   void initState() {
@@ -117,10 +118,18 @@ class _ProfileInformationScreenState
       final success = await ref
           .read(profileNotifierProvider.notifier)
           .updateProfilePicture(pickedFile.path);
-      if (mounted && success) {
+      if (!mounted) return;
+      if (success) {
+        setState(() => _imageCacheKey++);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile picture updated successfully'),
+          const SnackBar(content: Text('Profile picture updated successfully')),
+        );
+      } else {
+        final err = ref.read(profileNotifierProvider).error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(err != null ? 'Upload failed: $err' : 'Failed to update profile picture. Please try again.'),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -241,8 +250,7 @@ class _ProfileInformationScreenState
                                   profile.profilePicture != null
                               ? DecorationImage(
                                   image: NetworkImage(
-                                    profile.avatarUrl ??
-                                        profile.profilePicture!,
+                                    '${profile.avatarUrl ?? profile.profilePicture!}?v=$_imageCacheKey',
                                   ),
                                   fit: BoxFit.cover,
                                 )
@@ -352,12 +360,13 @@ class _ProfileInformationScreenState
                 _buildField(
                   'Phone Number',
                   _phoneController,
-                  hint: 'Enter Phone Number',
+                  hint: '+234 801 234 5678',
                   enabled: !actionState.isLoading,
                   keyboardType: TextInputType.phone,
+                  prefixText: '+234 ',
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return null;
-                    final digits = v.replaceAll(RegExp(r'[^0-9+]'), '');
+                    final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
                     if (digits.length < 7) return 'Looks too short';
                     return null;
                   },
@@ -469,6 +478,7 @@ class _ProfileInformationScreenState
     int maxLines = 1,
     String? Function(String?)? validator,
     TextInputType? keyboardType,
+    String? prefixText,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,6 +502,8 @@ class _ProfileInformationScreenState
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey.shade400),
+            prefixText: prefixText,
+            prefixStyle: const TextStyle(color: Color(0xFF374151)),
             filled: true,
             fillColor: fillColor ?? Colors.white,
             contentPadding: const EdgeInsets.symmetric(

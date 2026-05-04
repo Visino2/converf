@@ -257,7 +257,7 @@ class _ContractorBiddingPreferencesScreenState
                       child: Slider(
                         value: _minBudget,
                         min: 0,
-                        max: 100000000,
+                        max: 1000000000,
                         onChanged: (v) => setState(() => _minBudget = v),
                       ),
                     ),
@@ -275,7 +275,7 @@ class _ContractorBiddingPreferencesScreenState
                             ),
                           ),
                           Text(
-                            'N100M+',
+                            'N1B+',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,

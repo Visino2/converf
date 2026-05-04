@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:converf/features/dashboard/providers/dashboard_providers.dart';
 import 'package:converf/features/notifications/providers/notification_providers.dart';
+import 'package:converf/features/auth/providers/auth_provider.dart';
 import '../product_owner/widgets/dashboard/home/search_results_state.dart';
 import '../product_owner/widgets/dashboard/home/search_empty_state.dart';
 import 'package:converf/features/projects/providers/project_providers.dart';
@@ -158,22 +159,44 @@ class _ContractorHeader extends ConsumerWidget {
   final VoidCallback onToggleSearch;
   const _ContractorHeader({required this.onToggleSearch});
 
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning,';
+    if (hour < 17) return 'Good Afternoon,';
+    return 'Good Evening,';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final unreadCount = ref.watch(unreadNotificationsCountProvider);
     final unreadMessageCount = ref.watch(unreadMessageNotificationsCountProvider);
+    final firstName = ref.watch(authProvider).value?.user['first_name']?.toString() ?? '';
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
-          'Dashboard',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-            letterSpacing: -0.5,
-          ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _greeting(),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            Text(
+              firstName.isNotEmpty ? firstName : 'Welcome',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ],
         ),
         Row(
           children: [

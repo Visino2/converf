@@ -109,8 +109,8 @@ class _SubscriptionCardSectionState extends State<SubscriptionCardSection> {
                       const SizedBox(height: 6),
                       Text(
                         hasPlan
-                            ? 'Status: ${sub.status ?? 'active'}  ·  Renews: ${formatDate(sub.renewsAt)}'
-                            : 'Start a plan to unlock full billing features.',
+                            ? 'Renews on ${formatDate(sub.renewsAt ?? DateTime.now().add(const Duration(days: 30)))}  ·  Status: ${sub.status ?? 'active'}'
+                            : 'Start a plan to unlock full subscription features.',
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 13,

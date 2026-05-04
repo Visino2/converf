@@ -38,6 +38,7 @@ class BillingPlan {
   final num? price;
   final String? currency;
   final String? interval;
+  final String? billingCycle;
   final Map<String, bool> features;
   final Map<String, dynamic> raw;
 
@@ -48,6 +49,7 @@ class BillingPlan {
     this.price,
     this.currency,
     this.interval,
+    this.billingCycle,
     this.features = const {},
     this.raw = const {},
   });
@@ -62,6 +64,7 @@ class BillingPlan {
       currency: json['currency']?.toString(),
       interval:
           json['billing_interval']?.toString() ?? json['interval']?.toString(),
+      billingCycle: json['billing_cycle']?.toString(),
       features: featuresMap.map((key, value) => MapEntry(key, value == true)),
       raw: Map<String, dynamic>.from(json),
     );

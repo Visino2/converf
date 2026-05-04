@@ -552,7 +552,7 @@ class _NewProjectWizardState extends ConsumerState<NewProjectWizard> {
               budget: payload['budget'],
               currency: payload['currency'],
               urgencyLevel: payload['urgency_level'],
-              assignmentMethod: payload['assignment_method']!,
+              assignmentMethod: payload['assignment_method'],
               contractorId: payload['contractor_id'],
               biddingDeadline: payload['bidding_deadline'],
               title: payload['title'],

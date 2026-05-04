@@ -74,7 +74,7 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen> {
           _maybeSeed(profile);
           final value = _hideFinancials ?? profile.hideFinancials;
 
-          return Padding(
+          return SingleChildScrollView(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

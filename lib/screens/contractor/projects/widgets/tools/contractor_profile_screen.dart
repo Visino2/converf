@@ -26,6 +26,7 @@ class _ContractorProfileScreenState
     extends ConsumerState<ContractorProfileScreen> {
   bool _isVerificationExpanded = false;
   String _selectedFilter = 'Overview';
+  int _imageCacheKey = 0;
 
   Future<void> _pickAndUploadImage() async {
     final pickedFile = await ref
@@ -43,16 +44,18 @@ class _ContractorProfileScreenState
             .read(profileNotifierProvider.notifier)
             .updateProfilePicture(pickedFile.path);
         if (mounted) {
+          setState(() => _imageCacheKey++);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile picture updated successfully'),
-            ),
+            const SnackBar(content: Text('Profile picture updated successfully')),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to update profile picture: $e')),
+            SnackBar(
+              content: Text('Failed to update profile picture: $e'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -129,7 +132,7 @@ class _ContractorProfileScreenState
                               profile.avatarUrl != null ||
                                   profile.profilePicture != null
                               ? Image.network(
-                                  profile.avatarUrl ?? profile.profilePicture!,
+                                  '${profile.avatarUrl ?? profile.profilePicture!}?v=$_imageCacheKey',
                                   fit: BoxFit.cover,
                                   errorBuilder: (context, error, stackTrace) =>
                                       Container(color: const Color(0xFF309DAA)),
@@ -149,39 +152,79 @@ class _ContractorProfileScreenState
                           onTap: ref.watch(profileNotifierProvider).isLoading
                               ? null
                               : _pickAndUploadImage,
-                          child: Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: const Color(0xFFF3C08B),
-                              border: Border.all(color: Colors.white, width: 3),
-                            ),
-                            child: Center(
-                              child:
-                                  ref.watch(profileNotifierProvider).isLoading
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : SvgPicture.asset(
-                                      'assets/images/camera.svg',
-                                      width: 24,
-                                      height: 24,
-                                      colorFilter: const ColorFilter.mode(
-                                        Colors.white,
-                                        BlendMode.srcIn,
-                                      ),
-                                      errorBuilder: (_, _, _) => const Icon(
-                                        Icons.camera_alt,
-                                        color: Colors.white,
-                                      ),
+                          child: Stack(
+                            children: [
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFFF3C08B),
+                                  border: Border.all(color: Colors.white, width: 3),
+                                  image: profile.avatarUrl != null || profile.profilePicture != null
+                                      ? DecorationImage(
+                                          image: NetworkImage(
+                                            '${profile.avatarUrl ?? profile.profilePicture!}?v=$_imageCacheKey',
+                                          ),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
+                                ),
+                                child: ref.watch(profileNotifierProvider).isLoading
+                                    ? Container(
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.black26,
+                                        ),
+                                        child: const Center(
+                                          child: SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : profile.avatarUrl == null && profile.profilePicture == null
+                                        ? Center(
+                                            child: SvgPicture.asset(
+                                              'assets/images/camera.svg',
+                                              width: 28,
+                                              height: 28,
+                                              colorFilter: const ColorFilter.mode(
+                                                Colors.white,
+                                                BlendMode.srcIn,
+                                              ),
+                                              errorBuilder: (_, _, _) => const Icon(
+                                                Icons.camera_alt,
+                                                color: Colors.white,
+                                                size: 28,
+                                              ),
+                                            ),
+                                          )
+                                        : null,
+                              ),
+                              if (!ref.watch(profileNotifierProvider).isLoading)
+                                Positioned(
+                                  bottom: 2,
+                                  right: 2,
+                                  child: Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFFF6B35),
+                                      shape: BoxShape.circle,
                                     ),
-                            ),
+                                    child: const Icon(
+                                      Icons.camera_alt,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
@@ -406,8 +449,8 @@ class _ContractorProfileScreenState
                             'PENDING',
                       ),
                       _buildVerificationRow(
-                        'Tax Clearance ID',
-                        profile.verificationStatuses?['Tax Clearance ID'] ??
+                        'Professional Registration',
+                        profile.verificationStatuses?['Professional Registration'] ??
                             'PENDING',
                       ),
                       _buildVerificationRow(

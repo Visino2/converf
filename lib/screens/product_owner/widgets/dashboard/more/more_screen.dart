@@ -29,7 +29,7 @@ class MoreScreen extends ConsumerWidget {
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => const NotificationsScreen()));
         break;
-      case 'Billing & Subscription':
+      case 'Subscription':
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => const BillingScreen()));
         break;
@@ -57,7 +57,7 @@ class MoreScreen extends ConsumerWidget {
       {'title': 'Security', 'icon': 'assets/images/Shield.svg'},
       {'title': 'Notifications', 'icon': 'assets/images/Bell.svg'},
       {'title': 'Privacy Settings', 'icon': 'assets/images/Shield.svg'},
-      {'title': 'Billing & Subscription', 'icon': 'assets/images/card.png'},
+      {'title': 'Subscription', 'icon': 'assets/images/card.png'},
       {'title': 'Help & Support', 'icon': 'assets/images/headset.svg'},
       {'title': 'Delete Account', 'icon': 'assets/images/Shield.svg'},
     ];

@@ -16,6 +16,7 @@ import '../../../../features/projects/providers/project_image_providers.dart';
 import '../../../../features/projects/providers/schedule_providers.dart';
 import 'package:converf/core/api/api_client.dart';
 import 'widgets/project_hub_modal.dart';
+import 'widgets/tools/contractor_invoice_screen.dart';
 import 'widgets/animations/bouncing_ball.dart';
 import 'package:converf/screens/product_owner/widgets/dashboard/projects/project_images_modal.dart';
 // To fetch overall team for assignment
@@ -112,17 +113,32 @@ class _ContractorProjectDetailsScreenState
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.menu, color: Colors.black),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
             onSelected: (value) {
+              final project = projectAsync.value?.data;
               switch (value) {
                 case 'overview':
                   _openHub(0, true);
                 case 'schedule':
                   _openHub(1, true);
-                case 'share':
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Share link copied!')),
+                case 'invoice':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ContractorInvoiceScreen(),
+                    ),
                   );
+                case 'contact':
+                  if (project != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            MessageDetailsScreen(project: project),
+                      ),
+                    );
+                  }
               }
             },
             itemBuilder: (context) => [
@@ -143,11 +159,19 @@ class _ContractorProjectDetailsScreenState
                 ]),
               ),
               const PopupMenuItem(
-                value: 'share',
+                value: 'invoice',
                 child: Row(children: [
-                  Icon(Icons.share_outlined, size: 20),
+                  Icon(Icons.receipt_long_outlined, size: 20),
                   SizedBox(width: 12),
-                  Text('Share Project'),
+                  Text('Submit Invoice'),
+                ]),
+              ),
+              const PopupMenuItem(
+                value: 'contact',
+                child: Row(children: [
+                  Icon(Icons.message_outlined, size: 20),
+                  SizedBox(width: 12),
+                  Text('Contact Owner'),
                 ]),
               ),
             ],

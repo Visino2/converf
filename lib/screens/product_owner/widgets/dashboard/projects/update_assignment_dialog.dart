@@ -165,7 +165,9 @@ class _UpdateAssignmentDialogState extends ConsumerState<UpdateAssignmentDialog>
           const Divider(height: 1, color: Color(0xFFF5F5F5)),
 
           // Body
-          Padding(
+          Flexible(
+            child: SingleChildScrollView(
+              child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -311,6 +313,8 @@ class _UpdateAssignmentDialogState extends ConsumerState<UpdateAssignmentDialog>
                     ),
                   ),
               ],
+            ),
+          ),
             ),
           ),
 
